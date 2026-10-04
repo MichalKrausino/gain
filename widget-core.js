@@ -1,9 +1,14 @@
-// PLAN70_CORE v2 · vzhled widgetu Plán 70 kg pro Scriptable
+// PLAN70_CORE v3 · vzhled widgetu Plán 70 kg pro Scriptable a zápis jídla ťuknutím
 // Tenhle soubor si stahuje krátký skript ve Scriptable (s tvým klíčem) a spouští ho jako tělo funkce.
-// Dostane ctx = { KEY, ANON, family } a vrátí hotový ListWidget.
+// Dostane ctx = { KEY, ANON, family, loader, script, mode, params }.
+// Na ploše vrátí hotový ListWidget. Po ťuknutí (mode 'app') ukáže nabídku zápisu a vrátí null,
+// nebo 'preview', když si člověk chce prohlédnout velikosti widgetu (ty zobrazí krátký skript).
 const { KEY, ANON } = ctx;
 const family = ctx.family || 'medium';
 const API = 'https://djeadsdsmsurjnneiclx.supabase.co/rest/v1/rpc/plan70_today';
+const API_W = 'https://djeadsdsmsurjnneiclx.supabase.co/rest/v1/rpc/plan70_widget';
+// Ťuknutí spustí tenhle skript ve Scriptable (zápis bez Safari). Starší krátký skript to neumí, tam vede do appky.
+const RUN = q => ctx.loader >= 2 && ctx.script ? 'scriptable:///run/' + encodeURIComponent(ctx.script) + (q ? '?' + q : '') : APP + '#dnes';
 const APP = 'https://michalkrausino.github.io/gain/';
 
 // ---------- barvy ----------
@@ -111,7 +116,7 @@ function vcenter(st, build) { // svisle i vodorovně vystředěný obsah v konte
 // ---------- stav dne ----------
 const d = await load();
 const w = new ListWidget();
-w.url = APP + '#dnes';
+w.url = RUN('akce=dnes');
 const ok = d && d.hasPlan;
 const pct = ok && d.plan ? d.eaten / d.plan : 0;
 const done = ok && d.left <= 0;
@@ -257,7 +262,7 @@ function largeW() {
   const list = vstack(w, 2); list.backgroundColor = CARD; list.cornerRadius = 16; list.setPadding(5, 5, 5, 5);
   for (const m of meals) {
     const isNext = nx && m.k === nx.k, r = hstack(list, 8);
-    r.setPadding(2, 5, 2, 8); r.cornerRadius = 10;
+    r.setPadding(2, 5, 2, 8); r.cornerRadius = 10; r.url = RUN('slot=' + m.k);
     if (isNext) r.backgroundColor = NEXT_BG;
     const dot = r.addStack(); dot.size = new Size(20, 20); dot.cornerRadius = 10; dot.centerAlignContent();
     let tint;
@@ -321,6 +326,73 @@ function inlineW() {
   if (!ok) { text(w, 'Plán 70: otevři appku', Font.systemFont(12), C('#FFFFFF')); return; }
   text(w, done ? `Plán splněn · ${fmt(d.eaten)} kcal` : `Chybí ${fmt(d.left)} kcal${nx ? ` · ${(SHORT[nx.k] || slotName(nx)).toLowerCase()} ${hm(nx.t)}` : ''}`, Font.systemFont(12), C('#FFFFFF'));
 }
+
+// ---------- ťuknutí: zápis přímo ze Scriptable ----------
+async function rpc(akce, slot, frac) {
+  const r = new Request(API_W);
+  r.method = 'POST';
+  r.headers = { apikey: ANON, Authorization: 'Bearer ' + ANON, 'Content-Type': 'application/json' };
+  r.body = JSON.stringify({ key: KEY, akce, slot: slot || null, frac: frac == null ? 1 : frac });
+  r.timeoutInterval = 15;
+  return await r.loadJSON();
+}
+async function sheet(title, message, acts) { // acts: [[text, hodnota]]
+  const a = new Alert(); a.title = title; a.message = message || '';
+  for (const [n] of acts) a.addAction(n);
+  a.addCancelAction('Zavřít');
+  const i = await a.presentSheet();
+  return i >= 0 && i < acts.length ? acts[i][1] : null;
+}
+async function say(title, msg) { const a = new Alert(); a.title = title; a.message = msg || ''; a.addAction('OK'); await a.presentAlert(); }
+const PARTS = [[0.75, '¾'], [0.5, '½'], [0.25, '¼']];
+function mealMenu(m) {
+  const acts = [];
+  if (m.done) acts.push(['Zrušit „snědeno“', { akce: 'zrusit', slot: m.k }]);
+  else {
+    acts.push([`✓ Snědeno celé · ${fmt(m.kcal)} kcal`, { akce: 'snedeno', slot: m.k, frac: 1 }]);
+    for (const [f, n] of PARTS) acts.push([`Jen ${n} porce · ${fmt(m.kcal * f)} kcal`, { akce: 'snedeno', slot: m.k, frac: f }]);
+    if (!m.skip) acts.push(['Vynechat', { akce: 'vynechat', slot: m.k }]);
+  }
+  return sheet(`${slotName(m)} · ${hm(m.t)}`, (m.n || '') + (m.boost ? `\nBomba: ${m.boost}` : '') + (m.done ? '\nUž je odškrtnuté.' : ''), acts);
+}
+async function appMode() {
+  const p = ctx.params || {};
+  if (!d || d.offline) { await say('Bez spojení', 'Zápis z widgetu potřebuje internet. Zkus to za chvíli, nebo odškrtni jídlo v appce, ta funguje i offline.'); return null; }
+  if (!ok) { await say('Dnes bez plánu', 'Otevři appku Plán 70, ať se dnešní plán nahraje na server.'); return null; }
+  let pick = null;
+  const target = p.slot ? meals.find(m => m.k === p.slot) : null;
+  if (target) pick = await mealMenu(target);
+  else {
+    const open = meals.filter(m => !m.done && !m.skip), others = open.filter(m => !nx || m.k !== nx.k), acts = [];
+    if (nx) {
+      acts.push([`✓ ${slotName(nx)} snědeno · ${fmt(nx.kcal)} kcal`, { akce: 'snedeno', slot: nx.k, frac: 1 }]);
+      acts.push([`Jen část: ${slotName(nx).toLowerCase()}…`, { menu: 'part', m: nx }]);
+    }
+    if (others.length) acts.push(['Jiné jídlo z plánu…', { menu: 'others' }]);
+    if (meals.some(m => m.done)) acts.push(['Opravit odškrtnuté…', { menu: 'fix' }]);
+    acts.push(['Shake navíc · ~800 kcal', { akce: 'shake', frac: 1 }], ['½ shaku navíc · ~400 kcal', { akce: 'shake', frac: 0.5 }]);
+    acts.push(['Náhled widgetu', { menu: 'preview' }]);
+    const title = done ? `Splněno · ${fmt(d.eaten)} kcal` : `Chybí ${fmt(d.left)} kcal`;
+    const msg = `Snědeno ${fmt(d.eaten)} z ${fmt(d.plan)} kcal.` + (nx ? ` Další: ${slotName(nx).toLowerCase()} v ${hm(nx.t)}, ${nx.n}.` : '');
+    pick = await sheet(title, msg, acts);
+    if (pick && pick.menu === 'preview') return 'preview';
+    if (pick && pick.menu === 'part') pick = await sheet(`Kolik jsi snědl? ${slotName(pick.m)}`, pick.m.n, PARTS.map(([f, n]) => [`${n} porce · ${fmt(pick.m.kcal * f)} kcal`, { akce: 'snedeno', slot: pick.m.k, frac: f }]));
+    else if (pick && (pick.menu === 'others' || pick.menu === 'fix')) {
+      const list = pick.menu === 'others' ? others : meals.filter(m => m.done);
+      const m = await sheet(pick.menu === 'others' ? 'Které jídlo?' : 'Které opravit?', '', list.map(m => [`${slotName(m)} · ${hm(m.t)} · ${m.n}`, m]));
+      pick = m ? await mealMenu(m) : null;
+    }
+  }
+  if (!pick || !pick.akce) return null;
+  let res = null;
+  try { res = await rpc(pick.akce, pick.slot, pick.frac); } catch (e) { }
+  if (!res) { await say('Nezapsáno', 'Server neodpověděl. Zkus to znovu, nebo jídlo odškrtni v appce.'); return null; }
+  if (res.ok === false || !res.msg) { await say('Nezapsáno', res.msg || res.message || 'Server zápis odmítl. Zkontroluj klíč v appce: Nastavení → Zkratky a widget.'); return null; }
+  if (res.today && res.today.date) Keychain.set('plan70_today', JSON.stringify(res.today));
+  await say('Zapsáno', res.msg + '\n\nWidget se obnoví do pár minut.');
+  return null;
+}
+if (ctx.mode === 'app') return await appMode();
 
 if (family === 'accessoryCircular') circularW();
 else if (family === 'accessoryRectangular') rectangularW();

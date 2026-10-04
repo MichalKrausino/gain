@@ -166,6 +166,21 @@ button.row:active, .row-main:active { background: var(--press); }
 .now .eye .tile { width: 26px; height: 26px; border-radius: 7px; }
 .now .eye .tile svg { width: 16px; height: 16px; }
 
+.now-main { display: flex; flex-direction: column; gap: 3px; text-align: left; margin: -4px -6px; padding: 4px 6px; border-radius: 14px; }
+.now-main:active { background: var(--press); }
+.now-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-weight: 600; }
+.now-link .chev { color: currentColor; width: 7px; height: 12px; }
+.now .btns .btn { flex: 1 1 auto; padding: 0 16px; }
+.now .btns .btn.pri { flex-grow: 1.6; }
+.portions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pbtn { min-height: 64px; border-radius: 18px; background: var(--fill-3); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-align: center; }
+.pbtn b { font-size: 1.18rem; font-weight: 700; }
+.pbtn span { font-size: .706rem; color: var(--label-2); }
+.pbtn[aria-pressed="true"] { background: var(--tint); color: var(--on-tint); }
+.pbtn[aria-pressed="true"] span { color: inherit; opacity: .9; }
+.pbtn:active { transform: scale(.96); }
+.addc { width: 26px; height: 26px; border-radius: 50%; background: var(--tint); color: var(--on-tint); display: grid; place-items: center; }
+.addc svg { width: 15px; height: 15px; }
 /* Day strip */
 .strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-top: 14px; }
 .dayb { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 64px; padding-top: 2px; border-radius: 14px; }
@@ -748,10 +763,148 @@ function mealStats(id, mult = 1) {
   return { kcal, b, kc };
 }
 
-if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish };
+// ===== Běžná jídla mimo plán (na rychlý zápis „Snědl jsem něco navíc“) =====
+// [id, kategorie, název, porce, kcal, bílkoviny g, další slova pro hledání]. Průměrné porce, odchylka ±15 %.
+const FOOD_CATS = [['pec', 'Pečivo'], ['fast', 'Fast food'], ['venku', 'Menza a restaurace'], ['slad', 'Sladké a slané'], ['mlec', 'Mléčné'], ['snid', 'Snídaně a rychlovky'], ['ovoce', 'Ovoce a ořechy'], ['piti', 'Pití']];
+const FOODS = [
+  ['rohlik', 'pec', 'Rohlík', '1 ks (43 g)', 125, 4, 'pecivo'],
+  ['chleb', 'pec', 'Chleba', 'krajíc (50 g)', 120, 4, 'chleb'],
+  ['chleb_maslo', 'pec', 'Chleba s máslem', 'krajíc', 190, 4, 'chleb'],
+  ['kaiserka', 'pec', 'Kaiserka nebo houska', '1 ks (60 g)', 170, 5.5, 'pecivo'],
+  ['toust', 'pec', 'Toustový chléb', 'plátek (25 g)', 65, 2, 'toast'],
+  ['bageta', 'pec', 'Bageta bílá', 'malá (100 g)', 260, 8.5, 'veka'],
+  ['bageta_kure', 'pec', 'Bageta s kuřecím masem a sýrem', '1 ks (~250 g)', 560, 28, 'sendvic obchod'],
+  ['sendvic_kure', 'pec', 'Sendvič kuřecí z obchodu', '1 balení (~180 g)', 420, 22, 'trojuhelnik'],
+  ['wrap_kure', 'pec', 'Wrap s kuřetem z obchodu', '1 ks (~200 g)', 450, 22, 'tortilla'],
+  ['croissant', 'pec', 'Croissant máslový', '1 ks (60 g)', 250, 5, 'kroasan'],
+  ['croissant_n', 'pec', 'Croissant s náplní', '1 ks (80 g)', 330, 5, 'kroasan cokoladovy orisek'],
+  ['loupak', 'pec', 'Loupák', '1 ks (60 g)', 230, 5, ''],
+  ['kobliha', 'pec', 'Kobliha s marmeládou', '1 ks (70 g)', 260, 5, 'kobliha'],
+  ['donut', 'pec', 'Donut s polevou', '1 ks (60 g)', 260, 4, 'kobliha'],
+  ['buchta', 'pec', 'Buchta nebo koláč', '1 ks (90 g)', 320, 7, 'kolac'],
+  ['pizza_snek', 'pec', 'Pizza šnek se sýrem', '1 ks (100 g)', 300, 10, ''],
+  ['syr_rohlik', 'pec', 'Sýrový rohlík nebo pletenec', '1 ks (90 g)', 300, 12, ''],
+  ['bagel', 'pec', 'Bagel', '1 ks (90 g)', 250, 9, ''],
+  ['zavin', 'pec', 'Závin (štrúdl)', 'kousek (100 g)', 280, 4, 'strudl jablecny'],
+  ['babovka', 'pec', 'Bábovka', 'kousek (80 g)', 300, 5, 'babovka'],
+  ['zakusek', 'pec', 'Zákusek (medovník, věneček)', '1 ks (120 g)', 450, 6, 'dort medovnik venecek'],
+  ['kebab_pita', 'fast', 'Kebab v pitě, kuřecí', '1 ks (~400 g)', 700, 40, 'gyros'],
+  ['kebab_box', 'fast', 'Kebab box s hranolky, kuřecí', '1 box (~500 g)', 950, 45, 'gyros box'],
+  ['durum', 'fast', 'Dürüm kuřecí', '1 ks (~450 g)', 750, 42, 'durum kebab tortilla'],
+  ['pizza', 'fast', 'Pizza margherita', 'celá (32 cm)', 1000, 42, ''],
+  ['pizza_kus', 'fast', 'Pizza', '1 kousek (⅛)', 130, 5.5, 'dilek'],
+  ['pizza_tunak', 'fast', 'Pizza s tuňákem', 'celá (32 cm)', 1050, 58, 'tunak'],
+  ['burger_kure', 'fast', 'Kuřecí burger (McChicken)', '1 ks', 390, 17, 'mcdonald mekac'],
+  ['nugety', 'fast', 'Kuřecí nugetky', '9 ks', 400, 23, 'nuggets mcnuggets'],
+  ['hranolky', 'fast', 'Hranolky', 'střední porce', 330, 4, 'mekac'],
+  ['hranolky_v', 'fast', 'Hranolky', 'velká porce', 440, 5.5, ''],
+  ['wrap_ff', 'fast', 'Kuřecí wrap z fast foodu', '1 ks', 560, 27, 'mcwrap twister kfc'],
+  ['zinger', 'fast', 'Zinger burger (KFC)', '1 ks', 450, 25, 'kfc'],
+  ['stripsy', 'fast', 'Kuřecí stripsy (KFC)', '3 ks', 300, 26, 'kfc strips'],
+  ['milkshake', 'fast', 'Milkshake', 'střední', 400, 10, 'mlecny koktejl mekac'],
+  ['mcflurry', 'fast', 'Zmrzlinový pohár (McFlurry)', '1 ks', 340, 8, 'zmrzlina'],
+  ['parek_rohlik', 'fast', 'Párek v rohlíku, kuřecí', '1 ks', 330, 12, 'hotdog hot dog'],
+  ['langos', 'fast', 'Langoš se sýrem a česnekem', '1 ks', 650, 18, ''],
+  ['burrito', 'fast', 'Burrito kuřecí', '1 ks', 750, 40, 'mexicke'],
+  ['sushi', 'fast', 'Sushi', '8 ks', 350, 14, 'maki'],
+  ['wok', 'fast', 'Nudle z woku s kuřetem', '1 box', 700, 35, 'cinske asijske'],
+  ['smazak', 'venku', 'Smažený sýr s hranolky a tatarkou', '1 porce', 1100, 40, 'smazak'],
+  ['rizek_kase', 'venku', 'Kuřecí řízek s bramborovou kaší', '1 porce', 800, 45, 'rizek'],
+  ['rizek_salat', 'venku', 'Kuřecí řízek s bramborovým salátem', '1 porce', 900, 40, 'rizek'],
+  ['kure_paprika', 'venku', 'Kuře na paprice s těstovinami', '1 porce', 750, 40, 'menza'],
+  ['rizoto', 'venku', 'Kuřecí rizoto se sýrem', '1 porce', 650, 35, 'menza'],
+  ['testoviny_smet', 'venku', 'Těstoviny s kuřetem a smetanovou omáčkou', '1 porce', 800, 40, 'menza'],
+  ['kvetak', 'venku', 'Smažený květák s bramborem a tatarkou', '1 porce', 750, 18, 'menza'],
+  ['knedliky_ovoc', 'venku', 'Ovocné knedlíky s tvarohem', '4 ks', 750, 20, 'knedliky'],
+  ['palacinky', 'venku', 'Palačinky s marmeládou', '2 ks', 450, 12, ''],
+  ['livance', 'venku', 'Lívance s marmeládou', '4 ks', 500, 14, ''],
+  ['cocka', 'venku', 'Čočka na kyselo s vejcem a chlebem', '1 porce', 650, 30, 'menza'],
+  ['kure_ryze', 'venku', 'Pečené kuřecí stehno s rýží', '1 porce', 700, 42, 'menza'],
+  ['losos', 'venku', 'Losos s bramborem', '1 porce', 650, 38, 'ryba'],
+  ['burger_rest', 'venku', 'Kuřecí burger s hranolky v restauraci', '1 porce', 1100, 45, ''],
+  ['salat_kure', 'venku', 'Salát s kuřetem a dresinkem', '1 porce', 450, 30, ''],
+  ['polevka', 'venku', 'Polévka (bramborová, zeleninová)', 'talíř', 180, 5, 'menza'],
+  ['vyvar', 'venku', 'Kuřecí vývar s nudlemi', 'talíř', 150, 9, 'polevka'],
+  ['tatranka', 'slad', 'Tatranka', '1 ks (47 g)', 245, 4, 'oplatka'],
+  ['horalka', 'slad', 'Horalka', '1 ks (50 g)', 255, 3.5, 'oplatka'],
+  ['fidorka', 'slad', 'Fidorka', '1 ks (30 g)', 160, 2, ''],
+  ['studentska', 'slad', 'Studentská pečeť', 'tabulka (100 g)', 520, 7, 'cokolada'],
+  ['cokolada', 'slad', 'Mléčná čokoláda', 'tabulka (100 g)', 535, 7, 'milka orion'],
+  ['snickers', 'slad', 'Snickers', '1 ks (50 g)', 245, 4.5, 'tycinka'],
+  ['twix', 'slad', 'Twix', 'balení (50 g)', 250, 2.5, 'tycinka'],
+  ['mars', 'slad', 'Mars', '1 ks (51 g)', 230, 2, 'tycinka'],
+  ['kitkat', 'slad', 'KitKat', '1 ks (41,5 g)', 215, 2.7, 'tycinka'],
+  ['bueno', 'slad', 'Kinder Bueno', 'balení (43 g)', 245, 4, 'kinder'],
+  ['bebe', 'slad', 'Sušenky BeBe Dobré ráno', 'balíček (50 g)', 220, 3.5, 'susenky'],
+  ['oreo', 'slad', 'Oreo', '3 ks (33 g)', 160, 1.7, 'susenky'],
+  ['chipsy', 'slad', 'Chipsy', 'sáček (140 g)', 760, 9, 'brambury lupinky'],
+  ['chipsy_hrst', 'slad', 'Chipsy', 'hrst (30 g)', 160, 2, 'brambury lupinky'],
+  ['tycinky', 'slad', 'Slané tyčinky', 'hrst (30 g)', 115, 3, 'preclicky'],
+  ['nutella', 'slad', 'Nutella', 'lžíce (20 g)', 108, 1.3, 'orisková pomazanka'],
+  ['musli_tyc', 'slad', 'Müsli tyčinka', '1 ks (25 g)', 105, 1.5, 'musli'],
+  ['prot_tyc', 'slad', 'Proteinová tyčinka', '1 ks (60 g)', 220, 20, 'protein'],
+  ['zmrzlina', 'slad', 'Zmrzlina v kornoutu', '1 kopeček', 140, 2, ''],
+  ['magnum', 'slad', 'Nanuk Magnum', '1 ks', 260, 3.5, 'zmrzlina'],
+  ['gumidci', 'slad', 'Gumoví medvídci', 'sáček (100 g)', 340, 6, 'haribo bonbony'],
+  ['popcorn', 'slad', 'Popcorn v kině', 'střední', 500, 8, 'kino'],
+  ['mleko', 'mlec', 'Mléko plnotučné', 'hrnek (250 ml)', 160, 8, ''],
+  ['kakao', 'mlec', 'Kakao s mlékem', 'hrnek (250 ml)', 220, 9, ''],
+  ['jogurt', 'mlec', 'Bílý jogurt 3,5 %', 'kelímek (150 g)', 105, 6, ''],
+  ['recky', 'mlec', 'Řecký jogurt 10 %', 'kelímek (140 g)', 185, 6, 'recky jogurt'],
+  ['jogurt_ovoc', 'mlec', 'Ovocný jogurt', 'kelímek (150 g)', 150, 5, ''],
+  ['skyr', 'mlec', 'Skyr bílý', 'kelímek (140 g)', 90, 15, 'protein'],
+  ['tvaroh', 'mlec', 'Tvaroh polotučný', 'vanička (250 g)', 290, 30, 'protein'],
+  ['tvaroh_med', 'mlec', 'Tvaroh s medem a ořechy', 'vanička + 2 lžíce + hrst', 600, 35, 'protein'],
+  ['pribinacek', 'mlec', 'Tvarohový dezert (Pribináček)', '1 ks (80 g)', 130, 5, 'dezert'],
+  ['termix', 'mlec', 'Termix', '1 ks (90 g)', 140, 5, 'dezert'],
+  ['gouda', 'mlec', 'Sýr gouda', 'plátek (20 g)', 72, 5, 'syr eidam'],
+  ['mozzarella', 'mlec', 'Mozzarella', 'kulička (125 g)', 290, 22, 'syr'],
+  ['hermelin', 'mlec', 'Hermelín', '1 ks (100 g)', 330, 19, 'syr'],
+  ['kefir', 'mlec', 'Kefír', 'láhev (500 ml)', 300, 16, 'zakys'],
+  ['prot_pudink', 'mlec', 'Proteinový pudink', 'kelímek (200 g)', 160, 20, 'protein'],
+  ['prot_napoj', 'mlec', 'Proteinový nápoj', 'láhev (330 ml)', 200, 25, 'protein drink'],
+  ['mlecna_ryze', 'mlec', 'Mléčná rýže', 'kelímek (200 g)', 260, 7, 'krupicova kase'],
+  ['kase', 'snid', 'Ovesná kaše s mlékem', 'miska (60 g vloček)', 380, 15, 'vlocky'],
+  ['musli', 'snid', 'Müsli s mlékem', 'miska', 400, 13, 'cerealie'],
+  ['cornflakes', 'snid', 'Cornflakes s mlékem', 'miska', 300, 10, 'cerealie lupinky'],
+  ['vejce_mich', 'snid', 'Míchaná vajíčka', 'ze 3 vajec', 300, 20, 'vejce'],
+  ['vejce', 'snid', 'Vejce natvrdo', '1 ks', 75, 6.5, 'vajicko'],
+  ['toast_syr', 'snid', 'Toast se sýrem', '1 ks', 290, 13, 'tousty'],
+  ['chleb_nutella', 'snid', 'Chleba s Nutellou', 'krajíc', 260, 5, ''],
+  ['rohlik_med', 'snid', 'Rohlík s máslem a medem', '1 ks', 260, 5, ''],
+  ['nudle_inst', 'snid', 'Instantní nudle', '1 balení', 380, 8, 'vifon polevka'],
+  ['tunak', 'snid', 'Tuňák v oleji', 'plechovka (scezený)', 220, 27, 'konzerva ryba'],
+  ['bramb_salat', 'snid', 'Bramborový salát', 'porce (200 g)', 380, 4, ''],
+  ['banan', 'ovoce', 'Banán', '1 ks', 105, 1.3, ''],
+  ['jablko', 'ovoce', 'Jablko', '1 ks', 78, 0.4, ''],
+  ['hruska', 'ovoce', 'Hruška', '1 ks', 100, 0.6, ''],
+  ['pomeranc', 'ovoce', 'Pomeranč', '1 ks', 85, 1.7, ''],
+  ['mandarinky', 'ovoce', 'Mandarinky', '2 ks', 80, 1.2, ''],
+  ['kiwi', 'ovoce', 'Kiwi', '2 ks', 85, 1.6, ''],
+  ['hrozny', 'ovoce', 'Hroznové víno', 'hrst (100 g)', 70, 0.7, 'hrozny'],
+  ['datle', 'ovoce', 'Datle', '5 ks (40 g)', 115, 1, 'susene'],
+  ['rozinky', 'ovoce', 'Rozinky', 'hrst (30 g)', 90, 1, 'susene'],
+  ['avokado', 'ovoce', 'Avokádo', 'půlka', 115, 1.4, ''],
+  ['arasidy', 'ovoce', 'Arašídy solené', 'hrst (30 g)', 180, 7.5, 'burske orisky'],
+  ['kesu', 'ovoce', 'Kešu', 'hrst (30 g)', 175, 5.5, 'orisky'],
+  ['mandle', 'ovoce', 'Mandle', 'hrst (30 g)', 175, 6, 'orisky'],
+  ['orechy', 'ovoce', 'Ořechová směs', 'sáček (100 g)', 600, 18, 'orisky studentska smes'],
+  ['cola', 'piti', 'Coca-Cola', '0,5 l', 210, 0, 'kola limonada'],
+  ['dzus', 'piti', 'Pomerančový džus', 'sklenice (330 ml)', 145, 2, ''],
+  ['latte', 'piti', 'Latte nebo flat white', 'velké', 220, 11, 'kava kavarna'],
+  ['cappuccino', 'piti', 'Cappuccino', '1 šálek', 120, 6, 'kava'],
+  ['ledova_kava', 'piti', 'Ledová káva s mlékem', 'kelímek (250 ml)', 150, 6, 'kava'],
+  ['pivo', 'piti', 'Pivo 12°', '0,5 l', 220, 2, ''],
+  ['vino', 'piti', 'Víno', 'sklenka (2 dl)', 160, 0, ''],
+  ['energy', 'piti', 'Energetický nápoj', '0,5 l', 230, 0, 'monster red bull'],
+  ['icetea', 'piti', 'Ledový čaj', '0,5 l', 140, 0, 'ice tea'],
+  ['smoothie', 'piti', 'Ovocné smoothie', '250 ml', 150, 2, ''],
+];
+
+if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish, FOODS, FOOD_CATS };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Vzhled si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\n// Spuštěním ve Scriptable si vybereš velikost a uvidíš náhled.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(force) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (force || age > 6 * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\n\nasync function build(family, force) {\n  const code = await core(force);\n  if (code) {\n    try {\n      const run = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n      const w = await run({ KEY, ANON, family });\n      if (w) return w;\n    } catch (e) { console.error(e); }\n  }\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\n\nif (config.runsInApp) {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i >= 0) {\n    const fam = sizes[i][1], w = await build(fam, true);\n    if (fam === 'small') await w.presentSmall();\n    else if (fam === 'large') await w.presentLarge();\n    else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n    else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n    else await w.presentMedium();\n  }\n} else {\n  Script.setWidget(await build(config.widgetFamily || 'medium', false));\n}\nScript.complete();\n";
-const APP_VERSION = 'f4896a5a', APP_BUILT = '2026-10-04T23:28:25Z';
+const APP_VERSION = '919340b1', APP_BUILT = '2026-10-04T23:40:49Z';
 
 </script>
 <script>
@@ -835,7 +988,7 @@ function applyRemote(p, v) {
     if (id === 'config') S.settings = migrateSettings(v);
     else if (id === 'weights') S.weights = { ...(v.entries || {}) };
     else if (id === 'pantry') S.pantry = { stock: { ...(v.stock || {}) } };
-    else if (id === 'prefs') S.prefs = { rating: { ...(v.rating || {}) } };
+    else if (id === 'prefs') S.prefs = { rating: { ...(v.rating || {}) }, foods: Array.isArray(v.foods) ? v.foods.slice(0, 16) : [] };
     else if (id === 'body') S.body = { waist: {}, blood: null, ...v, photos: (S.body && S.body.photos) || {} };
     else if (id === 'prices') S.prices = v;
   } else if (['days', 'shop', 'training', 'reports'].includes(c) && id) S[c] = { ...S[c], [id]: v };
@@ -901,7 +1054,7 @@ function seedLocal() { // co je jen v tomto zařízení (např. zapsané offline
   if (JSON.stringify(S.settings) !== JSON.stringify(migrateSettings(null))) put(SETTINGS_DOC, S.settings);
   if (Object.keys(S.weights).length) put('app/weights', { entries: S.weights });
   if (Object.keys(S.pantry.stock || {}).length) put('app/pantry', S.pantry);
-  if (Object.keys(S.prefs.rating || {}).length) put('app/prefs', S.prefs);
+  if (Object.keys(S.prefs.rating || {}).length || (S.prefs.foods || []).length) put('app/prefs', S.prefs);
   if (Object.keys(S.body.waist || {}).length || S.body.blood) put('app/body', S.body);
   for (const c of ['days', 'shop', 'training']) for (const k in S[c]) put(c + '/' + k, S[c][k]);
 }
@@ -1046,7 +1199,7 @@ function effDinner(j) { // co se večer j opravdu vařilo (po náhradách a vým
   if (r.swap.vecere && MEALS[r.swap.vecere]) m = r.swap.vecere;
   return m;
 }
-function dayRec(k) { const r = S.days[k] || {}; return { done: { ...(r.done || {}) }, swap: { ...(r.swap || {}) }, skip: { ...(r.skip || {}) }, extras: (r.extras || []).map(x => ({ ...x })), quick: !!r.quick, gi: r.gi || null }; }
+function dayRec(k) { const r = S.days[k] || {}; return { done: { ...(r.done || {}) }, part: { ...(r.part || {}) }, swap: { ...(r.swap || {}) }, skip: { ...(r.skip || {}) }, extras: (r.extras || []).map(x => ({ ...x })), quick: !!r.quick, gi: r.gi || null }; }
 function saveDay(k, r) { S.days[k] = r; persist('days/' + k, r); }
 function wakeMin() { return toMin(S.settings.wake); }
 function addFor(w) {
@@ -1057,7 +1210,7 @@ function addFor(w) {
 }
 function withAddHist(patch) { const w = curWeek(); return { ...patch, addHist: { ...(S.settings.addHist || {}), [w]: patch.add } }; }
 function addMult(add) { return clamp(Math.round(add / 801 * 4) / 4, 0.25, 2); }
-const FRAC = { 0.25: '¼', 0.5: '½', 0.75: '¾', 1: '1', 1.25: '1¼', 1.5: '1½', 1.75: '1¾', 2: '2' };
+const FRAC = { 0.25: '¼', 0.5: '½', 0.75: '¾', 1: '1', 1.25: '1¼', 1.5: '1½', 1.75: '1¾', 2: '2', 2.5: '2½', 3: '3' };
 function addName(add) { if (!(add > 0)) return 'bez doplňku'; const m = addMult(add); return m === 1 ? '+1 shake večer' : m === 2 ? '+2 shaky večer' : `+${FRAC[m]} shaku večer`; }
 function fracLabel(m) { return FRAC[m] || fmtNum(m, 2); }
 // ===== Kalorická bomba: víc kalorií bez většího objemu jídla =====
@@ -1135,6 +1288,55 @@ function dayTotals(k) {
   t.pct = t.kcal ? t.dk / t.kcal : 0;
   return t;
 }
+// ===== Porce a dorovnání =====
+// Snědená část jídla: done[slot] drží kcal (čte je i zkratka a widget), part[slot] podíl porce. Bez part = celé.
+const PORTIONS = [[1, 'Celé'], [0.75, '¾'], [0.5, '½'], [0.25, '¼']];
+function partOf(k, s) { const r = S.days[k] || {}; return (r.done && r.done[s] && r.part && r.part[s]) || 1; }
+function setEaten(k, s, f) { // f = podíl porce, 0 = zrušit „snědeno“
+  const r = dayRec(k), x = planFor(k).find(y => y.slot.k === s), was = !!r.done[s];
+  if (f > 0) { r.done[s] = x ? Math.max(1, Math.round(x.kcal * f)) : true; if (x && f < 1) r.part[s] = f; else delete r.part[s]; delete r.skip[s]; }
+  else { delete r.done[s]; delete r.part[s]; }
+  saveDay(k, r);
+  if (x && pantryActive() && was !== (f > 0)) adjStock(itemDelta(x, f > 0 ? -1 : 1)); // uvařilo se celé jídlo, i když se snědla jen část
+  return f > 0;
+}
+function lostKcal(k) { // co dnes propadlo (vynechané jídlo, nedojedená porce) a extra jídlem se ještě nedorovnalo
+  let lost = 0;
+  for (const x of planFor(k)) { if (x.skip) lost += x.kcal; else if (x.done) lost += x.kcal * (1 - partOf(k, x.slot.k)); }
+  return Math.max(0, Math.round(lost - dayTotals(k).ek));
+}
+function fillOptions(gap, n = 3) { // nejrychlejší doplňky velikostí podle mezery: jeden kus, nebo dva různé
+  const base = EXTRAS.map(([m, x]) => { const st = mealStats(m, x); return { m, x, n: MEALS[m].n + (x !== 1 ? ' (½)' : ''), kcal: st.kcal, b: st.b, min: MEALS[m].min }; });
+  const cands = base.map(a => [a]);
+  for (let i = 0; i < base.length; i++) for (let j = i + 1; j < base.length; j++) if (base[i].m !== base[j].m) cands.push([base[i], base[j]]);
+  const sum = c => c.reduce((a, o) => a + o.kcal, 0), g = Math.max(gap, 150);
+  const score = c => Math.abs(sum(c) - g) / g + (sum(c) < g * 0.8 ? 0.3 : 0) + (c.length - 1) * 0.12 + Math.max(...c.map(o => o.min)) * 0.015;
+  const out = [], mains = new Set();
+  for (const c of cands.sort((a, b) => score(a) - score(b))) {
+    const main = c.slice().sort((a, b) => b.kcal - a.kcal)[0].m;
+    if (mains.has(main) && out.length < n - 1) continue; // ať nejsou všechny možnosti „shake + něco“
+    if (out.some(o => o.key === c.map(o => o.m + o.x).sort().join('+'))) continue;
+    mains.add(main);
+    out.push({ key: c.map(o => o.m + o.x).sort().join('+'), items: c, n: c.map(o => o.n).join(' + '), kcal: sum(c), b: c.reduce((a, o) => a + o.b, 0), min: Math.max(...c.map(o => o.min)) });
+    if (out.length >= n) break;
+  }
+  return out;
+}
+const FOOD = Object.fromEntries(FOODS.map(([id, cat, n, p, kcal, b, al]) => [id, { id, cat, n, p, kcal, b, al }]));
+function foodSearch(q, cat) { // potraviny i recepty z appky; bez diakritiky, všechna slova musí sedět
+  const toks = fold(q || '').trim().split(/\s+/).filter(Boolean), out = [];
+  if (toks.length) {
+    const hit = h => toks.every(t => h.includes(t));
+    for (const f of Object.values(FOOD)) if (hit(fold(f.n + ' ' + f.al))) out.push({ f: f.id });
+    for (const id in MEALS) if (MEALS[id].cat !== 'E' && hit(fold(MEALS[id].n))) out.push({ m: id });
+    for (const [m, x] of EXTRAS) if (MEALS[m].cat === 'E' && hit(fold(MEALS[m].n))) out.push({ m, x });
+    const starts = o => { const n = fold(o.f ? FOOD[o.f].n : MEALS[o.m].n); return n.startsWith(toks[0]) ? 0 : 1; };
+    return out.sort((a, b) => starts(a) - starts(b)).slice(0, 40);
+  }
+  if (cat) return Object.values(FOOD).filter(f => f.cat === cat).map(f => ({ f: f.id }));
+  return out;
+}
+function fold(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
 function isLogged(k) { const r = S.days[k]; return !!r && ((r.done && Object.keys(r.done).some(s => SLOTS.some(z => z.k === s) && r.done[s])) || (r.extras && r.extras.length > 0)); }
 function weekKeys(w) { const s = addDays(S.settings.start, (w - 1) * 7); return [...Array(7)].map((_, d) => addDays(s, d)); }
 function curWeek() { return Math.max(1, weekOfIdx(idxOf(todayKey()))); }
@@ -1508,7 +1710,7 @@ function renderToday(head, v) {
   }
   const items = planFor(k), ex = extrasFor(k), t = dayTotals(k), nm = nowMin(), rec = dayRec(k);
   const due = isToday ? items.filter(x => x.m + 60 <= nm).reduce((a, x) => a + x.kcal, 0) : (isPast ? t.kcal : 0);
-  const behind = due - t.dk, win = t.n && items.every(x => x.done), allClosed = t.n && items.every(x => x.done || x.skip);
+  const behind = due - t.dk, allDone = t.n && items.every(x => x.done), win = allDone && t.pct >= 0.9, allClosed = t.n && items.every(x => x.done || x.skip);
   const C = 2 * Math.PI * 54, p = Math.min(1, t.pct), over = t.pct > 1 ? Math.min(1, t.pct - 1) : 0, sk = streak();
   let status = '';
   if (win) status = `<span class="tag ok">Den splněn</span>`;
@@ -1519,50 +1721,68 @@ function renderToday(head, v) {
     <div class="hstats"><div class="stat"><div class="l"><span>Bílkoviny</span><span><b>${kc(t.db)}</b> / ${kc(t.b)} g</span></div><div class="pbar"><i style="width:${Math.min(100, t.b ? t.db / t.b * 100 : 0)}%"></i></div></div>
       <div class="stat"><div class="l"><span>Jídla</span><span><b>${t.nd}</b> / ${t.n}</span></div><div class="pbar green"><i style="width:${t.n ? t.nd / t.n * 100 : 0}%"></i></div></div>
       <div class="chips">${status}${sk >= 2 ? `<span class="tag next">${sk} ${plural(sk, 'den', 'dny', 'dní')} v řadě</span>` : ''}</div></div></div>`);
-  if (isToday && S.weights[k] == null) h.push(weighSec());
+  // Ráno: vážení patří před snídani, takže je nahoře, dokud se nic nesnědlo
+  const weighTop = isToday && S.weights[k] == null && t.nd === 0 && nm < 13 * 60;
+  if (weighTop) h.push(weighSec());
+  const after = [], notes = [];
   if (isToday) {
-    h.push(syncNotice());
-    const e = engine();
-    if (!(S.body.blood && S.body.blood.done) && i < 21) h.push(noticeCard('drop', 'red', '<b>Krevní testy.</b> Zajdi k praktikovi do 2 týdnů od startu: krevní obraz, TSH, glykémie, játra, celiakie.', `<button class="btn sm" data-act="blood" style="margin-top:10px">Hotovo</button>`));
-    if (e.fast) h.push(noticeCard('warn', 'red', `<b>Rosteš moc rychle.</b> ${kg1(e.tr.perWeek)} kg týdně je nad bezpečnými 2,5 kg. Doplněk nezvyšuju; když se přidají otoky nebo dušnost, jdi k lékaři.`));
-    const gi = giIssues(k, 4);
-    if (gi >= 2) h.push(noticeCard('warn', 'tint', `<b>Trávení zlobí ${gi}× za 4 dny.</b> Rozděl shake na dvě půlky a pij mezi jídly, ne k nim. ${giIssues(k, 7) >= 4 ? 'Trvá to přes týden, ukaž se praktikovi.' : ''}`, S.settings.add > 0 ? `<button class="btn sm" data-act="slower" style="margin-top:10px">Ubrat doplněk o ¼ shaku</button>` : ''));
-    const ro = runOuts(3).filter(r => r.d <= 1);
-    if (ro.length) h.push(noticeCard('box', 'teal', `<b>Dochází ${ro.map(r => ING[r.i].n.toLowerCase()).join(', ')}</b> (${ro[0].d === 0 ? 'už dnes' : 'zítra'}).`, `<button class="btn sm" data-act="goshop" data-w="${curWeek()}" style="margin-top:10px">Otevřít nákup</button>`));
-    if (dowOf(k) === 6 && !waistEntries().some(([d]) => dayDiff(d, k) < 6)) h.push(sec('Nedělní měření pasu', `<form class="row" data-form="waist" style="padding-block:12px"><div class="wbox" style="width:100%"><label class="inp"><input class="wwaist" inputmode="decimal" autocomplete="off" placeholder="${waistEntries().length ? kg1(waistEntries().slice(-1)[0][1]) : '70,0'}" aria-label="Obvod pasu v cm"><span>cm</span></label><button class="btn pri sm" type="submit">Uložit</button></div></form>`, 'Ráno, v úrovni pupku, volně vydechnout. Ukáže, kolik přírůstku jde do břicha.'));
-    const am = S.settings.autoMsg;
-    if (am && am.w === curWeek() && !am.undone) h.push(noticeCard('bolt', 'purple', `<b>Chytré tempo.</b> ${esc(am.txt)}`, am.to !== am.from ? `<button class="btn sm" data-act="autoundo" style="margin-top:10px">Vrátit</button>` : ''));
-    else if (w === 1 && i <= 2) h.push(noticeCard('info', 'blue', '<b>Týden 1.</b> Tři velká jídla a shake. Když tě to nafukuje, rozděl shake na dvě půlky. Kreatin prvních 5 dní 4× 5 g denně.'));
-    else if (w === 2 && dowOf(k) === 0) h.push(noticeCard('info', 'blue', '<b>Týden 2.</b> Přibyla odpolední svačina. Od příštího pondělí přidám večerní doplněk.'));
-    const nx = items.find(x => !x.done && !x.skip);
+    const e = engine(), nx = items.find(x => !x.done && !x.skip);
     if (win) h.push(`<div class="card notice">${tile('trophy', 'green')}<p><b>Den splněn.</b> ${kc(t.dk)} kcal${sk >= 2 ? ` a ${sk} ${plural(sk, 'den', 'dny', 'dní')} v řadě` : ''}. Zítra znovu.</p></div>`);
     else if (nx) {
       const d = nx.m - nm, late = d < -45, [ic, col] = SLOT_STYLE[nx.slot.k];
       const when = d > 0 ? `za ${dur(d)}` : late ? `zpoždění ${dur(d)}` : 'teď';
       h.push(`<div class="card now ${late ? 'late' : ''}"><div class="eye">${tile(ic, col)}<span>${esc(nx.slot.n)} · <span class="num">${nx.time}</span> · ${when}</span></div>
-        <div><div class="t-title2">${esc(MEALS[nx.meal].n)}${nx.mult !== 1 ? ` (${fracLabel(nx.mult)})` : ''}</div><div class="t-sub l2" style="margin-top:3px">${kc(nx.kcal)} kcal · ${kc(nx.b)} g bílkovin · ${nx.lo ? 'jen ohřát' : MEALS[nx.meal].min + ' min'}</div>${nx.lo ? '<div class="t-sub" style="margin-top:6px">Zbytek ze včerejší večeře.</div>' : nx.cook2 ? '<div class="t-sub" style="margin-top:6px;font-weight:600">Uvař 2 porce, druhá je na zítřejší oběd.</div>' : ''}${nx.boost ? `<div class="t-sub" style="margin-top:6px;color:var(--red-text);font-weight:600">Bomba: ${esc(nx.boostTxt)}</div>` : ''}</div>
-        <div class="btns"><button class="btn pri" data-act="toggle" data-slot="${nx.slot.k}">${ICO.check}Snědeno</button><button class="btn" data-act="meal" data-slot="${nx.slot.k}">Recept</button>${late && MEALS[nx.meal].cat !== 'X' ? `<button class="btn" data-act="toshake" data-slot="${nx.slot.k}">Shake místo toho</button>` : ''}${late ? `<button class="btn" data-act="skip" data-slot="${nx.slot.k}">Vynechat</button>` : ''}</div></div>`);
-    } else if (allClosed) h.push(noticeCard('info', 'tint', `<b>Na dnes hotovo.</b> Něco jsi vynechal a chybí ${kc(Math.max(0, t.kcal - t.dk))} kcal. Dožeň to extra jídlem v seznamu níž.`));
+        <button class="now-main" data-act="meal" data-slot="${nx.slot.k}"><span class="t-title2">${esc(MEALS[nx.meal].n)}${nx.mult !== 1 ? ` (${fracLabel(nx.mult)})` : ''}</span><span class="t-sub l2">${kc(nx.kcal)} kcal · ${kc(nx.b)} g bílkovin · ${nx.lo ? 'jen ohřát' : MEALS[nx.meal].min + ' min'}</span>${nx.lo ? '<span class="t-sub">Zbytek ze včerejší večeře.</span>' : nx.cook2 ? '<span class="t-sub" style="font-weight:600">Uvař 2 porce, druhá je na zítřejší oběd.</span>' : ''}${nx.boost ? `<span class="t-sub" style="color:var(--red-text);font-weight:600">Bomba: ${esc(nx.boostTxt)}</span>` : ''}<span class="t-sub tint now-link">Recept a postup${ICO.chevron}</span></button>
+        <div class="btns"><button class="btn pri" data-act="toggle" data-slot="${nx.slot.k}">${ICO.check}Snědeno</button><button class="btn" data-act="part" data-slot="${nx.slot.k}">Jen část</button>${late && MEALS[nx.meal].cat !== 'X' ? `<button class="btn" data-act="toshake" data-slot="${nx.slot.k}">Shake místo toho</button>` : ''}${late ? `<button class="btn" data-act="skip" data-slot="${nx.slot.k}">Vynechat</button>` : ''}</div></div>`);
+    }
+    // Dorovnání: vynechané jídlo nebo nedojedená porce, nebo večer, když je plán uzavřený a kalorie chybí
+    const gap = allClosed && !win ? Math.max(lostKcal(k), Math.round(t.kcal - t.dk)) : lostKcal(k);
+    if (gap >= 150) h.push(fillSec(gap, allClosed));
+    if (e.fast) h.push(noticeCard('warn', 'red', `<b>Rosteš moc rychle.</b> ${kg1(e.tr.perWeek)} kg týdně je nad bezpečnými 2,5 kg. Doplněk nezvyšuju; když se přidají otoky nebo dušnost, jdi k lékaři.`));
+    const gi = giIssues(k, 4);
+    if (gi >= 2) h.push(noticeCard('warn', 'tint', `<b>Trávení zlobí ${gi}× za 4 dny.</b> Rozděl shake na dvě půlky a pij mezi jídly, ne k nim. ${giIssues(k, 7) >= 4 ? 'Trvá to přes týden, ukaž se praktikovi.' : ''}`, S.settings.add > 0 ? `<button class="btn sm" data-act="slower" style="margin-top:10px">Ubrat doplněk o ¼ shaku</button>` : ''));
+    // Pod seznamem jídel: co se týká dne, ale ne teď
+    const am = S.settings.autoMsg;
+    if (am && am.w === curWeek() && !am.undone) after.push(noticeCard('bolt', 'purple', `<b>Chytré tempo.</b> ${esc(am.txt)}`, am.to !== am.from ? `<button class="btn sm" data-act="autoundo" style="margin-top:10px">Vrátit</button>` : ''));
+    const ro = runOuts(3).filter(r => r.d <= 1);
+    if (ro.length) after.push(noticeCard('box', 'teal', `<b>Dochází ${ro.map(r => ING[r.i].n.toLowerCase()).join(', ')}</b> (${ro[0].d === 0 ? 'už dnes' : 'zítra'}).`, `<button class="btn sm" data-act="goshop" data-w="${curWeek()}" style="margin-top:10px">Otevřít nákup</button>`));
+    if (dowOf(k) === 6 && !waistEntries().some(([d]) => dayDiff(d, k) < 6)) after.push(sec('Nedělní měření pasu', `<form class="row" data-form="waist" style="padding-block:12px"><div class="wbox" style="width:100%"><label class="inp"><input class="wwaist" inputmode="decimal" autocomplete="off" placeholder="${waistEntries().length ? kg1(waistEntries().slice(-1)[0][1]) : '70,0'}" aria-label="Obvod pasu v cm"><span>cm</span></label><button class="btn pri sm" type="submit">Uložit</button></div></form>`, 'Ráno, v úrovni pupku, volně vydechnout. Ukáže, kolik přírůstku jde do břicha.'));
+    if (!weighTop && S.weights[k] == null && nm < 14 * 60) after.push(weighSec());
+    if (!SY.key || SY.bad || dbState === 'badkey') notes.push(noteRow('box', 'blue', SY.key ? 'Klíč pro zálohu nesedí' : 'Propoj zálohu', SY.key ? 'Bez něj se data neodesílají.' : 'Data jsou zatím jen v tomhle telefonu.', `<button class="btn sm" data-act="syncsheet">Vložit klíč</button>`));
+    if (!(S.body.blood && S.body.blood.done) && i < 21) notes.push(noteRow('drop', 'red', 'Krevní testy u praktika', 'Do 2 týdnů od startu: krevní obraz, TSH, glykémie, játra, celiakie.', `<button class="btn sm" data-act="blood">Hotovo</button>`));
+    if (w === 1 && i <= 2) notes.push(noteRow('info', 'blue', 'Týden 1: tři jídla a shake', 'Nafukuje tě shake? Rozděl ho na dvě půlky. Kreatin prvních 5 dní 4× 5 g.'));
+    else if (w === 2 && dowOf(k) === 0) notes.push(noteRow('info', 'blue', 'Týden 2: přibyla svačina', 'Od příštího pondělí přidám večerní doplněk.'));
   }
   const nextK = isToday ? (items.find(x => !x.done && !x.skip) || {}).slot : null, loadDay = i < 5;
   const rows = [];
   if (!isPast) rows.push(`<label class="row has-tile">${tile('bolt', 'yellow')}<span class="row-text"><span class="row-title">Rychlý den</span><span class="row-sub">Jen jídla do 15 minut, kalorie zůstanou</span></span><input type="checkbox" class="sw" id="quick" ${rec.quick ? 'checked' : ''}></label>`);
   for (const x of items) {
-    const m = MEALS[x.meal], swapped = x.meal !== x.planned, late = isToday && !x.done && !x.skip && x.m < nm - 45, [ic, col] = SLOT_STYLE[x.slot.k];
-    const tag = late ? '<span class="tag late">zpožděné</span>' : (nextK && nextK.k === x.slot.k ? '<span class="tag next">další</span>' : swapped ? '<span class="tag">vyměněno</span>' : x.auto === 'quick' ? '<span class="tag">rychlé</span>' : x.auto === 'rating' ? '<span class="tag">náhrada</span>' : x.lo ? '<span class="tag">zbytek</span>' : x.cook2 ? '<span class="tag">2 porce</span>' : (x.boost || x.auto === 'bomb') ? '<span class="tag bomb">bomba</span>' : '');
-    rows.push(`<div class="row has-tile ${x.done ? 'done' : ''} ${x.skip ? 'skip' : ''}"><button class="row-main" data-act="meal" data-slot="${x.slot.k}">${tile(ic, col)}<span class="row-text"><span class="row-title">${esc(m.n)}${x.mult !== 1 ? ` (${fracLabel(x.mult)})` : ''}</span><span class="row-sub"><span class="num">${x.time}</span> · ${x.slot.n} · ${kc(x.kcal)} kcal</span></span>${tag}</button>${ckBtn(x.slot.k, x.done, x.slot.n + ' snědeno', UI.pop === x.slot.k)}</div>`);
+    const m = MEALS[x.meal], swapped = x.meal !== x.planned, late = isToday && !x.done && !x.skip && x.m < nm - 45, [ic, col] = SLOT_STYLE[x.slot.k], pf = x.done ? partOf(k, x.slot.k) : 1;
+    const tag = late ? '<span class="tag late">zpožděné</span>' : (nextK && nextK.k === x.slot.k ? '<span class="tag next">další</span>' : pf < 1 ? `<span class="tag">${fracLabel(pf)} porce</span>` : swapped ? '<span class="tag">vyměněno</span>' : x.auto === 'quick' ? '<span class="tag">rychlé</span>' : x.auto === 'rating' ? '<span class="tag">náhrada</span>' : x.lo ? '<span class="tag">zbytek</span>' : x.cook2 ? '<span class="tag">2 porce</span>' : (x.boost || x.auto === 'bomb') ? '<span class="tag bomb">bomba</span>' : '');
+    rows.push(`<div class="row has-tile ${x.done ? 'done' : ''} ${x.skip ? 'skip' : ''}"><button class="row-main" data-act="meal" data-slot="${x.slot.k}">${tile(ic, col)}<span class="row-text"><span class="row-title">${esc(m.n)}${x.mult !== 1 ? ` (${fracLabel(x.mult)})` : ''}</span><span class="row-sub"><span class="num">${x.time}</span> · ${x.slot.n} · ${pf < 1 ? `${kc(x.kcal * pf)} z ${kc(x.kcal)}` : kc(x.kcal)} kcal</span></span>${tag}</button>${ckBtn(x.slot.k, x.done, x.slot.n + ' snědeno', UI.pop === x.slot.k)}</div>`);
     if (x.slot.k === 'snidane') rows.push(`<div class="row has-tile ${rec.done.kreatin ? 'done' : ''}"><div class="row-main" style="pointer-events:none">${tile('pill', 'teal')}<span class="row-text"><span class="row-title">${loadDay ? 'Kreatin 4× 5 g + vitamín D' : 'Kreatin 5 g + vitamín D'}</span><span class="row-sub">${loadDay ? `Nasycení, den ${i + 1} z 5 · dávky k jídlům` : 'Do shaku nebo k snídani'}</span></span></div>${ckBtn('kreatin', !!rec.done.kreatin, 'Kreatin vzat', UI.pop === 'kreatin')}</div>`);
   }
-  for (const x of ex) rows.push(`<div class="row has-tile done"><div class="row-main" style="pointer-events:none">${tile(x.custom ? 'spark' : 'plus', x.custom ? 'purple' : 'gray')}<span class="row-text"><span class="row-title">${esc(x.name)}</span><span class="row-sub">${x.time ? `<span class="num">${x.time}</span> · ` : ''}Extra · +${kc(x.kcal)} kcal</span></span></div><button class="gbtn" style="color:var(--red-text)" data-act="xdel" data-i="${x.i}" aria-label="Odebrat extra">${ICO.close}</button></div>`);
-  rows.push(`<button class="row has-tile" data-act="extras">${tile('plus', 'tint')}<span class="row-text"><span class="row-title tint">Snědl jsem něco navíc</span></span></button>`);
+  for (const x of ex) rows.push(`<div class="row has-tile done"><div class="row-main" style="pointer-events:none">${tile(x.custom ? 'spark' : 'plus', x.custom ? 'purple' : 'gray')}<span class="row-text"><span class="row-title">${esc(x.name)}</span><span class="row-sub">${x.time ? `<span class="num">${x.time}</span> · ` : ''}Extra · +${kc(x.kcal)} kcal</span></span></div><button class="gbtn" style="color:var(--red-text)" data-act="xdel" data-i="${x.i}" aria-label="Odebrat ${esc(x.name)}">${ICO.close}</button></div>`);
+  rows.push(`<button class="row has-tile" data-act="extras">${tile('plus', 'tint')}<span class="row-text"><span class="row-title tint">Snědl jsem něco navíc</span><span class="row-sub">Rohlík, kebab, tatranka… vyber, kalorie dopočítám</span></span></button>`);
   rows.push(`<button class="row has-tile" data-act="ask">${tile('spark', 'purple')}<span class="row-text"><span class="row-title tint">Jím venku, poraď mi</span><span class="row-sub">Otevře Clauda s připraveným dotazem</span></span>${ICO.chevron}</button>`);
-  h.push(sec('Jídla', rows.join(''), 'Klepni na jídlo pro recept, výměnu a hodnocení. Kolečkem vpravo ho odškrtneš.'));
+  h.push(sec('Jídla', rows.join(''), 'Klepni na jídlo pro recept, výměnu nebo zápis části porce. Kolečkem vpravo ho odškrtneš.'));
+  h.push(...after);
+  if (notes.length) h.push(sec('Připomínky', notes.join('')));
   if (isPast || (isToday && nm >= 14 * 60)) h.push(sec('Trávení dnes', `<div class="row" style="padding-block:10px"><div class="seg" style="width:100%" role="group" aria-label="Trávení">${GI.map(([g, n]) => `<button data-act="gi" data-g="${g}" aria-pressed="${rec.gi === g}">${n}</button>`).join('')}</div></div>`, 'Když trávení zlobí víc dní, appka poradí, co upravit.'));
   const pp = prepFor(k); if (pp) h.push(prepSec(pp));
   const tr = trainingSec(k, rec); if (tr) h.push(tr);
   h.push(`<p class="sec-f" style="text-align:center">${syncText()}</p>`);
   v.innerHTML = h.join('');
   return big;
+}
+function noteRow(ic, col, title, sub, btn) {
+  return `<div class="row has-tile">${tile(ic, col)}<span class="row-text"><span class="row-title">${title}</span>${sub ? `<span class="row-sub">${sub}</span>` : ''}</span>${btn || ''}</div>`;
+}
+function fillSec(gap, evening) {
+  const opts = fillOptions(gap);
+  return sec(`Dorovnej ${kc(gap)} kcal`, opts.map(o => { const [ic, col] = CAT_STYLE[MEALS[o.items[0].m].cat]; return `<button class="row has-tile" data-act="fill" data-items="${o.items.map(it => it.m + ':' + it.x).join(',')}">${tile(ic, col)}<span class="row-text"><span class="row-title">${esc(o.n)}</span><span class="row-sub">${kc(o.b)} g bílkovin · ${o.min} min</span></span><span class="row-trail"><span class="num" style="color:var(--green-text)">+${kc(o.kcal)}</span><span class="addc" aria-hidden="true">${ICO.plus}</span></span></button>`; }).join('')
+    + `<button class="row has-tile" data-act="extras">${tile('plus', 'gray')}<span class="row-text"><span class="row-title tint">Něco jiného</span></span>${ICO.chevron}</button>`,
+    `${evening ? 'Plán dne je uzavřený, ale kalorie chybí.' : 'Po vynechaném jídle nebo nedojedené porci.'} Ťukni na to, co si dáš, zapíše se jako extra. Tohle dorovnávání dělá většinu přírůstku.`);
 }
 function weighSec() {
   const e = weightEntries(), last = e.length ? e[e.length - 1] : null;
@@ -1733,7 +1953,6 @@ function gainBars(gains) {
 
 // ---------- Recepty ----------
 const R_FILTERS = [['all', 'Vše'], ['quick', 'Do 15 min'], ['cold', 'Bez vaření'], ['prep', 'Dopředu'], ['fav', 'Oblíbené'], ['kure', 'Kuře'], ['ryba', 'Ryba'], ['veg', 'Bez masa']];
-function fold(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
 function recipeMatches(id) {
   const m = MEALS[id], f = UI.rf || 'all', q = fold(UI.rq || '').trim();
   if (q) { const hay = fold(m.n + ' ' + m.ing.map(([k]) => ING[k].n).join(' ')); if (!q.split(/\s+/).every(w => hay.includes(w))) return false; }
@@ -1801,7 +2020,8 @@ function mealSheet(o, keep) {
   const st = x ? { kcal: x.kcal, b: x.b } : mealStats(id, f), costNow = x ? x.cost : mealCost(id, f);
   h.push(`<div><h2 class="t-title2">${esc(m.n)}</h2><div class="chips" style="margin:0 4px"><span class="chip tint num">${kc(st.kcal)} kcal</span><span class="chip">${kc(st.b)} g bílkovin</span><span class="chip">~${kc(costNow)} Kč</span><span class="chip">${x && x.lo ? 'jen ohřát' : m.min + ' min'}</span>${mealTags(m).map(t => `<span class="chip">${esc(t)}</span>`).join('')}</div></div>`);
   if (x) {
-    const rows = [`<button class="row has-tile" data-act="toggle" data-slot="${x.slot.k}" data-close="1">${tile('check', x.done ? 'gray' : 'green')}<span class="row-text"><span class="row-title">${x.done ? 'Zrušit „snědeno“' : 'Označit jako snědené'}</span></span></button>`];
+    const rows = [`<div class="row" style="padding-block:12px;flex-direction:column;align-items:stretch;gap:8px"><span class="row-sub">${x.done ? 'Snědl jsem' : 'Kolik jsi snědl?'}</span>${portionGrid(x, UI.date, true)}</div>`];
+    if (x.done) rows.push(`<button class="row has-tile" data-act="toggle" data-slot="${x.slot.k}" data-close="1">${tile('close', 'gray')}<span class="row-text"><span class="row-title">Zrušit „snědeno“</span></span></button>`);
     rows.push(`<button class="row has-tile" data-act="swap" data-slot="${x.slot.k}">${tile('copy', 'blue')}<span class="row-text"><span class="row-title">Vyměnit za jiné jídlo</span></span>${ICO.chevron}</button>`);
     if (m.cat !== 'X' && !x.done) rows.push(`<button class="row has-tile" data-act="toshake" data-slot="${x.slot.k}" data-close="1">${tile('cup', 'brown')}<span class="row-text"><span class="row-title">Dát si místo toho shake</span></span></button>`);
     if (!x.done && !x.skip) rows.push(`<button class="row has-tile" data-act="skip" data-slot="${x.slot.k}" data-close="1">${tile('close', 'red')}<span class="row-text"><span class="row-title" style="color:var(--red-text)">Vynechat</span></span></button>`);
@@ -1816,6 +2036,14 @@ function mealSheet(o, keep) {
   h.push(sec('Postup', `<ol class="steps">${m.steps.map(s => `<li><span>${esc(s)}</span></li>`).join('')}</ol>`, UI.portions > 1 ? `Množství v postupu jsou na 1 porci, vezmi je ${UI.portions}× (přesně jsou v surovinách).` : ''));
   openSheet(o.slot ? DAYS[dowOf(UI.date)] + ' ' + shortDate(UI.date) : CAT_N[m.cat], h.join(''));
 }
+function portionGrid(x, k, close) {
+  const cur = x.done ? partOf(k, x.slot.k) : 0;
+  return `<div class="portions" role="group" aria-label="Snědená porce">${PORTIONS.map(([f, n]) => `<button class="pbtn" data-act="portion" data-slot="${x.slot.k}" data-f="${f}" ${close ? 'data-close="1"' : ''} aria-pressed="${cur === f}"><b>${n}</b><span class="num">${kc(x.kcal * f)} kcal</span></button>`).join('')}</div>`;
+}
+function partSheet(s) {
+  const k = UI.date, x = planFor(k).find(y => y.slot.k === s); if (!x) return;
+  openSheet(`${x.slot.n} · ${x.time}`, `<div><h2 class="t-title2">Kolik jsi snědl?</h2><p class="t-sub l2" style="margin:4px 0 0">${esc(MEALS[x.meal].n)}</p></div>${portionGrid(x, k, true)}<p class="sec-f">Co chybí do celé porce, ti appka hned nabídne dorovnat něčím rychlým.</p>`);
+}
 function swapSheet(slotK) {
   const k = UI.date, x = planFor(k).find(y => y.slot.k === slotK); if (!x) return;
   const cat = MEALS[x.planned].cat, base = mealStats(x.meal).kcal;
@@ -1825,12 +2053,42 @@ function swapSheet(slotK) {
   h.push(sec(`${x.slot.n} · ${DAYS[dowOf(k)]} ${shortDate(k)}`, opts.map(o => { const d = o.kcal - base, cur = o.id === x.meal, r = rating(o.id); return `<button class="row" data-act="doswap" data-slot="${slotK}" data-meal="${o.id}" ${cur ? 'aria-current="true"' : ''}><span class="row-text"><span class="row-title">${esc(MEALS[o.id].n)}${r === 1 ? ' ·  oblíbené' : r === -1 ? ' · nechceš' : ''}</span><span class="row-sub">${kc(o.kcal)} kcal · ${kc(o.b)} g B · ${MEALS[o.id].min} min</span></span><span class="row-trail">${cur ? `<span class="tint" style="width:22px;height:22px">${ICO.check}</span>` : `<span class="num" style="color:${d >= 0 ? 'var(--green-text)' : 'var(--red-text)'};font-weight:600">${d >= 0 ? '+' : '−'}${kc(Math.abs(d))}</span>`}</span></button>`; }).join(''), 'Nahoře jsou jídla s nejpodobnějšími kaloriemi. Nákupní seznam se přepočítá.'));
   openSheet('', h.join(''));
 }
+const FX = [[0.5, '½'], [1, '1'], [1.5, '1½'], [2, '2'], [3, '3']];
 function extrasSheet() {
   const k = UI.date, t = dayTotals(k), nm = nowMin(), isToday = k === todayKey();
-  const due = isToday ? planFor(k).filter(x => x.m + 60 <= nm).reduce((a, x) => a + x.kcal, 0) : t.kcal, gap = Math.max(0, due - t.dk);
-  const opts = EXTRAS.map(([m, x]) => ({ m, x, ...mealStats(m, x) })); if (gap > 0) opts.sort((a, b) => Math.abs(a.kcal - gap) - Math.abs(b.kcal - gap));
-  openSheet('', `<h2 class="t-title2">Co jsi snědl navíc?</h2>${sec('', opts.map(o => { const [ic, col] = CAT_STYLE[MEALS[o.m].cat]; return `<button class="row has-tile" data-act="xadd" data-m="${o.m}" data-x="${o.x}">${tile(ic, col)}<span class="row-text"><span class="row-title">${esc(MEALS[o.m].n)}${o.x !== 1 ? ' (½)' : ''}</span><span class="row-sub">${kc(o.b)} g bílkovin</span></span><span class="row-trail"><span class="num" style="color:var(--green-text)">+${kc(o.kcal)}</span></span></button>`; }).join(''), gap > 0 ? `Podle času ti teď chybí ${kc(gap)} kcal. Nejbližší dorovnání je nahoře.` : 'Jsi v plánu. Každá kalorie navíc tě posune rychleji.')}
+  const due = isToday ? planFor(k).filter(x => x.m + 60 <= nm).reduce((a, x) => a + x.kcal, 0) : t.kcal;
+  UI.fgap = Math.max(0, Math.round(Math.max(due - t.dk, lostKcal(k))));
+  if (!UI.fx) UI.fx = 1;
+  openSheet('', `<h2 class="t-title2">Co jsi snědl navíc?</h2>
+    <label class="search" style="margin:0">${G('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>', 2.2)}<input type="search" id="f-q" value="${esc(UI.fq || '')}" placeholder="Rohlík, kebab, tatranka, latte…" autocomplete="off" enterkeyhint="search" aria-label="Hledat jídlo"></label>
+    <div class="fchips" role="group" aria-label="Kategorie" id="f-cats" style="padding-top:0">${FOOD_CATS.map(([c, n]) => `<button data-act="fcat" data-c="${c}" aria-pressed="${UI.fcat === c}">${n}</button>`).join('')}</div>
+    <div class="row" style="padding:0;min-height:0;gap:10px"><span class="t-sub l2" style="flex:none">Porcí</span><div class="seg" role="group" aria-label="Počet porcí" style="flex:1">${FX.map(([f, n]) => `<button data-act="fx" data-f="${f}" aria-pressed="${UI.fx === f}">${n}</button>`).join('')}</div></div>
+    <div id="flist" class="view">${foodList()}</div>
     ${sec('Vlastní', `<form class="row" data-form="custom" style="flex-wrap:wrap;gap:8px;padding-block:12px"><input class="cust-in" id="cx-n" placeholder="Co (např. bageta s kuřetem)" aria-label="Název" style="flex:1 1 100%"><input class="cust-in num" id="cx-k" inputmode="numeric" placeholder="kcal" aria-label="Kalorie" style="flex:1"><input class="cust-in num" id="cx-b" inputmode="numeric" placeholder="g bílkovin" aria-label="Bílkoviny" style="flex:1"><button class="btn pri sm" type="submit">Přidat</button></form>`, 'Nevíš kalorie? Na kartě Dnes použij „Jím venku, poraď mi“.')}`);
+}
+function foodRow(o, fx) {
+  if (o.f) { const f = FOOD[o.f]; return `<button class="row" data-act="fadd" data-f="${f.id}"><span class="row-text"><span class="row-title">${esc(f.n)}</span><span class="row-sub">${fx !== 1 ? fracLabel(fx) + '× ' : ''}${esc(f.p)} · ${kc(f.b * fx)} g bílkovin</span></span><span class="row-trail"><span class="num" style="color:var(--green-text)">+${kc(f.kcal * fx)}</span></span></button>`; }
+  const m = MEALS[o.m], x = (o.x || 1) * fx, st = mealStats(o.m, x);
+  return `<button class="row" data-act="xadd" data-m="${o.m}" data-x="${x}"><span class="row-text"><span class="row-title">${esc(m.n)}${x !== 1 ? ` (${fracLabel(x)})` : ''}</span><span class="row-sub">${m.cat === 'E' ? 'rychlý doplněk' : 'recept z appky'} · ${kc(st.b)} g bílkovin</span></span><span class="row-trail"><span class="num" style="color:var(--green-text)">+${kc(st.kcal)}</span></span></button>`;
+}
+function foodList() {
+  const fx = UI.fx || 1, q = (UI.fq || '').trim();
+  if (q || UI.fcat) {
+    const list = foodSearch(q, q ? '' : UI.fcat);
+    if (!list.length) return sec('', `<div class="row"><span class="row-text"><span class="row-title">Nic nenalezeno</span><span class="row-sub">Zkus jiné slovo, nebo to zapiš dole jako vlastní.</span></span></div>`);
+    return sec(q ? `${list.length} ${plural(list.length, 'výsledek', 'výsledky', 'výsledků')}` : FOOD_CATS.find(c => c[0] === UI.fcat)[1], list.map(o => foodRow(o, fx)).join(''), 'Průměrné porce, skutečnost se může lišit o 15 %.');
+  }
+  const out = [], gap = UI.fgap || 0;
+  const recent = ((S.prefs && S.prefs.foods) || []).map(id => id.startsWith('m:') ? (MEALS[id.slice(2)] ? { m: id.slice(2) } : null) : (FOOD[id] ? { f: id } : null)).filter(Boolean).slice(0, 8);
+  if (recent.length) out.push(sec('Naposledy', recent.map(o => foodRow(o, fx)).join('')));
+  const quick = EXTRAS.map(([m, x]) => ({ m, x, kcal: mealStats(m, x).kcal }));
+  if (gap > 0) quick.sort((a, b) => Math.abs(a.kcal - gap) - Math.abs(b.kcal - gap));
+  out.push(sec('Rychlé doplňky', quick.map(o => foodRow(o, fx)).join(''), gap > 0 ? `Podle času ti teď chybí ${kc(gap)} kcal. Nejbližší dorovnání je nahoře.` : 'Jsi v plánu. Každá kalorie navíc tě posune rychleji.'));
+  return out.join('');
+}
+function rememberFood(id) {
+  const list = [id, ...((S.prefs.foods || []).filter(x => x !== id))].slice(0, 16);
+  S.prefs = { ...S.prefs, foods: list }; persist('app/prefs', S.prefs);
 }
 function settingsSheet() {
   const s = S.settings, wakes = []; for (let m = 6 * 60; m <= 11 * 60; m += 30) wakes.push(pad(Math.floor(m / 60)) + ':' + pad(m % 60));
@@ -2004,13 +2262,7 @@ function shopText(w) {
 // ---------- Události ----------
 function go(tab) { UI.tab = tab; try { localStorage.setItem(LS_KEY + '.tab', tab); } catch (er) { } UI.editW = false; render(); window.scrollTo(0, 0); }
 function setDate(k) { UI.slide = dayDiff(UI.date, k) > 0 ? 'slide-l' : 'slide-r'; UI.date = k; render(); }
-function toggleSlot(k, s) {
-  const r = dayRec(k), on = !r.done[s], x = planFor(k).find(y => y.slot.k === s);
-  if (on) r.done[s] = x ? Math.round(x.kcal) || true : true; else delete r.done[s]; delete r.skip[s];
-  saveDay(k, r);
-  if (x && pantryActive()) adjStock(itemDelta(x, on ? -1 : 1));
-  return on;
-}
+function toggleSlot(k, s) { return setEaten(k, s, (S.days[k] && S.days[k].done && S.days[k].done[s]) ? 0 : 1); }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b) { if (e.target.id === 'scrim') closeSheet(); return; }
   if (b.disabled) return;
@@ -2020,19 +2272,40 @@ document.addEventListener('click', e => {
   else if (a === 'today') setDate(todayKey());
   else if (a === 'toggle') {
     const k = UI.date, s = b.dataset.slot, on = toggleSlot(k, s); UI.pop = on ? s : null;
-    const items = planFor(k); if (on && items.length && items.every(x => x.done) && SLOTS.some(z => z.k === s)) { const sk = streak(); toast(sk >= 2 ? `Den splněn · ${sk} ${plural(sk, 'den', 'dny', 'dní')} v řadě` : 'Den splněn'); }
+    const items = planFor(k); if (on && items.length && items.every(x => x.done) && dayTotals(k).pct >= 0.9 && SLOTS.some(z => z.k === s)) { const sk = streak(); toast(sk >= 2 ? `Den splněn · ${sk} ${plural(sk, 'den', 'dny', 'dní')} v řadě` : 'Den splněn'); }
     if (b.dataset.close) closeSheet(); render();
   }
+  else if (a === 'part') partSheet(b.dataset.slot);
+  else if (a === 'portion') {
+    const k = UI.date, sl = b.dataset.slot, f = Number(b.dataset.f); setEaten(k, sl, f); UI.pop = sl;
+    if (b.dataset.close) closeSheet(); render();
+    const lost = lostKcal(k), items = planFor(k);
+    if (f < 1) toast(lost >= 150 ? `Zapsáno ${fracLabel(f)} porce · dorovnej ${kc(lost)} kcal` : `Zapsáno ${fracLabel(f)} porce`);
+    else if (items.every(x => x.done) && dayTotals(k).pct >= 0.9) { const sk = streak(); toast(sk >= 2 ? `Den splněn · ${sk} ${plural(sk, 'den', 'dny', 'dní')} v řadě` : 'Den splněn'); }
+    else toast('Snědeno');
+  }
+  else if (a === 'fill') {
+    const k = UI.date, r = dayRec(k), tm = k === todayKey() ? minLabel(nowMin()) : ''; let sum = 0;
+    for (const it of b.dataset.items.split(',')) { const [m, xs] = it.split(':'), x = Number(xs); if (!MEALS[m]) continue; const kcal = Math.round(mealStats(m, x).kcal); r.extras.push({ m, x, kcal, t: tm }); sum += kcal; if (pantryActive()) adjStock(mealDelta(m, x, -1)); }
+    saveDay(k, r); render(); toast(`Zapsáno +${kc(sum)} kcal`);
+  }
+  else if (a === 'fadd') {
+    const f = FOOD[b.dataset.f]; if (!f) return; const fx = UI.fx || 1, k = UI.date, r = dayRec(k);
+    r.extras.push({ c: { n: f.n + (fx !== 1 ? ` (${fracLabel(fx)}×)` : ''), kcal: Math.round(f.kcal * fx), b: Math.round(f.b * fx) }, f: f.id, t: k === todayKey() ? minLabel(nowMin()) : '' });
+    saveDay(k, r); rememberFood(f.id); UI.fq = ''; UI.fcat = ''; UI.fx = 1; closeSheet(); render(); toast(`Přidáno +${kc(f.kcal * fx)} kcal`);
+  }
+  else if (a === 'fcat') { UI.fcat = UI.fcat === b.dataset.c ? '' : b.dataset.c; UI.fq = ''; const i = document.getElementById('f-q'); if (i) i.value = ''; document.querySelectorAll('[data-act=fcat]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.c === UI.fcat))); const l = document.getElementById('flist'); if (l) l.innerHTML = foodList(); }
+  else if (a === 'fx') { UI.fx = Number(b.dataset.f); document.querySelectorAll('[data-act=fx]').forEach(x => x.setAttribute('aria-pressed', String(Number(x.dataset.f) === UI.fx))); const l = document.getElementById('flist'); if (l) l.innerHTML = foodList(); }
   else if (a === 'skip') { const k = UI.date, r = dayRec(k); r.skip[b.dataset.slot] = true; saveDay(k, r); if (b.dataset.close) closeSheet(); render(); toast('Vynecháno, dožeň to extra jídlem'); }
   else if (a === 'toshake') { const k = UI.date, r = dayRec(k); r.swap[b.dataset.slot] = 'shake'; saveDay(k, r); if (b.dataset.close) closeSheet(); render(); toast('Místo jídla shake'); }
   else if (a === 'meal') mealSheet({ slot: b.dataset.slot });
   else if (a === 'recipe') mealSheet({ id: b.dataset.meal, mult: 1 });
   else if (a === 'portions') { UI.portions = clamp(UI.portions + Number(b.dataset.d), 1, 6); const sh = document.getElementById('sheet'), sc = sh.scrollTop; mealSheet(UI.recipe, true); sh.scrollTop = sc; }
-  else if (a === 'rate') { const id = b.dataset.meal, v = Number(b.dataset.v), r = { ...(S.prefs.rating || {}) }; if (r[id] === v) delete r[id]; else r[id] = v; S.prefs = { rating: r }; persist('app/prefs', S.prefs); const sh = document.getElementById('sheet'), sc = sh.scrollTop; mealSheet(UI.recipe, true); sh.scrollTop = sc; pendingRender = true; toast(r[id] === -1 ? 'Nahradím ho v plánu' : r[id] === 1 ? 'Uloženo jako oblíbené' : 'Hodnocení zrušeno'); }
+  else if (a === 'rate') { const id = b.dataset.meal, v = Number(b.dataset.v), r = { ...(S.prefs.rating || {}) }; if (r[id] === v) delete r[id]; else r[id] = v; S.prefs = { ...S.prefs, rating: r }; persist('app/prefs', S.prefs); const sh = document.getElementById('sheet'), sc = sh.scrollTop; mealSheet(UI.recipe, true); sh.scrollTop = sc; pendingRender = true; toast(r[id] === -1 ? 'Nahradím ho v plánu' : r[id] === 1 ? 'Uloženo jako oblíbené' : 'Hodnocení zrušeno'); }
   else if (a === 'swap') swapSheet(b.dataset.slot);
   else if (a === 'doswap') { const k = UI.date, r = dayRec(k), s = b.dataset.slot, m = b.dataset.meal, x = planFor(k).find(y => y.slot.k === s); if (!m || (x && m === x.planned)) delete r.swap[s]; else r.swap[s] = m; saveDay(k, r); closeSheet(); render(); toast('Vyměněno, nákup přepočítán'); }
   else if (a === 'extras') extrasSheet();
-  else if (a === 'xadd') { const k = UI.date, r = dayRec(k), m = b.dataset.m, x = Number(b.dataset.x); r.extras.push({ m, x, kcal: Math.round(mealStats(m, x).kcal), t: k === todayKey() ? minLabel(nowMin()) : '' }); saveDay(k, r); if (pantryActive()) adjStock(mealDelta(m, x, -1)); closeSheet(); render(); toast('Přidáno'); }
+  else if (a === 'xadd') { const k = UI.date, r = dayRec(k), m = b.dataset.m, x = Number(b.dataset.x); r.extras.push({ m, x, kcal: Math.round(mealStats(m, x).kcal), t: k === todayKey() ? minLabel(nowMin()) : '' }); saveDay(k, r); if (pantryActive()) adjStock(mealDelta(m, x, -1)); if (MEALS[m].cat !== 'E') rememberFood('m:' + m); UI.fq = ''; UI.fcat = ''; UI.fx = 1; closeSheet(); render(); toast(`Přidáno +${kc(mealStats(m, x).kcal)} kcal`); }
   else if (a === 'xdel') { const k = UI.date, r = dayRec(k), it = r.extras[Number(b.dataset.i)]; r.extras.splice(Number(b.dataset.i), 1); saveDay(k, r); if (it && it.m && pantryActive()) adjStock(mealDelta(it.m, it.x, 1)); render(); }
   else if (a === 'close') closeSheet();
   else if (a === 'settings') settingsSheet();
@@ -2116,6 +2389,7 @@ document.addEventListener('submit', e => {
 });
 document.addEventListener('input', e => {
   if (e.target.classList && e.target.classList.contains('wkg')) UI.wDraft = e.target.value;
+  else if (e.target.id === 'f-q') { UI.fq = e.target.value; if (UI.fcat) { UI.fcat = ''; document.querySelectorAll('[data-act=fcat]').forEach(x => x.setAttribute('aria-pressed', 'false')); } const l = document.getElementById('flist'); if (l) l.innerHTML = foodList(); }
   else if (e.target.id === 'r-q') { UI.rq = e.target.value; const l = document.getElementById('rlist'), c = document.getElementById('r-cats'); if (l) l.innerHTML = recipeRows(); if (c) c.hidden = !!UI.rq.trim(); }
 });
 document.addEventListener('change', async e => {

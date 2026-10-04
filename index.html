@@ -71,7 +71,7 @@ svg { flex: none; }
 .l2 { color: var(--label-2); }
 .tint { color: var(--tint-text); }
 
-.app { max-width: 600px; margin: 0 auto; padding-inline: var(--gutter); padding-block: 0 calc(118px + env(safe-area-inset-bottom, 0px)); }
+.app { max-width: 600px; margin: 0 auto; padding-inline: var(--gutter); padding-block: 0 calc(var(--dock-bottom) + 98px); }
 
 /* Navigation bar: glass buttons always; small title + scroll-edge blur appear once the large title scrolls away */
 .nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30; height: 56px; margin-inline: calc(-1 * var(--gutter)); padding-inline: var(--gutter); display: flex; align-items: center; gap: 10px; }
@@ -236,8 +236,9 @@ button.row:active, .row-main:active { background: var(--press); }
 .stepper span { min-width: 64px; text-align: center; font-size: .882rem; font-weight: 600; }
 .stepper i { width: .5px; height: 18px; background: var(--sep); }
 
-/* Floating Liquid Glass tab bar (inset 21pt from sides and bottom) */
-.tabbar { position: fixed; left: 21px; right: 21px; bottom: calc(env(safe-area-inset-bottom, 0px) + 21px); z-index: 40; max-width: 520px; margin: 0 auto; border-radius: 34px; padding: 5px; display: grid; grid-template-columns: repeat(5, 1fr); }
+/* Plovoucí skleněný dok: 21 pt od boků i od spodní hrany DISPLEJE (ne od bezpečné zóny), takže je soustředný s rohy iPhonu (55 − 21 = 34). Domovský indikátor leží pod ním. */
+:root { --dock-bottom: max(21px, calc(env(safe-area-inset-bottom, 0px) - 13px)); }
+.tabbar { position: fixed; left: 21px; right: 21px; bottom: var(--dock-bottom); z-index: 40; max-width: 520px; margin: 0 auto; border-radius: 34px; padding: 5px; display: grid; grid-template-columns: repeat(5, 1fr); }
 .tabbar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 56px; border-radius: 28px; font-size: .647rem; font-weight: 500; color: var(--label); letter-spacing: 0; }
 .tabbar button svg { width: 25px; height: 25px; }
 .tabbar button[aria-current="page"] { background: var(--fill-3); color: var(--tint-text); font-weight: 600; }
@@ -750,7 +751,7 @@ function mealStats(id, mult = 1) {
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Vzhled si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\n// Spuštěním ve Scriptable si vybereš velikost a uvidíš náhled.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(force) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (force || age > 6 * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\n\nasync function build(family, force) {\n  const code = await core(force);\n  if (code) {\n    try {\n      const run = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n      const w = await run({ KEY, ANON, family });\n      if (w) return w;\n    } catch (e) { console.error(e); }\n  }\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\n\nif (config.runsInApp) {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i >= 0) {\n    const fam = sizes[i][1], w = await build(fam, true);\n    if (fam === 'small') await w.presentSmall();\n    else if (fam === 'large') await w.presentLarge();\n    else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n    else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n    else await w.presentMedium();\n  }\n} else {\n  Script.setWidget(await build(config.widgetFamily || 'medium', false));\n}\nScript.complete();\n";
-const APP_VERSION = 'd9dd304b', APP_BUILT = '2026-10-04T21:42:04Z';
+const APP_VERSION = 'f4896a5a', APP_BUILT = '2026-10-04T23:28:25Z';
 
 </script>
 <script>

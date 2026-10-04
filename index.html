@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<style>body{margin:0}.ph.missing::after,figure.missing::after{content:'Fotka je v jiném zařízení';position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:8px;font-size:.706rem;color:var(--label-2)}figure.missing{position:relative;min-height:120px;background:var(--fill-3);border-radius:18px}.tag.bomb{background:rgba(255,59,48,.12);color:var(--red-text)}.row-sub.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.75rem;word-break:break-all}.steps b{font-weight:600}</style>
+<style>body{margin:0}.ph.missing::after,figure.missing::after{content:'Fotka je v jiném zařízení';position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:8px;font-size:.706rem;color:var(--label-2)}figure.missing{position:relative;min-height:120px;background:var(--fill-3);border-radius:18px}.tag.bomb{background:rgba(255,59,48,.12);color:var(--red-text)}.row-sub.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.75rem;word-break:break-all}.steps b{font-weight:600}.seg[hidden]{display:none}.search{display:flex;align-items:center;gap:8px;background:var(--fill-3);border-radius:12px;padding:0 12px;min-height:40px;margin:2px 0 12px;color:var(--label-2)}.search svg{width:18px;height:18px;flex:none}.search input{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:1rem;color:var(--label);padding:9px 0;outline:none;-webkit-appearance:none;appearance:none}.search:focus-within{box-shadow:0 0 0 2px var(--tint)}.fchips{display:flex;gap:8px;overflow-x:auto;padding:12px 2px 2px;margin:0 -2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.fchips::-webkit-scrollbar{display:none}.fchips button{flex:none;min-height:34px;padding:0 14px;border-radius:99px;background:var(--fill-3);font-size:.882rem;font-weight:500;color:var(--label)}.fchips button[aria-pressed="true"]{background:var(--tint);color:var(--on-tint);font-weight:600}</style>
 <title>Plán 70 kg</title>
 <style>
 /* Layout: iOS 26 app shell per Apple HIG — large title that collapses into a glass nav bar, inset-grouped lists (26pt corners, 52pt rows, 16pt margins),
@@ -297,35 +297,64 @@ textarea::placeholder { color: var(--label-3); }
 <div class="toast glass" id="toast" role="status"></div>
 
 <script>
-// ===== DATA: suroviny, jídla, rotace =====
+// ===== DATA: suroviny, jídla =====
 // kcal a b (bílkoviny) na 100 g / 100 ml, nebo na 1 ks; cena v Kč za 1 g / 1 ml / 1 ks
 const ING = {
   banan:     { n: 'Banány', u: 'ks', kcal: 105, b: 1.3, price: 6, sec: 'zel', pack: 1 },
   jablko:    { n: 'Jablka', u: 'ks', kcal: 78, b: 0.4, price: 4, sec: 'zel', pack: 1 },
   cibule:    { n: 'Cibule', u: 'ks', kcal: 40, b: 1, price: 2, sec: 'zel', pack: 1 },
+  cesnek:    { n: 'Česnek (stroužky)', u: 'ks', kcal: 4, b: 0.2, price: 1, sec: 'zel', pack: 10, packLabel: 'palička' },
+  rajce:     { n: 'Rajčata', u: 'ks', kcal: 18, b: 0.9, price: 4, sec: 'zel', pack: 1 },
   brambory:  { n: 'Brambory', u: 'g', kcal: 77, b: 2, price: 0.02, sec: 'zel', pack: 2000, packLabel: '2 kg pytel' },
   chleba:    { n: 'Chléb konzumní', u: 'g', kcal: 240, b: 8, price: 0.045, sec: 'pec', pack: 1000, packLabel: 'bochník ~1 kg' },
   rohlik:    { n: 'Rohlíky', u: 'ks', kcal: 125, b: 4, price: 3, sec: 'pec', pack: 1 },
+  tortilla:  { n: 'Tortilly pšeničné', u: 'ks', kcal: 190, b: 5, price: 6, sec: 'pec', pack: 6, packLabel: '6 ks', tip: 'velké, 6 ks ~35 Kč; vydrží týdny' },
+  bulka:     { n: 'Hamburgerové bulky', u: 'ks', kcal: 200, b: 7, price: 8, sec: 'pec', pack: 4, packLabel: '4 ks', tip: 'zbylé zamraz' },
   ctvrtka:   { n: 'Kuřecí čtvrtky', u: 'ks', kcal: 460, b: 40, price: 23, sec: 'maso', pack: 1, kgPer: 0.33, tip: 'v akci 46–65 Kč/kg (Albert, Lidl), běžně ~90; mraž do zásoby' },
+  kure:      { n: 'Kuřecí stehenní řízky (nebo prsa)', u: 'g', kcal: 160, b: 19, price: 0.16, sec: 'maso', pack: 500, packLabel: 'tácek ~500 g', tip: 'v akci 120–140 Kč/kg; doma rozděl po 150 g a zamraz' },
+  kure_mlete:{ n: 'Mleté kuřecí nebo krůtí maso', u: 'g', kcal: 160, b: 17, price: 0.14, sec: 'maso', pack: 500, packLabel: '500 g', tip: 'Lidl/Albert ~70 Kč za 500 g; dá se zamrazit' },
+  sunka:     { n: 'Kuřecí nebo krůtí šunka', u: 'g', kcal: 105, b: 17, price: 0.25, sec: 'maso', pack: 100, packLabel: '100 g', tip: 'na obalu zkontroluj, že není s vepřovým' },
+  parky:     { n: 'Kuřecí párky', u: 'g', kcal: 230, b: 12, price: 0.14, sec: 'maso', pack: 250, packLabel: '250 g', tip: 'ověř složení: 100% drůbeží, bez vepřového' },
   vejce:     { n: 'Vejce M', u: 'ks', kcal: 72, b: 6.3, price: 3.2, sec: 'mlec', pack: 10, packLabel: '10 ks', tip: '30 ks v akci za 75–90 Kč' },
   mleko:     { n: 'Mléko plnotučné', u: 'ml', kcal: 64, b: 3.3, price: 0.016, sec: 'mlec', pack: 1000, packLabel: '1 l', tip: 'Lidl trvanlivé 15,90 Kč, v akci i pod 10 Kč' },
   maslo:     { n: 'Máslo', u: 'g', kcal: 740, b: 0.7, price: 0.18, sec: 'mlec', pack: 250, packLabel: '250 g' },
   eidam:     { n: 'Eidam 30 %', u: 'g', kcal: 260, b: 27, price: 0.18, sec: 'mlec', pack: 250, packLabel: '250 g', tip: 'blok, nastrouháš si sám' },
   tvaroh:    { n: 'Tvaroh polotučný', u: 'g', kcal: 105, b: 12, price: 0.1, sec: 'mlec', pack: 250, packLabel: '250 g', tip: 'v akci 19–23 Kč' },
+  jogurt:    { n: 'Bílý jogurt řecký typ', u: 'g', kcal: 120, b: 5, price: 0.08, sec: 'mlec', pack: 400, packLabel: '400 g', tip: 'Pilos řecký typ ~30 Kč' },
   smetana:   { n: 'Smetana na vaření 12 %', u: 'ml', kcal: 130, b: 2.8, price: 0.08, sec: 'mlec', pack: 200, packLabel: '200 ml' },
+  noky:      { n: 'Bramborové noky (gnocchi)', u: 'g', kcal: 155, b: 3.5, price: 0.07, sec: 'mlec', pack: 500, packLabel: '500 g', tip: 'u těstovin nebo v chladicím boxu, ~35 Kč' },
   zelenina:  { n: 'Mražená zeleninová směs', u: 'g', kcal: 40, b: 2.5, price: 0.07, sec: 'mraz', pack: 400, packLabel: '400 g' },
+  ovoce:     { n: 'Mražené ovoce (lesní směs)', u: 'g', kcal: 50, b: 1, price: 0.11, sec: 'mraz', pack: 450, packLabel: '450 g' },
+  rybi_prsty:{ n: 'Rybí prsty', u: 'g', kcal: 200, b: 12, price: 0.13, sec: 'mraz', pack: 450, packLabel: '450 g', tip: 'Lidl/Albert ~60 Kč' },
   ryze:      { n: 'Rýže dlouhozrnná', u: 'g', kcal: 350, b: 7, price: 0.04, sec: 'trv', pack: 1000, packLabel: '1 kg' },
   testoviny: { n: 'Těstoviny', u: 'g', kcal: 355, b: 12, price: 0.04, sec: 'trv', pack: 500, packLabel: '500 g' },
+  kuskus:    { n: 'Kuskus', u: 'g', kcal: 350, b: 12, price: 0.07, sec: 'trv', pack: 500, packLabel: '500 g' },
   cocka:     { n: 'Čočka', u: 'g', kcal: 340, b: 24, price: 0.06, sec: 'trv', pack: 500, packLabel: '500 g' },
+  cizrna:    { n: 'Cizrna (konzerva)', u: 'ks', kcal: 280, b: 17, price: 22, sec: 'trv', pack: 1, tip: 'plechovka 400 g, scezená ~240 g' },
+  fazole:    { n: 'Červené fazole (konzerva)', u: 'ks', kcal: 250, b: 17, price: 20, sec: 'trv', pack: 1, tip: 'plechovka 400 g' },
+  fazole_t:  { n: 'Fazole v tomatové omáčce', u: 'ks', kcal: 320, b: 19, price: 22, sec: 'trv', pack: 1, tip: 'plechovka 400 g' },
+  kukurice:  { n: 'Kukuřice (konzerva)', u: 'ks', kcal: 220, b: 7, price: 20, sec: 'trv', pack: 1 },
+  tunak:     { n: 'Tuňák v oleji (konzerva)', u: 'ks', kcal: 230, b: 28, price: 32, sec: 'trv', pack: 1, tip: 'vícebalení v akci ~25 Kč/ks' },
+  sardinky:  { n: 'Sardinky v oleji (konzerva)', u: 'ks', kcal: 250, b: 22, price: 22, sec: 'trv', pack: 1 },
   vlocky:    { n: 'Ovesné vločky', u: 'g', kcal: 370, b: 13, price: 0.05, sec: 'trv', pack: 500, packLabel: '500 g' },
+  krupice:   { n: 'Dětská krupice', u: 'g', kcal: 340, b: 11, price: 0.035, sec: 'trv', pack: 500, packLabel: '500 g' },
+  granola:   { n: 'Granola (křupavé müsli)', u: 'g', kcal: 450, b: 9, price: 0.1, sec: 'trv', pack: 500, packLabel: '500 g', tip: 'Lidl Crownfield ~50 Kč' },
   passata:   { n: 'Passata', u: 'g', kcal: 30, b: 1.4, price: 0.04, sec: 'trv', pack: 500, packLabel: '500 g' },
+  kokos:     { n: 'Kokosové mléko (konzerva)', u: 'ml', kcal: 190, b: 1.5, price: 0.075, sec: 'trv', pack: 400, packLabel: '400 ml', tip: 'otevřené přelij do krabičky, vydrží 3 dny nebo zamraz' },
+  pesto:     { n: 'Pesto alla genovese', u: 'g', kcal: 450, b: 5, price: 0.22, sec: 'trv', pack: 190, packLabel: 'sklenice 190 g', tip: 'otevřené zalij olejem, vydrží týden' },
   aras_maslo:{ n: 'Arašídové máslo 100 %', u: 'g', kcal: 600, b: 25, price: 0.22, sec: 'trv', pack: 1000, packLabel: '1 kg', tip: '1 kg online ~190–250 Kč' },
+  nutella:   { n: 'Oříšková pomazánka', u: 'g', kcal: 540, b: 6, price: 0.11, sec: 'trv', pack: 400, packLabel: '400 g', tip: 'Lidl Nusskati ~45 Kč' },
   arasidy:   { n: 'Arašídy pražené', u: 'g', kcal: 600, b: 25, price: 0.14, sec: 'trv', pack: 200, packLabel: '200 g' },
   susenky:   { n: 'Sušenky', u: 'g', kcal: 480, b: 6, price: 0.1, sec: 'trv', pack: 250, packLabel: '1 balení' },
   kakao:     { n: 'Instantní kakao', u: 'g', kcal: 380, b: 4, price: 0.11, sec: 'zas', pack: 400, packLabel: '400 g' },
+  kava:      { n: 'Instantní káva', u: 'g', kcal: 0, b: 0, price: 0.9, sec: 'zas', pack: 100, packLabel: '100 g' },
   olej:      { n: 'Řepkový olej', u: 'g', kcal: 900, b: 0, price: 0.043, sec: 'zas', pack: 1000, packLabel: '1 l' },
   cukr:      { n: 'Cukr nebo med', u: 'g', kcal: 400, b: 0, price: 0.022, sec: 'zas', pack: 1000, packLabel: '1 kg' },
+  mouka:     { n: 'Hladká mouka', u: 'g', kcal: 340, b: 10, price: 0.015, sec: 'zas', pack: 1000, packLabel: '1 kg' },
+  strouhanka:{ n: 'Strouhanka', u: 'g', kcal: 360, b: 11, price: 0.04, sec: 'zas', pack: 500, packLabel: '500 g' },
   soja:      { n: 'Sójová omáčka', u: 'ml', kcal: 60, b: 6, price: 0.2, sec: 'zas', pack: 150, packLabel: '150 ml' },
+  majoneza:  { n: 'Majonéza', u: 'g', kcal: 700, b: 1, price: 0.09, sec: 'zas', pack: 250, packLabel: '250 ml' },
+  kecup:     { n: 'Kečup', u: 'g', kcal: 110, b: 1.5, price: 0.06, sec: 'zas', pack: 500, packLabel: '500 g' },
 };
 
 const SECTIONS = [
@@ -333,16 +362,19 @@ const SECTIONS = [
   ['mraz', 'Mražené'], ['trv', 'Trvanlivé'], ['zas', 'Zásoby (kup, když dochází)'],
 ];
 
-// cat: S = snídaně, H = hlavní jídlo (oběd i večeře), V = svačina, X = shake
-// prep: co se dá uvařit dopředu (neděle / středa)
+// cat: S = snídaně, H = hlavní jídlo (oběd i večeře), V = svačina, X = shake, E = extra
+// min: minuty práce; prep: dá se uvařit dopředu a ohřát; cold: bez vaření
+// fresh: jen čerstvé (jako zbytek do krabičky se nehodí); p: hlavní bílkovina; base: příloha
+// Koření (sůl, pepř, paprika, kari, oregano, kmín, majoránka, skořice, hořčice) se v nákupu nepočítá.
 const MEALS = {
+  // ---------- Snídaně ----------
   vejce: { cat: 'S', n: 'Míchaná vejce s chlebem', min: 10,
     ing: [['vejce', 4], ['maslo', 25, '10 g na pánev, 15 g na chleba'], ['chleba', 150, '3 krajíce']],
     steps: ['Na pánvi rozpusť 10 g másla na mírném ohni.', 'Rozmíchej 4 vejce se solí a vlij je na pánev.', 'Míchej stěrkou 2–3 minuty, stáhni z ohně, dokud jsou krémová.', '3 krajíce chleba namaž zbylými 15 g másla.'] },
   topinky: { cat: 'S', n: 'Topinky se sýrem a volskými oky', min: 15,
     ing: [['chleba', 150, '3 krajíce'], ['olej', 20], ['eidam', 60], ['vejce', 2]],
     steps: ['Na 15 g oleje osmaž 3 krajíce chleba dozlatova z obou stran.', 'Na topinky polož plátky eidamu (60 g) a přiklop pánev pokličkou, ať se sýr rozpustí.', 'Na zbylém oleji usmaž 2 volská oka a polož je navrch.'] },
-  tvaroh: { cat: 'S', n: 'Tvaroh s arašídy a banánem + rohlíky', min: 5,
+  tvaroh: { cat: 'S', n: 'Tvaroh s arašídy a banánem + rohlíky', min: 5, cold: true,
     ing: [['tvaroh', 250], ['arasidy', 40], ['cukr', 20, '1 vrchovatá lžíce'], ['banan', 1], ['rohlik', 2], ['maslo', 10]],
     steps: ['Tvaroh vyklop do misky, vmíchej lžíci cukru nebo medu.', 'Navrch nakrájej banán a nasyp 40 g arašídů.', 'K tomu 2 rohlíky s máslem.'] },
   kase: { cat: 'S', n: 'Ovesná kaše s arašídovým máslem', min: 8,
@@ -351,66 +383,302 @@ const MEALS = {
   omeleta: { cat: 'S', n: 'Sýrová omeleta s rohlíky', min: 10,
     ing: [['vejce', 4], ['eidam', 40], ['maslo', 25, '10 g na pánev, 15 g na rohlíky'], ['rohlik', 3]],
     steps: ['Rozšlehej 4 vejce se solí.', 'Na 10 g másla je vlij na pánev a nech 3 minuty na mírném ohni.', 'Posyp 40 g strouhaného eidamu a přelož napůl.', 'K tomu 3 rohlíky s 15 g másla.'] },
+  palacinky: { cat: 'S', n: 'Palačinky s oříškovou pomazánkou a banánem', min: 15,
+    ing: [['mouka', 100], ['mleko', 250], ['vejce', 2], ['olej', 10, 'na potírání pánve'], ['nutella', 40], ['banan', 1]],
+    steps: ['V míse rozšlehej 2 vejce s 250 ml mléka a špetkou soli, postupně zašlehej 100 g mouky, ať nejsou hrudky.', 'Těsto nech 5 minut odpočinout. Klidně ho udělej večer a ráno jen peč.', 'Pánev potři olejem a na středním ohni peč tenké palačinky asi minutu z každé strany. Vyjde 4–5 kusů.', 'Každou namaž oříškovou pomazánkou, přidej plátky banánu a sroluj.'] },
+  livance: { cat: 'S', n: 'Lívance s tvarohem a medem', min: 20,
+    ing: [['mouka', 100], ['mleko', 150], ['vejce', 1], ['olej', 15], ['cukr', 30, 'lžička do těsta, zbytek na tvaroh'], ['tvaroh', 125]],
+    steps: ['Smíchej 100 g mouky, vejce, 150 ml mléka, lžičku cukru, špetku soli a ½ lžičky kypřicího prášku na husté těsto.', 'Na pánvi rozpal trochu oleje a lžící dělej malé placky. Peč 1–2 minuty z každé strany do zlatova.', 'Tvaroh rozmíchej se zbytkem cukru nebo medu a dej ho na lívance.'] },
+  kase_cokolada: { cat: 'S', n: 'Čokoládová kaše s banánem', min: 8,
+    ing: [['vlocky', 100], ['mleko', 400], ['kakao', 15], ['nutella', 30], ['banan', 1]],
+    steps: ['Do hrnce dej 400 ml mléka, 100 g vloček, 15 g kakaa a špetku soli.', 'Vař 4–5 minut na mírném ohni a míchej. V mikrovlnce 2× 2 minuty.', 'Vmíchej 30 g oříškové pomazánky a navrch nakrájej banán.'] },
+  kase_jablko: { cat: 'S', n: 'Jablečná kaše se skořicí a arašídy', min: 8,
+    ing: [['vlocky', 100], ['mleko', 400], ['jablko', 1], ['arasidy', 30], ['cukr', 20]],
+    steps: ['Jablko nastrouhej rovnou do hrnce, přidej 400 ml mléka, 100 g vloček a skořici.', 'Vař 4–5 minut na mírném ohni a míchej.', 'Oslaď medem nebo cukrem a posyp 30 g nasekaných arašídů.'] },
+  krupice: { cat: 'S', n: 'Krupicová kaše s kakaem a máslem', min: 7,
+    ing: [['mleko', 400], ['krupice', 80], ['maslo', 20], ['kakao', 20], ['cukr', 20]],
+    steps: ['V hrnci ohřej 400 ml mléka skoro k varu.', 'Za stálého míchání vsyp 80 g krupice a vař 2–3 minuty, až zhoustne.', 'Dej do talíře, navrch máslo a posyp kakaem smíchaným s cukrem.'] },
+  jogurt_granola: { cat: 'S', n: 'Řecký jogurt s granolou a ovocem', min: 3, cold: true,
+    ing: [['jogurt', 300], ['granola', 100], ['ovoce', 80], ['cukr', 15, 'lžíce medu']],
+    steps: ['Do misky dej 300 g jogurtu a vmíchej lžíci medu nebo cukru.', 'Nasyp 100 g granoly a navrch 80 g ovoce.', 'Mražené ovoce nech přes noc rozmrznout v lednici, nebo ho dej na minutu do mikrovlnky.'] },
+  granola_mleko: { cat: 'S', n: 'Granola s mlékem a banánem', min: 2, cold: true,
+    ing: [['granola', 120], ['mleko', 350], ['banan', 1]],
+    steps: ['Do misky nasyp 120 g granoly.', 'Zalij 350 ml studeného mléka a nakrájej do toho banán.'] },
+  tvaroh_krem: { cat: 'S', n: 'Tvarohový krém s oříškovou pomazánkou a granolou', min: 4, cold: true,
+    ing: [['tvaroh', 250], ['nutella', 30], ['mleko', 50], ['granola', 60], ['banan', 1]],
+    steps: ['Tvaroh vyšlehej vidličkou s 50 ml mléka a 30 g oříškové pomazánky do hladka.', 'Navrch nasyp 60 g granoly a nakrájej banán.'] },
+  pb_toast: { cat: 'S', n: 'Arašídové toasty s banánem a kakaem', min: 4, cold: true,
+    ing: [['chleba', 150, '3 krajíce'], ['aras_maslo', 40], ['banan', 1], ['mleko', 300], ['kakao', 15]],
+    steps: ['3 krajíce chleba opeč v toastovači nebo na suché pánvi, nebo nech jen tak.', 'Namaž je 40 g arašídového másla a oblož plátky banánu.', 'K tomu hrnek mléka (300 ml) s 1,5 lžíce kakaa.'] },
+  rohliky_med: { cat: 'S', n: 'Rohlíky s máslem a medem + kakao', min: 3, cold: true,
+    ing: [['rohlik', 3], ['maslo', 30], ['cukr', 30, 'med nebo marmeláda'], ['mleko', 300], ['kakao', 15]],
+    steps: ['3 rohlíky namaž 30 g másla a medem nebo marmeládou.', 'Hrnek mléka (300 ml) ohřej a rozmíchej v něm 1,5 lžíce kakaa.'] },
+  tvaroh_pom: { cat: 'S', n: 'Tvarohová pomazánka s rohlíky', min: 7,
+    ing: [['tvaroh', 125], ['maslo', 30, 'změklé'], ['rohlik', 4], ['cibule', 0.25]],
+    steps: ['Máslo vyndej z lednice chvíli předem, ať změkne.', 'Utři 30 g másla se 125 g tvarohu do hladka, přidej sůl, sladkou papriku a nadrobno nakrájenou cibuli nebo pažitku.', 'Namaž na 4 rohlíky. Pomazánka vydrží v lednici 3 dny.'] },
+  vajecna_pom: { cat: 'S', n: 'Vajíčková pomazánka s chlebem', min: 15, prep: true,
+    ing: [['vejce', 4], ['majoneza', 25], ['chleba', 150, '3 krajíce'], ['cibule', 0.25]],
+    steps: ['Vejce vař 10 minut natvrdo, zchlaď studenou vodou a oloupej.', 'Nastrouhej je nebo rozmačkej vidličkou, přidej 25 g majonézy, kousek nadrobno nakrájené cibule, sůl, pepř a lžičku hořčice.', 'Namaž na 3 krajíce chleba. Pomazánka vydrží v lednici 2 dny, klidně ji udělej večer.'] },
+  vejce_parky: { cat: 'S', n: 'Vajíčka s kuřecími párky a chlebem', min: 10,
+    ing: [['vejce', 3], ['parky', 100, '2 párky'], ['chleba', 150, '3 krajíce'], ['maslo', 10]],
+    steps: ['Párky nakrájej na kolečka a na 10 g másla je 2 minuty opékej.', 'Přidej 3 rozšlehaná vejce se solí a míchej, dokud nejsou krémová.', 'K tomu 3 krajíce chleba, klidně s kečupem.'] },
+  toasty_sunka: { cat: 'S', n: 'Toasty se šunkou a sýrem', min: 8,
+    ing: [['chleba', 200, '4 krajíce'], ['sunka', 60], ['eidam', 60], ['maslo', 15], ['banan', 1]],
+    steps: ['4 krajíce chleba zvenku tence namaž máslem.', 'Mezi dva vždy dej plátky šunky a eidamu.', 'Opeč v toastovači nebo na suché pánvi pod pokličkou 2–3 minuty z každé strany.', 'K tomu banán.'] },
+  burrito_snidane: { cat: 'S', n: 'Snídaňové burrito s vejci a sýrem', min: 10,
+    ing: [['tortilla', 2], ['vejce', 3], ['eidam', 50], ['sunka', 40], ['olej', 5], ['kecup', 20]],
+    steps: ['Rozšlehej 3 vejce se solí a na 5 g oleje je usmaž jako míchaná.', 'Na 2 tortilly rozděl vejce, nakrájenou šunku, strouhaný eidam a kečup.', 'Zaroluj a krátce opeč na suché pánvi, ať se sýr rozpustí.'] },
+  french_toast: { cat: 'S', n: 'Sladké topinky se skořicí', min: 12,
+    ing: [['chleba', 150, '3 krajíce'], ['vejce', 2], ['mleko', 100], ['maslo', 20], ['cukr', 25], ['banan', 1]],
+    steps: ['Rozšlehej 2 vejce se 100 ml mléka, lžičkou cukru a skořicí.', '3 krajíce chleba v tom namoč z obou stran.', 'Na 20 g másla je opeč dozlatova, asi 2 minuty z každé strany.', 'Posyp zbylým cukrem se skořicí, k tomu banán.'] },
+  omeleta_spanel: { cat: 'S', n: 'Španělská bramborová omeleta', min: 20,
+    ing: [['brambory', 200], ['vejce', 4], ['olej', 15], ['cibule', 0.5], ['eidam', 30], ['chleba', 100, '2 krajíce']],
+    steps: ['Brambory nakrájej na tenké plátky, cibuli na proužky.', 'Na 15 g oleje je duš pod pokličkou 10 minut doměkka, osol.', 'Zalij 4 rozšlehanými vejci, posyp sýrem, přikryj a nech 5 minut na mírném ohni.', 'K tomu 2 krajíce chleba.'] },
+  shakshuka: { cat: 'S', n: 'Šakšuka: vejce v rajčatové omáčce', min: 15,
+    ing: [['vejce', 3], ['passata', 200], ['cibule', 0.5], ['olej', 15], ['eidam', 30], ['chleba', 150, '3 krajíce']],
+    steps: ['Na 15 g oleje osmaž ½ nakrájené cibule, přidej sladkou papriku a kmín.', 'Vlij 200 g passaty, osol a 3 minuty povař.', 'Udělej 3 důlky, rozbij do nich vejce, přikryj a nech 5–6 minut, dokud bílky neztuhnou.', 'Posyp sýrem a vytírej chlebem.'] },
+  fazole_vejce: { cat: 'S', n: 'Fazole v tomatě s volskými oky a toastem', min: 10,
+    ing: [['fazole_t', 1], ['vejce', 2], ['chleba', 100, '2 krajíce'], ['maslo', 15]],
+    steps: ['Fazole z plechovky ohřej v hrnci nebo 2 minuty v mikrovlnce.', 'Na 5 g másla usmaž 2 volská oka.', '2 krajíce chleba opeč a namaž zbylým máslem. Všechno dej na jeden talíř.'] },
 
+  // ---------- Shaky ----------
   shake: { cat: 'X', n: 'Domácí gainer (shake)', min: 2,
     ing: [['mleko', 500], ['aras_maslo', 50, '2 vrchovaté lžíce'], ['banan', 1], ['kakao', 20, '2 lžíce']],
-    steps: ['Všechno dej do mixéru: 500 ml mléka, 50 g arašídového másla, banán a 20 g kakaa.', 'Mixuj 30–45 sekund dohladka. Do shaku můžeš sypat i denní dávku kreatinu.', 'Nejlíp ho umixuj večer a dej do lednice, ráno ho jen vezmeš.', 'Máš ještě hlad na víc? Přimixuj 40 g ovesných vloček (+150 kcal).'] },
+    steps: ['Všechno dej do mixéru: 500 ml mléka, 50 g arašídového másla, banán a 20 g kakaa.', 'Mixuj 30–45 sekund dohladka. Do shaku můžeš sypat i denní dávku kreatinu.', 'Klidně ho umixuj dopředu a dej do lednice.', 'Máš ještě hlad na víc? Přimixuj 40 g ovesných vloček (+150 kcal).'] },
+  shake_ovesny: { cat: 'X', n: 'Ovesný shake s banánem a medem', min: 2,
+    ing: [['mleko', 500], ['vlocky', 60], ['banan', 1], ['cukr', 25, 'lžíce medu'], ['aras_maslo', 10]],
+    steps: ['Do mixéru dej 60 g vloček a 500 ml mléka a nech 2 minuty nasáknout.', 'Přidej banán, lžíci medu a lžičku arašídového másla.', 'Mixuj 45 sekund dohladka.'] },
+  shake_kava: { cat: 'X', n: 'Kávový shake s arašídovým máslem', min: 2, kava: true,
+    ing: [['mleko', 500], ['aras_maslo', 40], ['kava', 4, '2 lžičky'], ['cukr', 25], ['vlocky', 40]],
+    steps: ['Do mixéru dej 500 ml studeného mléka, 2 lžičky instantní kávy, 40 g arašídového másla, 40 g vloček a lžíci cukru.', 'Mixuj 45 sekund, s kostkou ledu je to jako frappé.', 'Je v něm kofein, proto ho appka nedává večer.'] },
+  shake_ovoce: { cat: 'X', n: 'Shake z lesního ovoce s tvarohem', min: 2,
+    ing: [['mleko', 400], ['tvaroh', 125], ['ovoce', 150], ['cukr', 30], ['vlocky', 60]],
+    steps: ['Do mixéru dej 400 ml mléka, 125 g tvarohu, 150 g mraženého ovoce, 60 g vloček a 2 lžíce cukru nebo medu.', 'Mixuj 45–60 sekund dohladka. Má nejvíc bílkovin ze všech shaků.'] },
+  shake_cokolada: { cat: 'X', n: 'Čokoládový shake s oříškovou pomazánkou', min: 2,
+    ing: [['mleko', 500], ['nutella', 40], ['banan', 1], ['vlocky', 40]],
+    steps: ['Do mixéru dej 500 ml mléka, 40 g oříškové pomazánky, banán a 40 g vloček.', 'Mixuj 45 sekund dohladka.'] },
 
-  ctv_ryze: { cat: 'H', n: 'Pečená čtvrtka, rýže s máslem, zelenina', min: 20, prep: true,
+  // ---------- Hlavní jídla: kuře ----------
+  ctv_ryze: { cat: 'H', n: 'Pečená čtvrtka, rýže s máslem, zelenina', min: 20, prep: true, p: 'kure', base: 'ryze',
     ing: [['ctvrtka', 1], ['ryze', 125, 'syrová váha'], ['maslo', 15], ['zelenina', 150]],
-    steps: ['Čtvrtku vezmi z dávky upečené dopředu (postup je v sekci Vaření dopředu).', 'Rýži uvař dopředu s dávkou, nebo čerstvou: 125 g rýže + 250 ml osolené vody, přikryté 15 minut na mírném ohni.', 'Mraženou zeleninu (150 g) ohřej v mikrovlnce 3 minuty nebo na pánvi.', 'Do teplé rýže vmíchej 15 g másla. Čtvrtku ohřej v mikrovlnce 2–3 minuty.'],
+    steps: ['Čtvrtku vezmi z dávky upečené dopředu, nebo ji upeč: osolit, paprika, olej, 200 °C, 45–50 minut.', 'Rýži uvař: 125 g rýže + 250 ml osolené vody, přikryté 15 minut na mírném ohni.', 'Mraženou zeleninu (150 g) ohřej v mikrovlnce 3 minuty nebo na pánvi.', 'Do teplé rýže vmíchej 15 g másla. Čtvrtku ohřej v mikrovlnce 2–3 minuty.'],
     batch: [['chicken', 1], ['rice', 125]] },
-  ctv_brambory: { cat: 'H', n: 'Pečená čtvrtka s pečenými bramborami', min: 10, prep: true,
+  ctv_brambory: { cat: 'H', n: 'Pečená čtvrtka s pečenými bramborami', min: 10, prep: true, p: 'kure', base: 'brambory',
     ing: [['ctvrtka', 1], ['brambory', 400], ['olej', 20]],
-    steps: ['Čtvrtku i brambory peč dopředu na jednom plechu (Vaření dopředu).', 'Brambory nakrájej na měsíčky, promíchej s olejem, solí a paprikou, peč 200 °C 35–40 minut.', 'Porci ohřej v mikrovlnce 3 minuty nebo v troubě.'],
+    steps: ['Čtvrtku i brambory peč na jednom plechu, ideálně dopředu (Vaření dopředu).', 'Brambory nakrájej na měsíčky, promíchej s olejem, solí a paprikou, peč 200 °C 35–40 minut.', 'Porci ohřej v mikrovlnce 3 minuty nebo v troubě.'],
     batch: [['chicken', 1], ['potato', 400]] },
-  rizoto: { cat: 'H', n: 'Kuřecí rýže se zeleninou a sýrem', min: 30, prep: true,
+  ctv_med: { cat: 'H', n: 'Čtvrtka na medu a česneku s bramborami', min: 50, prep: true, p: 'kure', base: 'brambory',
+    ing: [['ctvrtka', 1], ['brambory', 350], ['olej', 20], ['cukr', 15, 'lžíce medu'], ['cesnek', 2]],
+    steps: ['Smíchej lžíci medu, 2 prolisované stroužky česneku, 10 g oleje, sůl a papriku a potři tím čtvrtku.', 'Brambory nakrájej na měsíčky a promíchej se zbytkem oleje a solí.', 'Peč všechno na jednom plechu na 200 °C 45–50 minut.', 'Vyplatí se upéct víc kusů najednou, ohřáté chutnají skoro stejně.'] },
+  rizoto: { cat: 'H', n: 'Kuřecí rýže se zeleninou a sýrem', min: 30, prep: true, p: 'kure', base: 'ryze',
     ing: [['ctvrtka', 1, 'obrané maso'], ['ryze', 125], ['zelenina', 150], ['olej', 15], ['eidam', 30], ['cibule', 0.5]],
     steps: ['Upečenou čtvrtku obereme od kosti (kůži klidně nech, jsou to kalorie).', 'V hrnci na 15 g oleje osmaž ½ nakrájené cibule.', 'Přidej 125 g rýže a 1 minutu ji opražuj.', 'Zalij 250 ml vody, osol, přidej 150 g mražené zeleniny, přikryj a duš 15 minut.', 'Vmíchej maso a 30 g strouhaného eidamu. Ve trojnásobku uvaříš 3 porce najednou.'],
     batch: [['chicken', 1], ['rizoto', 1]] },
-  paprika: { cat: 'H', n: 'Kuře na paprice s těstovinami', min: 25, prep: true,
+  paprika: { cat: 'H', n: 'Kuře na paprice s těstovinami', min: 25, prep: true, p: 'kure', base: 'testoviny',
     ing: [['ctvrtka', 1], ['smetana', 100], ['cibule', 0.5], ['olej', 10], ['testoviny', 125]],
     steps: ['Na 10 g oleje osmaž ½ cibule dozlatova.', 'Přidej lžičku mleté sladké papriky a hned zalij 100 ml vody.', 'Vlož upečenou čtvrtku (nebo obrané maso), přikryj a duš 10 minut.', 'Vmíchej 100 ml smetany na vaření a prohřej, nevař.', 'Těstoviny (125 g) uvař podle obalu. Omáčku navaříš na 3 porce najednou.'],
     batch: [['chicken', 1], ['paprika', 1]] },
-  testoviny: { cat: 'H', n: 'Těstoviny s rajčatovou omáčkou a sýrem', min: 15,
+  kure_kari: { cat: 'H', n: 'Kuřecí kari s kokosovým mlékem a rýží', min: 25, prep: true, p: 'kure', base: 'ryze',
+    ing: [['kure', 150], ['kokos', 200], ['ryze', 100], ['olej', 10], ['cibule', 0.5], ['cesnek', 1]],
+    steps: ['Rýži dej vařit: 100 g rýže + 200 ml osolené vody, přikryté 15 minut.', 'Kuře nakrájej na kostky. Na 10 g oleje osmaž ½ cibule a stroužek česneku, přidej kuře a 1–2 lžičky kari, opékej 5 minut.', 'Zalij 200 ml kokosového mléka, osol a 8 minut povař, až omáčka zhoustne.', 'Podávej s rýží. Z celé plechovky uvaříš rovnou 2 porce.'] },
+  kure_teriyaki: { cat: 'H', n: 'Kuře na medu a sóji s rýží', min: 20, p: 'kure', base: 'ryze',
+    ing: [['kure', 150], ['ryze', 125], ['soja', 25], ['cukr', 20, 'lžíce medu'], ['olej', 15], ['cesnek', 2], ['zelenina', 100]],
+    steps: ['Rýži dej vařit: 125 g rýže + 250 ml osolené vody, přikryté 15 minut.', 'Kuře nakrájej na kousky a na 15 g oleje opékej 5–6 minut dozlatova.', 'Přidej mraženou zeleninu a prolisovaný česnek, 3 minuty smaž.', 'Zalij 2 lžícemi sójové omáčky smíchanými s lžící medu a minutu prohřej, až se omáčka leskne. Podávej s rýží.'] },
+  stroganoff: { cat: 'H', n: 'Kuřecí stroganoff s rýží', min: 25, p: 'kure', base: 'ryze',
+    ing: [['kure', 150], ['smetana', 100], ['cibule', 0.5], ['olej', 15], ['ryze', 100], ['kecup', 15]],
+    steps: ['Rýži dej vařit: 100 g rýže + 200 ml osolené vody, přikryté 15 minut.', 'Kuře nakrájej na nudličky, cibuli na půlměsíce a na 15 g oleje je opékej 6 minut.', 'Přidej lžičku hořčice, lžíci kečupu a 100 ml smetany, osol, opepři a 3 minuty povař.', 'Podávej s rýží.'] },
+  kure_smetana: { cat: 'H', n: 'Kuřecí těstoviny se smetanou a sýrem', min: 20, p: 'kure', base: 'testoviny',
+    ing: [['kure', 150], ['testoviny', 125], ['smetana', 150], ['eidam', 40], ['olej', 10], ['cesnek', 1]],
+    steps: ['Dej vařit 125 g těstovin do osolené vody.', 'Kuře nakrájej na nudličky a na 10 g oleje opékej 5 minut, přidej prolisovaný česnek.', 'Vlij 150 ml smetany, osol, opepři a 2 minuty povař. Vmíchej 40 g strouhaného eidamu.', 'Smíchej se scezenými těstovinami.'] },
+  kure_pesto: { cat: 'H', n: 'Těstoviny s pestem a kuřetem', min: 15, p: 'kure', base: 'testoviny',
+    ing: [['kure', 120], ['testoviny', 125], ['pesto', 50], ['eidam', 20], ['olej', 5]],
+    steps: ['Uvař 125 g těstovin podle obalu.', 'Kuře nakrájej na kousky, osol a na 5 g oleje opékej 5–6 minut.', 'Scezené těstoviny smíchej s 50 g pesta a kuřetem, posyp sýrem. Chutná i studené z krabičky.'] },
+  kure_satay: { cat: 'H', n: 'Kuřecí nudle s arašídovou omáčkou', min: 20, p: 'kure', base: 'testoviny',
+    ing: [['kure', 120], ['testoviny', 125, 'špagety nebo nudle'], ['zelenina', 150], ['soja', 20], ['olej', 15], ['aras_maslo', 25]],
+    steps: ['Uvař 125 g špaget nebo nudlí a sceď.', 'Kuře nakrájej na nudličky a na 15 g oleje opékej 5 minut, přidej mraženou zeleninu a smaž 3 minuty.', 'V hrnku rozmíchej 25 g arašídového másla, 2 lžíce sójové omáčky, lžičku cukru a 3 lžíce horké vody.', 'Všechno smíchej v pánvi a minutu prohřej.'] },
+  kure_rajska: { cat: 'H', n: 'Kuře na rajské omáčce s těstovinami', min: 25, prep: true, p: 'kure', base: 'testoviny',
+    ing: [['kure', 120], ['passata', 250], ['smetana', 50], ['cukr', 15], ['maslo', 10], ['testoviny', 125], ['cibule', 0.5]],
+    steps: ['Kuře nakrájej na kousky a na 10 g másla s ½ cibule opékej 5 minut.', 'Vlij 250 g passaty, přidej 15 g cukru, sůl a nové koření nebo bobkový list, duš 10 minut.', 'Vmíchej 50 ml smetany a prohřej. Má být sladkokyselá, případně dolaď kapkou octa.', 'Podávej s těstovinami.'] },
+  kure_noky: { cat: 'H', n: 'Noky s kuřetem, smetanou a sýrem', min: 15, p: 'kure', base: 'noky',
+    ing: [['noky', 300], ['kure', 100], ['smetana', 100], ['eidam', 40], ['olej', 10]],
+    steps: ['Kuře nakrájej na kousky a na 10 g oleje opékej 5 minut.', 'Přidej 300 g noků rovnou z balení a 3 minuty je opékej s kuřetem.', 'Zalij 100 ml smetany, osol, opepři, přidej česnek nebo oregano a 2 minuty povař.', 'Vmíchej strouhaný eidam.'] },
+  kure_kuskus: { cat: 'H', n: 'Kuskus s kuřetem a zeleninou', min: 15, p: 'kure', base: 'kuskus',
+    ing: [['kuskus', 100], ['kure', 150], ['zelenina', 150], ['olej', 20], ['maslo', 10]],
+    steps: ['100 g kuskusu zalij 150 ml vroucí osolené vody, přikryj a nech 5 minut stát. Pak vmíchej 10 g másla.', 'Kuře nakrájej na kousky a na 20 g oleje opékej 5 minut s paprikou a solí.', 'Přidej mraženou zeleninu a smaž dalších 4 minuty.', 'Smíchej s kuskusem. Chutná teplé i studené z krabičky.'] },
+  kure_burrito: { cat: 'H', n: 'Kuřecí burrito s fazolemi a sýrem', min: 20, p: 'kure', base: 'tortilla',
+    ing: [['tortilla', 2], ['kure', 100], ['fazole', 1], ['eidam', 40], ['olej', 10], ['kecup', 20, 'nebo salsa']],
+    steps: ['Kuře nakrájej na nudličky a na 10 g oleje opékej 5 minut s mletou paprikou, kmínem a solí.', 'Přidej scezené fazole a 2 lžíce kečupu nebo salsy, 3 minuty prohřej a trochu rozmačkej.', 'Směs rozděl na 2 tortilly, posyp strouhaným eidamem a zaroluj.', 'Opeč na suché pánvi 1–2 minuty z každé strany.'] },
+  quesadilla: { cat: 'H', n: 'Kuřecí quesadilla se sýrem', min: 15, fresh: true, p: 'kure', base: 'tortilla',
+    ing: [['tortilla', 2], ['kure', 120], ['eidam', 80], ['olej', 10], ['kecup', 20, 'nebo salsa']],
+    steps: ['Kuře nakrájej na malé kousky, osol, přidej papriku a na 10 g oleje opékej 6 minut.', 'Na polovinu tortilly dej půlku kuřete a 40 g strouhaného eidamu a přelož napůl. Stejně udělej druhou.', 'Opékej na suché pánvi 2 minuty z každé strany, až se sýr rozteče.', 'Nakrájej na trojúhelníky a namáčej v kečupu nebo salse.'] },
+  kure_wrap: { cat: 'H', n: 'Studený kuřecí wrap s majonézou a sýrem', min: 15, p: 'kure', base: 'tortilla',
+    ing: [['tortilla', 2], ['kure', 120], ['eidam', 40], ['majoneza', 20], ['rajce', 1], ['olej', 5]],
+    steps: ['Kuře nakrájej na nudličky, osol, opepři a na 5 g oleje opékej 6 minut. Klidně už večer předem.', 'Tortilly potři majonézou, přidej kuře, plátky sýra a nakrájené rajče.', 'Pevně zaroluj a zabal do alobalu. V lednici vydrží do druhého dne, ideální s sebou.'] },
+  gyros: { cat: 'H', n: 'Domácí kuřecí gyros s tzatziki a hranolky', min: 35, fresh: true, p: 'kure', base: 'brambory',
+    ing: [['kure', 150], ['tortilla', 1], ['jogurt', 80], ['olej', 25], ['brambory', 300], ['cesnek', 1]],
+    steps: ['Brambory nakrájej na hranolky, promíchej s 15 g oleje a solí a peč na 220 °C 25–30 minut.', 'Kuře nakrájej na tenké nudličky, okořeň gyros kořením (nebo paprikou, česnekem a oregánem) a na 10 g oleje opékej 6–7 minut do křupava.', 'Tzatziki: jogurt smíchej s prolisovaným česnekem a solí, klidně přidej nastrouhanou okurku.', 'Tortillu krátce ohřej, dej do ní kuře, tzatziki a hranolky, nebo všechno naservíruj na talíř.'] },
+  kure_rizek: { cat: 'H', n: 'Kuřecí řízek s bramborovou kaší', min: 35, p: 'kure', base: 'brambory',
+    ing: [['kure', 150], ['mouka', 20], ['vejce', 1], ['strouhanka', 40], ['olej', 25, 'vsákne se při smažení'], ['brambory', 300], ['maslo', 20], ['mleko', 100]],
+    steps: ['Oloupané brambory (300 g) nakrájej a vař 20 minut v osolené vodě.', 'Kuře rozklepej na tenké plátky, osol a obal v mouce, rozšlehaném vejci a strouhance.', 'Smaž na oleji (asi 1 cm na pánvi) 3–4 minuty z každé strany dozlatova.', 'Brambory sceď, přidej 20 g másla a 100 ml teplého mléka a rozmačkej na kaši.'] },
+  kure_gulas: { cat: 'H', n: 'Kuřecí guláš s chlebem', min: 45, prep: true, p: 'kure', base: 'chleba',
+    ing: [['kure', 150], ['cibule', 1], ['olej', 20], ['passata', 50], ['mouka', 10], ['chleba', 150, '3 krajíce']],
+    steps: ['Na 20 g oleje pomalu osmaž nakrájenou cibuli dohněda, asi 10 minut.', 'Přidej lžíci mleté papriky a kuře na kostky, 5 minut opékej.', 'Zalij 300 ml vody, přidej 50 g passaty, kmín, majoránku a sůl, duš 25 minut.', 'Zahusti lžící mouky rozmíchanou ve vodě, povař 3 minuty. Podávej s chlebem. Vyplatí se uvařit víc porcí.'] },
+
+  // ---------- Hlavní jídla: mleté maso ----------
+  bolognese: { cat: 'H', n: 'Špagety bolognese z mletého kuřecího', min: 25, prep: true, p: 'kure', base: 'testoviny',
+    ing: [['testoviny', 125], ['kure_mlete', 150], ['passata', 200], ['olej', 15], ['cibule', 0.5], ['eidam', 30], ['cesnek', 1]],
+    steps: ['Na 15 g oleje osmaž ½ cibule a stroužek česneku.', 'Přidej 150 g mletého masa a opékej 5 minut, rozmělňuj ho vařečkou.', 'Vlij 200 g passaty, osol, přidej oregano a lžičku cukru a duš 10 minut.', 'Mezitím uvař 125 g špaget. Podávej se strouhaným sýrem. Omáčka jde uvařit na víc porcí a zamrazit.'] },
+  chilli: { cat: 'H', n: 'Chilli s mletým kuřetem, fazolemi a rýží', min: 25, prep: true, p: 'kure', base: 'ryze',
+    ing: [['kure_mlete', 100], ['fazole', 1], ['passata', 100], ['ryze', 100], ['olej', 15], ['cibule', 0.5]],
+    steps: ['Rýži dej vařit: 100 g rýže + 200 ml osolené vody, přikryté 15 minut.', 'Na 15 g oleje osmaž ½ cibule, přidej 100 g mletého masa a opékej 5 minut.', 'Přidej scezené fazole, 100 g passaty, mletou papriku, kmín, sůl a chilli podle chuti a duš 10 minut.', 'Podávej s rýží, klidně posypané sýrem.'] },
+  kulicky: { cat: 'H', n: 'Masové kuličky v rajčatové omáčce s těstovinami', min: 30, prep: true, p: 'kure', base: 'testoviny',
+    ing: [['kure_mlete', 150], ['strouhanka', 20], ['passata', 200], ['testoviny', 125], ['olej', 15], ['eidam', 20], ['cesnek', 1]],
+    steps: ['Mleté maso smíchej se strouhankou, solí, pepřem a prolisovaným česnekem a vytvaruj 10–12 kuliček.', 'Na 15 g oleje je opékej 5 minut dokola.', 'Zalij 200 g passaty, přidej oregano, přikryj a duš 10 minut.', 'Mezitím uvař 125 g těstovin. Podávej se strouhaným sýrem.'] },
+  karbanatky: { cat: 'H', n: 'Kuřecí karbanátky s bramborovou kaší', min: 35, prep: true, p: 'kure', base: 'brambory',
+    ing: [['kure_mlete', 150], ['vejce', 1], ['strouhanka', 30], ['cibule', 0.25], ['olej', 20], ['brambory', 300], ['maslo', 20], ['mleko', 100]],
+    steps: ['Oloupané brambory (300 g) nakrájej a vař 20 minut v osolené vodě.', 'Mleté maso smíchej s vejcem, strouhankou, nadrobno nakrájenou cibulí, solí a pepřem a vytvaruj 3 placky.', 'Na 20 g oleje je smaž 4–5 minut z každé strany.', 'Brambory sceď a rozmačkej s 20 g másla a 100 ml teplého mléka.'] },
+  burger: { cat: 'H', n: 'Kuřecí burger s hranolky z trouby', min: 35, fresh: true, p: 'kure', base: 'brambory',
+    ing: [['kure_mlete', 150], ['bulka', 1], ['brambory', 300], ['olej', 20], ['eidam', 30], ['kecup', 20], ['majoneza', 10]],
+    steps: ['Brambory nakrájej na hranolky, promíchej s 15 g oleje a solí a peč na 220 °C 25–30 minut, v půlce otoč.', 'Mleté maso osol, opepři a vytvaruj placku o něco větší, než je bulka.', 'Na 5 g oleje ji smaž 4 minuty z každé strany, na konci na ni dej plátek sýra a přiklop.', 'Bulku rozkroj a opeč, potři majonézou a kečupem a vlož maso.'] },
+
+  // ---------- Hlavní jídla: ryby ----------
+  tunak_testoviny: { cat: 'H', n: 'Těstoviny s tuňákem a rajčaty', min: 15, p: 'ryba', base: 'testoviny',
+    ing: [['testoviny', 125], ['tunak', 1], ['passata', 150], ['olej', 15], ['eidam', 30], ['cesnek', 1]],
+    steps: ['Uvař 125 g těstovin podle obalu.', 'Na 15 g oleje (klidně z konzervy) krátce osmaž prolisovaný česnek.', 'Přidej 150 g passaty a oregano, 3 minuty povař a vmíchej scezeného tuňáka.', 'Smíchej s těstovinami a posyp sýrem.'] },
+  tunak_ryze: { cat: 'H', n: 'Tuňáková rýžová miska s vejcem', min: 20, p: 'ryba', base: 'ryze',
+    ing: [['ryze', 125], ['tunak', 1], ['vejce', 1], ['majoneza', 20], ['soja', 10]],
+    steps: ['Rýži dej vařit: 125 g rýže + 250 ml osolené vody, přikryté 15 minut.', 'Vejce uvař 8 minut natvrdo, nebo usmaž volské oko.', 'Tuňáka smíchej s 20 g majonézy a lžičkou sójové omáčky.', 'Do misky dej rýži, navrch tuňáka a rozpůlené vejce a pokapej sójovou omáčkou.'] },
+  tunak_salat: { cat: 'H', n: 'Těstovinový salát s tuňákem a kukuřicí', min: 15, p: 'ryba', base: 'testoviny',
+    ing: [['testoviny', 100], ['tunak', 1], ['kukurice', 0.5, 'polovina plechovky'], ['majoneza', 30], ['jogurt', 50]],
+    steps: ['Uvař 100 g těstovin (vřetena nebo kolínka), sceď a propláchni studenou vodou.', 'Smíchej je se scezeným tuňákem a polovinou plechovky kukuřice.', 'Přidej 30 g majonézy a 50 g jogurtu, osol a opepři.', 'Nejlepší je vychlazený, ideální do krabičky. Zbytek kukuřice se hodí do burrita.'] },
+  tunak_toast: { cat: 'H', n: 'Zapečené toasty s tuňákem a sýrem', min: 10, fresh: true, p: 'ryba', base: 'chleba',
+    ing: [['chleba', 150, '3 krajíce'], ['tunak', 1], ['majoneza', 20], ['eidam', 50], ['cibule', 0.25]],
+    steps: ['Scezeného tuňáka smíchej s majonézou, trochou nadrobno nakrájené cibule a pepřem.', 'Namaž na 3 krajíce chleba a navrch dej plátky eidamu.', 'Zapeč v troubě na 220 °C 5–6 minut, nebo na pánvi pod pokličkou.'] },
+  sardinky_testoviny: { cat: 'H', n: 'Těstoviny se sardinkami a česnekem', min: 15, p: 'ryba', base: 'testoviny',
+    ing: [['testoviny', 125], ['sardinky', 1], ['passata', 150], ['olej', 10], ['cesnek', 2], ['eidam', 30]],
+    steps: ['Uvař 125 g těstovin.', 'Na 10 g oleje (i z konzervy) osmaž 2 stroužky česneku a špetku chilli.', 'Přidej 150 g passaty a sardinky, rozmačkej je vidličkou a 3 minuty povař.', 'Smíchej s těstovinami a posyp sýrem.'] },
+  rybi_prsty: { cat: 'H', n: 'Rybí prsty s hranolky a tatarkou', min: 30, fresh: true, p: 'ryba', base: 'brambory',
+    ing: [['rybi_prsty', 200, 'asi 7 kusů'], ['brambory', 300], ['olej', 15], ['majoneza', 20]],
+    steps: ['Brambory nakrájej na hranolky, promíchej s olejem a solí a dej péct na 220 °C.', 'Po 15 minutách přidej na plech rybí prsty a peč dalších 15 minut, v půlce otoč.', 'Tatarka: majonéza s nasekanou okurkou a kapkou citronu, nebo jen majonéza.'] },
+
+  // ---------- Hlavní jídla: vejce, sýr, luštěniny ----------
+  testoviny: { cat: 'H', n: 'Těstoviny s rajčatovou omáčkou a sýrem', min: 15, p: 'syr', base: 'testoviny',
     ing: [['testoviny', 150], ['passata', 200], ['olej', 20], ['eidam', 60]],
     steps: ['Uvař 150 g těstovin v osolené vodě podle obalu.', 'Mezitím na 20 g oleje prohřej 200 g passaty, osol, opepři, klidně přidej česnek nebo oregano.', 'Smíchej s těstovinami a zasyp 60 g strouhaného eidamu.'] },
-  zapecene: { cat: 'H', n: 'Zapečené těstoviny se sýrem a vejci', min: 30,
+  zapecene: { cat: 'H', n: 'Zapečené těstoviny se sýrem a vejci', min: 30, p: 'vejce', base: 'testoviny',
     ing: [['testoviny', 150], ['vejce', 2], ['eidam', 60], ['mleko', 100], ['maslo', 10]],
     steps: ['Uvař 150 g těstovin na skus a sceď.', 'V míse rozšlehej 2 vejce se 100 ml mléka, solí, pepřem a polovinou sýra.', 'Smíchej s těstovinami a dej do misky vymazané 10 g másla, posyp zbytkem sýra.', 'Peč na 200 °C 15–20 minut. Rychlá verze: mikrovlnka 5–6 minut.'] },
-  cocka: { cat: 'H', n: 'Čočka na kyselo s volskými oky a chlebem', min: 35, prep: true,
-    ing: [['cocka', 100, 'suchá váha'], ['olej', 20], ['cibule', 0.5], ['vejce', 2], ['chleba', 100, '2 krajíce']],
-    steps: ['Čočku propláchni a vař v neosolené vodě 25–30 minut doměkka (dá se dopředu na 2 porce).', 'Na 15 g oleje osmaž ½ cibule, přidej k čočce, osol, dochuť lžící octa a špetkou cukru.', 'Na zbylém oleji usmaž 2 volská oka. K tomu 2 krajíce chleba.'],
-    batch: [['lentils', 100]] },
-  smazena_ryze: { cat: 'H', n: 'Smažená rýže s vejci a zeleninou', min: 20,
+  mac_cheese: { cat: 'H', n: 'Makaróny se sýrovou omáčkou', min: 15, p: 'syr', base: 'testoviny',
+    ing: [['testoviny', 125], ['mleko', 150], ['maslo', 20], ['mouka', 10], ['eidam', 80]],
+    steps: ['Uvař 125 g makaronů nebo kolínek.', 'Na 20 g másla krátce osmaž lžíci mouky, zalij 150 ml mléka a míchej, až zhoustne.', 'Stáhni z ohně a vmíchej 80 g strouhaného eidamu, osol, opepři, přidej trochu hořčice nebo papriky.', 'Smíchej s těstovinami.'] },
+  carbonara: { cat: 'H', n: 'Carbonara s kuřecí šunkou', min: 15, fresh: true, p: 'vejce', base: 'testoviny',
+    ing: [['testoviny', 125], ['vejce', 2], ['eidam', 50], ['sunka', 60], ['olej', 10], ['maslo', 10]],
+    steps: ['Dej vařit 125 g špaget do osolené vody.', 'V misce rozšlehej 2 vejce s 50 g jemně strouhaného sýra a pepřem.', 'Šunku nakrájej na nudličky a na oleji s máslem ji 2 minuty opékej.', 'Scezené špagety (hrnek vody si nech) dej do pánve, stáhni z ohně a hned vmíchej vaječnou směs. Kdyby byla hustá, přilij trochu vody z těstovin. Vejce se nesmí srazit.'] },
+  aglio: { cat: 'H', n: 'Špagety aglio olio s vejcem a sýrem', min: 12, fresh: true, p: 'vejce', base: 'testoviny',
+    ing: [['testoviny', 150], ['olej', 30], ['cesnek', 3], ['eidam', 30], ['vejce', 1]],
+    steps: ['Uvař 150 g špaget v osolené vodě.', 'Na 30 g oleje zvolna opékej 3 nakrájené stroužky česneku a špetku chilli, jen do světle zlatova.', 'Vedle usmaž volské oko.', 'Špagety smíchej s česnekovým olejem a trochou vody z těstovin, posyp sýrem a navrch dej vejce.'] },
+  smazena_ryze: { cat: 'H', n: 'Smažená rýže s vejci a zeleninou', min: 20, p: 'vejce', base: 'ryze',
     ing: [['ryze', 125], ['vejce', 3], ['zelenina', 150], ['olej', 20], ['soja', 15]],
-    steps: ['Uvař 125 g rýže a nech ji aspoň 30 minut vychladnout (nejlepší je den stará).', 'Na velké pánvi rozpal 20 g oleje, osmaž 150 g mražené zeleniny 3–4 minuty.', 'Přidej rýži a smaž 3 minuty, odsuň ji ke kraji a v uvolněném místě usmaž 3 rozšlehaná vejce.', 'Všechno promíchej a dochuť 1 lžící sójové omáčky.'] },
-  kase_vejce: { cat: 'H', n: 'Bramborová kaše se 3 volskými oky', min: 30,
+    steps: ['Uvař 125 g rýže a nech ji aspoň 30 minut vychladnout (nejlepší je den stará).', 'Na velké pánvi rozpal 20 g oleje a osmaž 150 g mražené zeleniny 3–4 minuty.', 'Přidej rýži a smaž 3 minuty, odsuň ji ke kraji a v uvolněném místě usmaž 3 rozšlehaná vejce.', 'Všechno promíchej a dochuť lžící sójové omáčky.'] },
+  kase_vejce: { cat: 'H', n: 'Bramborová kaše se 3 volskými oky', min: 30, p: 'vejce', base: 'brambory',
     ing: [['brambory', 400], ['mleko', 120], ['maslo', 30], ['vejce', 3], ['olej', 10]],
     steps: ['Oloupané brambory (400 g) nakrájej a vař v osolené vodě 20 minut doměkka.', 'Sceď, přidej 30 g másla a 120 ml teplého mléka a rozmačkej.', 'Na 10 g oleje usmaž 3 volská oka a polož je na kaši.'] },
-
-  toasty: { cat: 'H', n: 'Sýrové toasty s vejci', min: 10,
+  koprovka: { cat: 'H', n: 'Koprová omáčka s vejci a brambory', min: 25, p: 'vejce', base: 'brambory',
+    ing: [['mleko', 300], ['mouka', 30], ['maslo', 20], ['smetana', 50], ['vejce', 3], ['brambory', 300]],
+    steps: ['Brambory (300 g) uvař v osolené vodě, vejce 10 minut natvrdo.', 'Na 20 g másla krátce osmaž 30 g mouky, zalij 300 ml mléka a za stálého míchání povař 5 minut.', 'Přidej 50 ml smetany, sůl, lžíci sušeného kopru a kapku octa a cukru.', 'Podávej s brambory a rozpůlenými vejci.'] },
+  bramboraky: { cat: 'H', n: 'Bramboráky s česnekem a majoránkou', min: 35, fresh: true, p: 'vejce', base: 'brambory',
+    ing: [['brambory', 400], ['mouka', 40], ['vejce', 1], ['olej', 40, 'vsákne se při smažení'], ['cesnek', 2], ['mleko', 30]],
+    steps: ['Oloupané brambory (400 g) najemno nastrouhej a vymačkej z nich vodu.', 'Přidej vejce, 40 g mouky, trochu mléka, 2 prolisované stroužky česneku, sůl, pepř a majoránku a promíchej.', 'Na pánvi rozpal olej a lžící dělej tenké placky. Smaž 3 minuty z každé strany dozlatova.', 'Nech okapat na papírové utěrce. Vyjde 6–7 kusů.'] },
+  toasty: { cat: 'H', n: 'Sýrové toasty s vejci', min: 10, fresh: true, p: 'syr', base: 'chleba',
     ing: [['chleba', 200, '4 krajíce'], ['eidam', 60], ['vejce', 2], ['maslo', 15]],
     steps: ['4 krajíce chleba namaž 15 g másla, mezi dva vždy dej plátky eidamu (60 g celkem).', 'Opeč na suché pánvi nebo v toastovači 2–3 minuty z každé strany.', 'Mezitím usmaž 2 volská oka a dej je navrch.'] },
-  tvaroh_testoviny: { cat: 'H', n: 'Tvarohové těstoviny s máslem', min: 12,
+  tortilla_pizza: { cat: 'H', n: 'Tortilla pizza se šunkou a sýrem', min: 15, fresh: true, p: 'syr', base: 'tortilla',
+    ing: [['tortilla', 3], ['passata', 90], ['eidam', 90], ['sunka', 60], ['olej', 5]],
+    steps: ['Troubu rozpal na 220 °C (nebo použij pánev s pokličkou).', 'Tortilly potři passatou s oregánem a solí.', 'Oblož šunkou, posyp strouhaným eidamem a pokapej olejem.', 'Peč 6–8 minut, až je sýr zlatý a okraje křupavé.'] },
+  smazeny_syr: { cat: 'H', n: 'Smažený sýr s bramborami a tatarkou', min: 30, fresh: true, p: 'syr', base: 'brambory',
+    ing: [['eidam', 100, '2 silné plátky'], ['mouka', 20], ['vejce', 1], ['strouhanka', 40], ['olej', 25, 'vsákne se při smažení'], ['brambory', 300], ['majoneza', 20]],
+    steps: ['Oloupané brambory (300 g) vař 20 minut v osolené vodě.', 'Eidam nakrájej na 2 plátky silné 1,5 cm a obal v mouce, vejci a strouhance. Ve vejci a strouhance ještě jednou, ať nevyteče.', 'Smaž na rozpáleném oleji krátce, 1–2 minuty z každé strany.', 'Podávej s brambory a majonézou nebo tatarkou.'] },
+  noky_rajce: { cat: 'H', n: 'Noky v rajčatové omáčce se sýrem', min: 12, p: 'syr', base: 'noky',
+    ing: [['noky', 400], ['passata', 150], ['olej', 15], ['eidam', 40], ['cesnek', 1]],
+    steps: ['Na 15 g oleje osmaž stroužek česneku.', 'Přidej 400 g noků rovnou z balení a 5 minut je opékej do zlatova.', 'Vlij 150 g passaty, osol, přidej oregano a 2 minuty povař.', 'Posyp strouhaným eidamem a přikryj, ať se rozteče.'] },
+  noky_pesto: { cat: 'H', n: 'Opečené noky s pestem a sýrem', min: 10, fresh: true, p: 'syr', base: 'noky',
+    ing: [['noky', 400], ['pesto', 40], ['eidam', 30], ['olej', 5]],
+    steps: ['Noky (400 g) opékej na 5 g oleje 5–6 minut do zlatova.', 'Stáhni z ohně a vmíchej 40 g pesta.', 'Posyp strouhaným sýrem.'] },
+  cocka: { cat: 'H', n: 'Čočka na kyselo s volskými oky a chlebem', min: 35, prep: true, p: 'lus', base: 'chleba',
+    ing: [['cocka', 100, 'suchá váha'], ['olej', 20], ['cibule', 0.5], ['vejce', 2], ['chleba', 100, '2 krajíce']],
+    steps: ['Čočku propláchni a vař v neosolené vodě 25–30 minut doměkka (dá se dopředu na 2 porce).', 'Na 15 g oleje osmaž ½ cibule, přidej k čočce, osol a dochuť lžící octa a špetkou cukru.', 'Na zbylém oleji usmaž 2 volská oka. K tomu 2 krajíce chleba.'],
+    batch: [['lentils', 100]] },
+  cizrna_kari: { cat: 'H', n: 'Cizrnové kari s rýží', min: 25, prep: true, p: 'lus', base: 'ryze',
+    ing: [['cizrna', 1], ['kokos', 150], ['ryze', 100], ['olej', 10], ['cibule', 0.5], ['passata', 50]],
+    steps: ['Rýži dej vařit: 100 g rýže + 200 ml osolené vody, přikryté 15 minut.', 'Na 10 g oleje osmaž ½ cibule, přidej 1–2 lžičky kari koření a krátce prohřej.', 'Přidej scezenou cizrnu, 150 ml kokosového mléka a 50 g passaty, osol a 10 minut povař.', 'Podávej s rýží.'] },
+  fazolovy_gulas: { cat: 'H', n: 'Fazolový guláš s párky a chlebem', min: 20, prep: true, p: 'lus', base: 'chleba',
+    ing: [['fazole', 1], ['parky', 100, '2 párky'], ['passata', 150], ['cibule', 1], ['olej', 15], ['chleba', 100, '2 krajíce']],
+    steps: ['Na 15 g oleje osmaž nakrájenou cibuli dozlatova.', 'Přidej lžíci mleté papriky a hned zalij 150 g passaty a trochou vody.', 'Přidej scezené fazole a párky nakrájené na kolečka, osol, přidej kmín a majoránku a 10 minut povař.', 'Podávej s chlebem.'] },
+  parky_kase: { cat: 'H', n: 'Kuřecí párky s bramborovou kaší', min: 25, p: 'kure', base: 'brambory',
+    ing: [['parky', 200, '4 párky'], ['brambory', 300], ['maslo', 20], ['mleko', 100]],
+    steps: ['Oloupané brambory nakrájej a vař 20 minut v osolené vodě.', 'Párky ohřej 5 minut ve vodě těsně pod varem, nebo je opeč na pánvi.', 'Brambory sceď, přidej máslo a teplé mléko a rozmačkej na kaši.', 'Podávej s hořčicí nebo kečupem.'] },
+
+  // ---------- Hlavní jídla: sladká ----------
+  tvaroh_testoviny: { cat: 'H', n: 'Tvarohové těstoviny s máslem', min: 12, p: 'sladke', base: 'testoviny',
     ing: [['testoviny', 150], ['tvaroh', 250], ['maslo', 20], ['cukr', 30]],
     steps: ['Uvař 150 g těstovin (ideálně široké nudle) podle obalu a sceď.', 'Vmíchej do nich 20 g másla.', 'Posyp rozdrobeným tvarohem (250 g) a cukrem (30 g), případně skořicí.'] },
+  knedliky: { cat: 'H', n: 'Tvarohové knedlíky s ovocem', min: 30, p: 'sladke', base: 'jine',
+    ing: [['tvaroh', 250], ['krupice', 80], ['vejce', 1], ['ovoce', 150], ['maslo', 30], ['cukr', 30]],
+    steps: ['Smíchej 250 g tvarohu, vejce, 80 g krupice a špetku soli a nech 10 minut odpočinout.', 'Mokrýma rukama udělej placky, do každé dej pár kousků mraženého ovoce a uzavři do kuličky. Vyjde 6–8 kusů.', 'Vař v osolené vodě 6–8 minut, až vyplavou.', 'Polij rozpuštěným máslem a posyp cukrem.'] },
+  nakyp: { cat: 'H', n: 'Rýžový nákyp s ovocem', min: 45, prep: true, p: 'sladke', base: 'ryze',
+    ing: [['ryze', 100], ['mleko', 400], ['vejce', 1], ['cukr', 30], ['maslo', 15], ['ovoce', 100]],
+    steps: ['Rýži (100 g) vař ve 400 ml mléka se špetkou soli 15 minut, až zhoustne.', 'Nech chvíli vychladnout a vmíchej vejce, cukr a skořici.', 'Polovinu dej do vymazané misky, navrch ovoce, pak zbytek rýže a kousky másla.', 'Peč na 180 °C 20–25 minut. Studený je skoro lepší než teplý.'] },
 
-  rohliky: { cat: 'V', n: 'Rohlíky s máslem a sýrem', min: 3,
+  // ---------- Svačiny ----------
+  rohliky: { cat: 'V', n: 'Rohlíky s máslem a sýrem', min: 3, cold: true,
     ing: [['rohlik', 2], ['maslo', 15], ['eidam', 40]],
     steps: ['2 rohlíky namaž 15 g másla a oblož 40 g eidamu.'] },
-  arasidy: { cat: 'V', n: 'Arašídy a jablko', min: 1,
+  sunka_rohlik: { cat: 'V', n: 'Rohlíky se šunkou a sýrem', min: 3, cold: true,
+    ing: [['rohlik', 2], ['sunka', 50], ['eidam', 40], ['maslo', 10]],
+    steps: ['2 rohlíky namaž máslem a oblož 50 g šunky a 40 g eidamu.'] },
+  arasidy: { cat: 'V', n: 'Arašídy a jablko', min: 1, cold: true,
     ing: [['arasidy', 60, 'hrst a půl'], ['jablko', 1]],
     steps: ['Odvaž 60 g arašídů do sáčku nebo krabičky, k tomu jablko. Ideální do batohu.'] },
-  susenky: { cat: 'V', n: 'Sušenky a hrnek mléka', min: 1,
+  susenky: { cat: 'V', n: 'Sušenky a hrnek mléka', min: 1, cold: true,
     ing: [['susenky', 80], ['mleko', 250]],
     steps: ['80 g sušenek a hrnek plnotučného mléka.'] },
-  chleba_pb: { cat: 'V', n: 'Chleba s arašídovým máslem a banánem', min: 3,
+  chleba_pb: { cat: 'V', n: 'Chleba s arašídovým máslem a banánem', min: 3, cold: true,
     ing: [['chleba', 100, '2 krajíce'], ['aras_maslo', 30], ['banan', 1]],
     steps: ['2 krajíce chleba namaž 30 g arašídového másla a oblož plátky banánu.'] },
+  tortilla_pb: { cat: 'V', n: 'Tortilla s arašídovým máslem a banánem', min: 2, cold: true,
+    ing: [['tortilla', 1], ['aras_maslo', 30], ['banan', 1], ['cukr', 10, 'lžička medu']],
+    steps: ['Tortillu namaž 30 g arašídového másla a pokapej medem.', 'Na kraj polož banán a zaroluj. Dá se nakrájet na kolečka.'] },
+  nutella_rohlik: { cat: 'V', n: 'Rohlíky s oříškovou pomazánkou a mléko', min: 2, cold: true,
+    ing: [['rohlik', 2], ['nutella', 35], ['mleko', 200]],
+    steps: ['2 rohlíky namaž 35 g oříškové pomazánky.', 'K tomu sklenice mléka.'] },
+  jogurt_granola_v: { cat: 'V', n: 'Jogurt s granolou a medem', min: 2, cold: true,
+    ing: [['jogurt', 150], ['granola', 60], ['cukr', 10, 'lžička medu']],
+    steps: ['150 g jogurtu pokapej medem a zasyp 60 g granoly.'] },
+  tvaroh_ovoce: { cat: 'V', n: 'Tvaroh s medem, ovocem a arašídy', min: 3, cold: true,
+    ing: [['tvaroh', 250], ['cukr', 25], ['ovoce', 100], ['arasidy', 15]],
+    steps: ['Tvaroh rozmíchej s medem nebo cukrem.', 'Přidej 100 g ovoce (mražené nech chvíli povolit) a posyp arašídy.'] },
+  syrovy_toast: { cat: 'V', n: 'Sýrový toast', min: 5,
+    ing: [['chleba', 100, '2 krajíce'], ['eidam', 50], ['maslo', 10], ['kecup', 15]],
+    steps: ['2 krajíce chleba zvenku namaž máslem a mezi ně dej 50 g eidamu.', 'Opeč v toastovači nebo na pánvi pod pokličkou 2 minuty z každé strany. Namáčej v kečupu.'] },
+  hot_dog: { cat: 'V', n: 'Hot dog s kuřecím párkem', min: 5,
+    ing: [['rohlik', 2], ['parky', 100, '2 párky'], ['kecup', 20]],
+    steps: ['Párky ohřej 4 minuty ve vodě těsně pod varem, nebo minutu v mikrovlnce.', 'Rohlíky nařízni, vlož párky a přidej kečup a hořčici.'] },
+  tunak_pom: { cat: 'V', n: 'Tuňáková pomazánka s chlebem', min: 5, cold: true,
+    ing: [['tunak', 1], ['majoneza', 15], ['chleba', 100, '2 krajíce'], ['cibule', 0.25]],
+    steps: ['Scezeného tuňáka rozmačkej vidličkou s 15 g majonézy, kouskem nadrobno nakrájené cibule a pepřem.', 'Namaž na 2 krajíce chleba.'] },
+  vajicka_rohlik: { cat: 'V', n: 'Vejce natvrdo s rohlíky a máslem', min: 12, prep: true,
+    ing: [['vejce', 2], ['rohlik', 2], ['maslo', 15]],
+    steps: ['Vejce vař 10 minut natvrdo. Můžeš jich uvařit víc dopředu, v lednici vydrží 5 dní.', 'K tomu 2 rohlíky s máslem a sůl.'] },
+  ovesne_kulicky: { cat: 'V', n: 'Ovesné kuličky s arašídovým máslem (bez pečení)', min: 10, prep: true, cold: true,
+    ing: [['vlocky', 50], ['aras_maslo', 30], ['cukr', 20, 'lžíce medu'], ['kakao', 5]],
+    steps: ['Smíchej 50 g vloček, 30 g arašídového másla, lžíci medu a lžičku kakaa.', 'Mokrýma rukama vytvaruj 6–8 kuliček a dej je na 20 minut do lednice.', 'Udělej rovnou 3–4 dávky do krabičky, vydrží v lednici týden.'] },
+
+  // ---------- Extra ----------
   mleko_hrnek: { cat: 'E', n: 'Hrnek plnotučného mléka', min: 1, ing: [['mleko', 250]], steps: ['Vypij hrnek plnotučného mléka, klidně s lžičkou kakaa.'] },
   pb_lzice: { cat: 'E', n: 'Lžíce arašídového másla', min: 1, ing: [['aras_maslo', 20]], steps: ['Vrchovatá lžíce arašídového másla rovnou ze sklenice nebo na rohlík.'] },
 };
+
+const P_NAME = { kure: 'kuře', ryba: 'ryba', vejce: 'vejce', syr: 'sýr', lus: 'luštěniny', sladke: 'sladké' };
 
 // Dávkové vaření: šablony
 const BATCH = {
@@ -421,28 +689,7 @@ const BATCH = {
   paprika: (n) => `Uvař kuře na paprice na ${n} ${plural(n, 'porci', 'porce', 'porcí')}; těstoviny vař vždy čerstvé.`,
   lentils: (g) => `Uvař ${g} g čočky na kyselo (bez vajec, ta smaž až k jídlu).`,
 };
-
-// Rotace: týden A a B, Po..Ne; [snídaně, oběd, svačina, večeře]
-const ROT = {
-  A: [
-    ['vejce', 'ctv_ryze', 'rohliky', 'cocka'],
-    ['topinky', 'ctv_ryze', 'chleba_pb', 'cocka'],
-    ['kase', 'ctv_ryze', 'arasidy', 'testoviny'],
-    ['tvaroh', 'ctv_brambory', 'rohliky', 'zapecene'],
-    ['vejce', 'ctv_brambory', 'chleba_pb', 'testoviny'],
-    ['omeleta', 'ctv_brambory', 'arasidy', 'kase_vejce'],
-    ['kase', 'ctv_brambory', 'susenky', 'smazena_ryze'],
-  ],
-  B: [
-    ['omeleta', 'rizoto', 'chleba_pb', 'zapecene'],
-    ['kase', 'rizoto', 'rohliky', 'smazena_ryze'],
-    ['vejce', 'rizoto', 'arasidy', 'testoviny'],
-    ['tvaroh', 'paprika', 'chleba_pb', 'cocka'],
-    ['topinky', 'paprika', 'rohliky', 'cocka'],
-    ['kase', 'paprika', 'arasidy', 'testoviny'],
-    ['vejce', 'ctv_ryze', 'susenky', 'kase_vejce'],
-  ],
-};
+function batchDish(id, n) { return n > 1 ? `${MEALS[id].n}: uvař rovnou ${n} ${plural(n, 'porci', 'porce', 'porcí')} (suroviny z receptu ${n}×) a rozděl do krabiček.` : `${MEALS[id].n}: uvař dopředu, v den jídla jen ohřeješ.`; }
 
 // Sloty dne; od kterého týdne platí; posun času od vstávání (min)
 const SLOTS = [
@@ -455,7 +702,6 @@ const SLOTS = [
 ];
 // Rychlé extra kalorie na dohnání (cat E se neukazuje v receptech)
 const EXTRAS = [['shake', 1], ['shake', 0.5], ['chleba_pb', 1], ['arasidy', 1], ['mleko_hrnek', 1], ['pb_lzice', 1]];
-const ROT_IDX = { snidane: 0, obed: 1, svacina: 2, vecere: 3 };
 
 const TRAINING = {
   gym: [
@@ -486,18 +732,22 @@ function fmtNum(x, d = 0) { return x.toLocaleString('cs-CZ', { minimumFractionDi
 function fmtAmt(q, u) {
   if (u === 'g') return q >= 1000 ? fmtNum(q / 1000, q % 1000 ? 1 : 0) + ' kg' : fmtNum(Math.round(q)) + ' g';
   if (u === 'ml') return q >= 1000 ? fmtNum(q / 1000, q % 1000 ? 1 : 0) + ' l' : fmtNum(Math.round(q)) + ' ml';
+  if (q > 0 && q < 1 && Math.abs(q * 4 - Math.round(q * 4)) < 1e-6) return ({ 1: '¼', 2: '½', 3: '¾' })[Math.round(q * 4)] + ' ks';
   return fmtNum(Math.ceil(q - 1e-9)) + ' ks';
 }
+const STATS_CACHE = {};
 function mealStats(id, mult = 1) {
+  const key = id + '|' + mult; if (STATS_CACHE[key]) return { ...STATS_CACHE[key] };
   const m = MEALS[id]; let kcal = 0, b = 0, kc = 0;
   for (const [k, q] of m.ing) {
     const i = ING[k]; const f = (i.u === 'ks' ? q : q / 100) * mult;
     kcal += i.kcal * f; b += i.b * f; kc += i.price * q * mult;
   }
+  STATS_CACHE[key] = { kcal, b, kc };
   return { kcal, b, kc };
 }
 
-if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, ROT, SLOTS, EXTRAS, ROT_IDX, TRAINING, MAINT, KCAL_PER_KG, mealStats, fmtAmt, fmtNum, plural };
+if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish };
 
 const WIDGET_SRC = "// Plán 70 kg – widget pro Scriptable (plocha i zamčená obrazovka)\n// Ukazuje, kolik máš dnes snědeno, kolik chybí a co je další jídlo. Klepnutím otevře appku.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst API = 'https://djeadsdsmsurjnneiclx.supabase.co/rest/v1/rpc/plan70_today';\nconst APP = 'https://michalkrausino.github.io/gain/';\nconst ORANGE = new Color('#FF9500');\nconst GREEN = new Color('#34C759');\nconst LABEL = Color.dynamic(new Color('#000000'), new Color('#FFFFFF'));\nconst SUB = Color.dynamic(new Color('#3C3C43', 0.7), new Color('#EBEBF5', 0.7));\nconst TRACK = Color.dynamic(new Color('#787880', 0.2), new Color('#787880', 0.36));\n\nfunction fmt(n) { return Math.round(n || 0).toLocaleString('cs-CZ').replace(/ /g, ' '); }\nfunction hm(t) { return String(t || '').replace(/^0/, ''); }\nfunction todayISO() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }\n\nasync function load() {\n  const r = new Request(API);\n  r.method = 'POST';\n  r.headers = { apikey: ANON, Authorization: 'Bearer ' + ANON, 'x-plan70-key': KEY, 'Content-Type': 'application/json' };\n  r.body = '{}';\n  r.timeoutInterval = 15;\n  try {\n    const j = await r.loadJSON();\n    if (j && j.date) { Keychain.set('plan70_today', JSON.stringify(j)); return j; }\n    throw new Error('bad response');\n  } catch (e) {\n    if (!Keychain.contains('plan70_today')) return null;\n    const c = JSON.parse(Keychain.get('plan70_today'));\n    if (c.date !== todayISO()) return null;\n    c.offline = true;\n    return c;\n  }\n}\n\nfunction bar(width, height, pct) {\n  const dc = new DrawContext();\n  dc.size = new Size(width, height); dc.opaque = false; dc.respectScreenScale = true;\n  const track = new Path(); track.addRoundedRect(new Rect(0, 0, width, height), height / 2, height / 2);\n  dc.addPath(track); dc.setFillColor(TRACK); dc.fillPath();\n  const w = Math.max(height, Math.min(1, pct) * width);\n  const fill = new Path(); fill.addRoundedRect(new Rect(0, 0, w, height), height / 2, height / 2);\n  dc.addPath(fill); dc.setFillColor(pct >= 1 ? GREEN : ORANGE); dc.fillPath();\n  return dc.getImage();\n}\n\nfunction ring(size, pct) {\n  const dc = new DrawContext();\n  dc.size = new Size(size, size); dc.opaque = false; dc.respectScreenScale = true;\n  const c = size / 2, r = size / 2 - 5, lw = 6;\n  for (let i = 0; i < 2; i++) {\n    const p = new Path(), end = i === 0 ? 1 : Math.min(1, pct), steps = Math.max(2, Math.round(80 * end));\n    for (let s = 0; s <= steps; s++) {\n      const a = -Math.PI / 2 + (s / 80) * 2 * Math.PI, pt = new Point(c + r * Math.cos(a), c + r * Math.sin(a));\n      s === 0 ? p.move(pt) : p.addLine(pt);\n    }\n    dc.addPath(p); dc.setStrokeColor(i === 0 ? new Color('#FFFFFF', 0.3) : Color.white()); dc.setLineWidth(lw); dc.strokePath();\n  }\n  return dc.getImage();\n}\n\nconst d = await load();\nconst fam = config.widgetFamily || 'medium';\nconst w = new ListWidget();\nw.url = APP + '#dnes';\nw.refreshAfterDate = new Date(Date.now() + 15 * 60 * 1000);\nconst pct = d && d.plan ? d.eaten / d.plan : 0;\nconst nx = d && d.next;\n\nif (!d || !d.hasPlan) {\n  if (fam.startsWith('accessory')) { const t = w.addText(fam === 'accessoryInline' ? 'Plán 70: otevři appku' : 'Plán 70\\nOtevři appku'); t.font = Font.semiboldSystemFont(12); }\n  else {\n    const t = w.addText('Plán 70 kg'); t.font = Font.boldRoundedSystemFont(15); t.textColor = ORANGE;\n    w.addSpacer(6);\n    const s = w.addText(d ? 'Na dnešek není plán. Otevři appku.' : 'Bez spojení. Otevři appku.'); s.font = Font.systemFont(13); s.textColor = SUB;\n  }\n} else if (fam === 'accessoryInline') {\n  w.addText(d.left > 0 ? `Chybí ${fmt(d.left)} kcal` : 'Plán splněn');\n} else if (fam === 'accessoryCircular') {\n  const st = w.addStack(); st.size = new Size(64, 64); st.backgroundImage = ring(64, pct); st.centerAlignContent();\n  const v = st.addText(`${Math.round(pct * 100)}%`); v.font = Font.boldRoundedSystemFont(15); v.minimumScaleFactor = 0.6;\n} else if (fam === 'accessoryRectangular') {\n  const a = w.addText(`Plán 70 · ${fmt(d.eaten)} / ${fmt(d.plan)}`); a.font = Font.semiboldSystemFont(12);\n  const b = w.addText(d.left > 0 ? `Chybí ${fmt(d.left)} kcal` : 'Plán splněn'); b.font = Font.boldRoundedSystemFont(15);\n  if (nx && d.left > 0) { const c = w.addText(`${nx.k === 'turbo' ? 'Shake navíc' : nx.slot} ${hm(nx.t)}`); c.font = Font.systemFont(12); }\n} else {\n  w.backgroundColor = Color.dynamic(new Color('#FFFFFF'), new Color('#1C1C1E'));\n  w.setPadding(14, 14, 14, 14);\n  const head = w.addStack(); head.centerAlignContent();\n  const ti = head.addText('PLÁN 70'); ti.font = Font.heavySystemFont(11); ti.textColor = ORANGE;\n  head.addSpacer();\n  if (d.offline) { const o = head.addText('offline'); o.font = Font.systemFont(10); o.textColor = SUB; }\n  w.addSpacer(6);\n  const big = w.addText(d.left > 0 ? `${fmt(d.left)} kcal` : 'Splněno'); big.font = Font.boldRoundedSystemFont(fam === 'small' ? 24 : 28); big.textColor = LABEL; big.minimumScaleFactor = 0.7;\n  const sub = w.addText(d.left > 0 ? `chybí · ${fmt(d.eaten)} z ${fmt(d.plan)}` : `${fmt(d.eaten)} kcal dnes`); sub.font = Font.mediumSystemFont(12); sub.textColor = SUB;\n  w.addSpacer(8);\n  const img = w.addImage(bar(fam === 'small' ? 130 : 300, 8, pct)); img.imageSize = new Size(fam === 'small' ? 130 : 300, 8);\n  w.addSpacer();\n  if (nx && d.left > 0) {\n    const n1 = w.addText(`Další: ${nx.k === 'turbo' ? 'shake navíc' : String(nx.slot).toLowerCase()} v ${hm(nx.t)}`); n1.font = Font.semiboldSystemFont(12); n1.textColor = LABEL;\n    if (fam !== 'small') { const n2 = w.addText(`${nx.n} · ${fmt(nx.kcal)} kcal`); n2.font = Font.systemFont(12); n2.textColor = SUB; n2.lineLimit = 1; }\n  } else {\n    const n1 = w.addText(`${d.nDone || 0} z ${d.nMeals || 0} jídel`); n1.font = Font.semiboldSystemFont(12); n1.textColor = SUB;\n  }\n}\n\nScript.setWidget(w);\nif (config.runsInApp) { fam === 'small' ? await w.presentSmall() : await w.presentMedium(); }\nScript.complete();\n";
 
@@ -724,7 +974,76 @@ function changed() {
 // ===== Plán =====
 function idxOf(k) { return dayDiff(S.settings.start, k); }
 function weekOfIdx(i) { return i < 0 ? 0 : Math.floor(i / 7) + 1; }
-function wtype(w) { return w % 2 === 1 ? 'A' : 'B'; }
+
+// ===== Jídelníček: pestrý generátor =====
+// Každý den se skládá z databáze receptů tak, aby se jídla neopakovala: snídaně nejdřív po 6 dnech,
+// oběd a večeře po 9 dnech, svačina po 4 dnech, shake se střídá. Bílkoviny i přílohy se během dne liší.
+// Pro dané datum vychází vždy stejně (na všech zařízeních); změní ho jen zamíchání nebo režim oběda,
+// a to vždy až od zítřka, takže minulé dny a jejich kalorie zůstanou.
+const GAP = { S: 6, H: 9, V: 4, X: 1 };
+function hash01(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822507); h ^= h >>> 13; h = Math.imul(h, 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; }
+const POOLS = {};
+function poolOf(cat) { return POOLS[cat] || (POOLS[cat] = Object.keys(MEALS).filter(id => MEALS[id].cat === cat)); }
+function menuCfg(k) { let c = { mode: 'fresh', salt: 0 }; for (const e of (S.settings.menu || [])) if (e.from <= k) c = { ...c, ...e }; return c; }
+let MENU = { sig: null, days: [] };
+function menuDay(i) {
+  const sig = S.settings.start + '|' + JSON.stringify(S.settings.menu || []);
+  if (MENU.sig !== sig) MENU = { sig, days: [] };
+  while (MENU.days.length <= i) MENU.days.push(genDay(MENU.days.length, MENU.days));
+  return MENU.days[i];
+}
+function usedRecently(days, i, slots, id, gap) { for (let d = i - 1; d >= 0 && d >= i - gap; d--) for (const s of slots) if (days[d][s] === id) return true; return false; }
+function best(cands, score) { let b = null, bs = -Infinity; for (const id of cands) { const s = score(id); if (s > bs) { bs = s; b = id; } } return b; }
+function genDay(i, days) {
+  const k = addDays(S.settings.start, i), c = menuCfg(k), weekday = dowOf(k) < 5, prev = days[i - 1], M = id => MEALS[id];
+  const rnd = (slot, id) => hash01(`${c.salt}|${i}|${slot}|${id}`);
+  const unused = (slots, gap) => id => !usedRecently(days, i, slots, id, gap);
+  const choose = (cands, all, score) => best(cands.length ? cands : all, score);
+  const cheap = id => (40 - mealStats(id).kc) / 100; // mírně zvýhodní levnější jídla, ať týden vyjde do rozpočtu
+  const d = {};
+  const sAll = poolOf('S'); // ve všední dny jen rychlé snídaně (do 12 min nebo připravené večer)
+  d.snidane = choose(sAll.filter(unused(['snidane'], GAP.S)).filter(id => !weekday || M(id).min <= 12 || M(id).prep), sAll, id => rnd('S', id) + cheap(id) * 0.5);
+  const xAll = poolOf('X');
+  d.shake = choose(xAll.filter(unused(['shake'], GAP.X)), xAll, id => rnd('X', id));
+  d.turbo = choose(xAll.filter(id => id !== d.shake && !M(id).kava), xAll, id => rnd('T', id));
+  const vAll = poolOf('V');
+  d.svacina = choose(vAll.filter(unused(['svacina'], GAP.V)), vAll, id => rnd('V', id) + cheap(id) * 0.5);
+  const hAll = poolOf('H'), lunchOk = id => M(id).min <= 20 || M(id).prep, okH = unused(['obed', 'vecere'], GAP.H);
+  const recentP = []; for (let j = Math.max(0, i - 2); j < i; j++) recentP.push(M(days[j].obed).p, M(days[j].vecere).p);
+  const PW = { kure: 0.15, ryba: 0.05, lus: 0, vejce: -0.05, syr: -0.05, sladke: -0.15 };
+  const score = (slot, id, before, other) => {
+    let s = rnd(slot, id) + cheap(id) * 0.6 + (PW[M(id).p] || 0);
+    if (before && M(before).p === M(id).p) s -= 0.35;
+    const rp = recentP.filter(p => p === M(id).p).length; if (rp >= 2) s -= 0.25 * (rp - 1);
+    if (M(id).p === 'sladke' && rp) s -= 0.8;
+    if (other) { if (M(other).p === M(id).p) s -= 0.6; if (M(other).base === M(id).base) s -= 0.3; if (M(other).p === 'sladke' && M(id).p === 'sladke') s -= 2; }
+    return s;
+  };
+  // oběd: rychlý (do 20 min) nebo uvařený dopředu
+  d.obedAlt = choose(hAll.filter(okH).filter(lunchOk), hAll.filter(lunchOk), id => score('O', id, prev && prev.vecere, null));
+  // zbytek jen tehdy, když už včerejší večeře byla v režimu „2 porce“
+  if (c.mode === 'leftover' && prev && menuCfg(addDays(k, -1)).mode === 'leftover' && !M(prev.vecere).fresh) { d.obed = prev.vecere; d.lo = true; } else d.obed = d.obedAlt;
+  // večeře: cokoli; v režimu „zbytek“ jen jídla, která se dají druhý den ohřát
+  const dinOk = id => id !== d.obed && (c.mode !== 'leftover' || !M(id).fresh);
+  d.vecere = choose(hAll.filter(okH).filter(dinOk), hAll.filter(dinOk), id => score('D', id, d.obed, d.obed));
+  return d;
+}
+function nearMeals(i) { const s = new Set(); for (let d = Math.max(0, i - 2); d <= i + 2; d++) { const m = menuDay(d); for (const k of ['snidane', 'shake', 'obed', 'svacina', 'vecere']) s.add(m[k]); } return s; }
+function menuFrom() { const t = todayKey(); return idxOf(t) < 0 ? S.settings.start : addDays(t, 1); }
+function menuPatch(patch) { // změna platí od zítřka (před startem od startu)
+  const from = menuFrom(), cur = menuCfg(from);
+  const list = (S.settings.menu || []).filter(e => e.from < from);
+  list.push({ from, mode: patch.mode || cur.mode, salt: patch.salt != null ? patch.salt : cur.salt });
+  return { menu: list };
+}
+function leftoverOk(id) { return !!id && MEALS[id] && MEALS[id].cat === 'H' && !MEALS[id].fresh; }
+function effDinner(j) { // co se večer j opravdu vařilo (po náhradách a výměnách)
+  const kj = addDays(S.settings.start, j), r = dayRec(kj);
+  if (r.skip.vecere && !r.done.vecere) return null;
+  let m = menuDay(j).vecere; const sub = subFor(m, 'vecere', kj, r.quick, j); if (sub) m = sub.id;
+  if (r.swap.vecere && MEALS[r.swap.vecere]) m = r.swap.vecere;
+  return m;
+}
 function dayRec(k) { const r = S.days[k] || {}; return { done: { ...(r.done || {}) }, swap: { ...(r.swap || {}) }, skip: { ...(r.skip || {}) }, extras: (r.extras || []).map(x => ({ ...x })), quick: !!r.quick, gi: r.gi || null }; }
 function saveDay(k, r) { S.days[k] = r; persist('days/' + k, r); }
 function wakeMin() { return toMin(S.settings.wake); }
@@ -752,47 +1071,51 @@ function bombFor(w) {
   if (w < cw) { const ks = Object.keys(h).map(Number).filter(x => x <= w).sort((a, b) => a - b); return ks.length ? !!h[ks[ks.length - 1]] : false; }
   const m = bombMode(); return m === 'on' ? true : m === 'off' ? false : (w >= 3 && !!S.settings.bombNow);
 }
-function bombSnack(k, meal) {
-  const c = Object.keys(MEALS).filter(id => MEALS[id].cat === 'V' && rating(id) !== -1).sort((a, b) => mealStats(b).kcal - mealStats(a).kcal).slice(0, 2);
+function bombSnack(k, meal, i) { // kaloričtější svačina, ale pořád pestrá
+  if (mealStats(meal).kcal >= 520) return null;
+  const c = poolOf('V').filter(id => rating(id) !== -1 && mealStats(id).kcal >= 520);
   if (!c.length) return null;
-  const pick = c[Math.abs(dayDiff('2026-01-05', k)) % c.length];
-  return mealStats(pick).kcal > mealStats(meal).kcal ? pick : null;
+  const near = i == null ? new Set() : nearMeals(i), f = c.filter(id => !near.has(id));
+  return best(f.length ? f : c, id => hash01(k + '|bomb|' + id));
 }
 function itemIng(x) { const a = MEALS[x.meal].ing.map(([i, q]) => [i, q * x.mult]); return x.boost ? a.concat(x.boost) : a; }
 function itemDelta(x, sign) { const d = {}; for (const [i, q] of itemIng(x)) d[i] = (d[i] || 0) + sign * q; return d; }
 function bombEffective(st) { const m = st.bomb || 'auto'; return m === 'on' || (m === 'auto' && !!st.bombNow && curWeek() >= 3); }
 function rating(id) { return (S.prefs.rating || {})[id] || 0; }
-function subFor(meal, slotK, k, quick) {
-  const cat = MEALS[meal].cat, bad = id => rating(id) === -1;
-  const slow = id => quick && (slotK === 'obed' || slotK === 'vecere') && MEALS[id].min > 15 && !MEALS[id].prep;
+function subFor(meal, slotK, k, quick, i) { // náhrada za jídlo s palcem dolů nebo za pomalé jídlo v rychlém dni
+  const cat = MEALS[meal].cat, bad = id => rating(id) === -1, main = slotK === 'obed' || slotK === 'vecere';
+  const slow = id => quick && main && MEALS[id].min > 15 && !MEALS[id].prep;
   if (!bad(meal) && !slow(meal)) return null;
-  const reason = bad(meal) ? 'rating' : 'quick', base = mealStats(meal).kcal;
-  const cands = Object.keys(MEALS).filter(id => MEALS[id].cat === cat && id !== meal && !bad(id) && !slow(id) && !(quick && MEALS[id].prep && (slotK === 'obed' || slotK === 'vecere')))
-    .map(id => ({ id, s: Math.abs(mealStats(id).kcal - base) - (rating(id) === 1 ? 150 : 0) })).sort((a, b) => a.s - b.s);
+  const reason = bad(meal) ? 'rating' : 'quick', base = mealStats(meal).kcal, near = i == null ? new Set() : nearMeals(i);
+  const cands = poolOf(cat).filter(id => id !== meal && !bad(id) && !slow(id) && !(quick && main && MEALS[id].prep) && !(slotK === 'turbo' && MEALS[id].kava))
+    .map(id => ({ id, s: Math.abs(mealStats(id).kcal - base) / 100 + (near.has(id) ? 3 : 0) - (rating(id) === 1 ? 1.5 : 0) + hash01(k + '|' + slotK + '|' + id) * 0.8 })).sort((a, b) => a.s - b.s);
   if (!cands.length) return null;
-  const pick = cands.length > 1 && (Math.abs(dayDiff('2026-01-05', k)) + slotK.length) % 3 === 0 ? cands[1] : cands[0];
-  return { id: pick.id, reason };
+  return { id: cands[0].id, reason };
 }
 function planFor(k, opts = {}) {
   const i = idxOf(k); if (i < 0) return [];
-  const w = weekOfIdx(i), dow = i % 7, wt = wtype(w);
+  const w = weekOfIdx(i), day = menuDay(i), next = menuDay(i + 1);
   const raw = opts.base || opts.plan, rec = raw ? { done: {}, swap: {}, skip: {}, quick: false } : dayRec(k);
   const add = opts.base ? 0 : addFor(w), bomb = !opts.nobomb && bombFor(w), out = [];
   for (const s of SLOTS) {
     if (w < s.from) continue;
-    let meal, mult = 1, auto = '';
-    if (s.k === 'shake') meal = 'shake';
-    else if (s.k === 'turbo') { if (add <= 0) continue; meal = 'shake'; mult = addMult(add); }
-    else meal = ROT[wt][dow][ROT_IDX[s.k]];
+    let meal = day[s.k], mult = 1, auto = '', lo = false;
+    if (s.k === 'turbo') { if (add <= 0) continue; mult = addMult(add); }
+    if (s.k === 'obed' && day.lo) { // zbytek ze včerejší večeře, pokud se opravdu vařila
+      const pd = opts.base ? day.obed : effDinner(i - 1);
+      if (leftoverOk(pd)) { meal = pd; lo = true; } else meal = day.obedAlt;
+    }
     let planned = meal;
-    if (!opts.base && s.k !== 'shake' && s.k !== 'turbo') { const sub = subFor(meal, s.k, k, rec.quick); if (sub) { meal = sub.id; planned = sub.id; auto = sub.reason; } }
-    if (bomb && s.k === 'svacina' && !rec.swap[s.k]) { const dense = bombSnack(k, meal); if (dense) { meal = dense; planned = dense; auto = auto || 'bomb'; } }
-    if (rec.swap[s.k] && MEALS[rec.swap[s.k]]) meal = rec.swap[s.k];
+    if (!opts.base && !lo) { const sub = subFor(meal, s.k, k, rec.quick, i); if (sub) { meal = sub.id; planned = sub.id; auto = sub.reason; } }
+    if (bomb && s.k === 'svacina' && !rec.swap[s.k]) { const dense = bombSnack(k, meal, i); if (dense) { meal = dense; planned = dense; auto = auto || 'bomb'; } }
+    if (rec.swap[s.k] && MEALS[rec.swap[s.k]]) { meal = rec.swap[s.k]; if (meal !== planned) lo = false; }
     const st = mealStats(meal, mult), m = wakeMin() + s.off, cat = MEALS[meal].cat;
     const boost = bomb && s.k !== 'turbo' && BOOST[cat] ? BOOST[cat].ing : null;
     let kcal = st.kcal, b = st.b, cost = mealCost(meal, mult);
     if (boost) { const bs = ingStats(boost); kcal += bs.kcal; b += bs.b; cost += bs.kc; }
-    out.push({ slot: s, meal, planned, auto, mult, m, time: minLabel(m), kcal, b, cost, boost, boostTxt: boost ? BOOST[cat].txt : '', done: !!rec.done[s.k], skip: !rec.done[s.k] && !!rec.skip[s.k] });
+    const nsw = raw ? null : (S.days[addDays(k, 1)] || {}).swap;
+    const cook2 = s.k === 'vecere' && !!next.lo && leftoverOk(meal) && !(nsw && nsw.obed);
+    out.push({ slot: s, meal, planned, auto, mult, m, time: minLabel(m), kcal, b, cost, boost, boostTxt: boost ? BOOST[cat].txt : '', lo, cook2, done: !!rec.done[s.k], skip: !rec.done[s.k] && !!rec.skip[s.k] });
   }
   return out;
 }
@@ -828,13 +1151,15 @@ function prepFor(k) {
   const dishes = {}, ops = {};
   for (const d of cover) for (const x of planFor(d)) {
     if (!(x.slot.k === 'obed' || x.slot.k === 'vecere')) continue;
-    const m = MEALS[x.meal]; if (!m.prep) continue;
-    dishes[x.meal] = (dishes[x.meal] || 0) + 1;
-    for (const [op, q] of m.batch) ops[op] = (ops[op] || 0) + q;
+    const m = MEALS[x.meal]; if (!m.prep || x.lo) continue; // zbytek se vaří spolu s večeří den předem
+    const n = x.cook2 ? 2 : 1;
+    dishes[x.meal] = (dishes[x.meal] || 0) + n;
+    for (const [op, q] of (m.batch || [['dish:' + x.meal, 1]])) ops[op] = (ops[op] || 0) + q * n;
   }
   if (!Object.keys(dishes).length) return null;
   const order = ['chicken', 'potato', 'rice', 'rizoto', 'paprika', 'lentils'];
-  return { cover, dishes, steps: order.filter(o => ops[o]).map(o => BATCH[o](ops[o])) };
+  const steps = order.filter(o => ops[o]).map(o => BATCH[o](ops[o])).concat(Object.keys(ops).filter(o => o.startsWith('dish:')).map(o => batchDish(o.slice(5), ops[o])));
+  return { cover, dishes, steps };
 }
 
 // ===== Ceny (z týdenní úlohy) =====
@@ -1016,7 +1341,7 @@ function syncPlan() {
   const t0 = todayKey(), days = {};
   for (let d = -7; d < 21; d++) {
     const k = addDays(t0, d), items = planFor(k); if (!items.length) continue;
-    days[k] = { kcal: Math.round(items.reduce((a, x) => a + x.kcal, 0)), slots: items.map(x => ({ k: x.slot.k, slot: x.slot.n, n: MEALS[x.meal].n + (x.mult !== 1 ? ` (${fracLabel(x.mult)} porce)` : ''), t: x.time, kcal: Math.round(x.kcal), ...(x.boost ? { boost: x.boostTxt } : {}) })) };
+    days[k] = { kcal: Math.round(items.reduce((a, x) => a + x.kcal, 0)), slots: items.map(x => ({ k: x.slot.k, slot: x.slot.n, n: MEALS[x.meal].n + (x.mult !== 1 ? ` (${fracLabel(x.mult)} porce)` : '') + (x.lo ? ' (zbytek ze včerejška)' : x.cook2 ? ' (uvař 2 porce)' : ''), t: x.time, kcal: Math.round(x.kcal), ...(x.boost ? { boost: x.boostTxt } : {}) })) };
   }
   const e = engine();
   const body = { v: 1, today: t0, tz: 'Europe/Prague', wake: S.settings.wake, add: S.settings.add, goalKg: S.settings.goalKg, goalDate: S.settings.goalDate,
@@ -1163,7 +1488,7 @@ function noticeCard(ic, col, html, extra = '') { return `<div class="card notice
 function renderToday(head, v) {
   const k = UI.date, i = idxOf(k), w = weekOfIdx(i), t0 = todayKey(), isToday = k === t0, isPast = dayDiff(k, t0) > 0;
   const big = isToday ? 'Dnes' : capFirst(DAYS_FULL[dowOf(k)]);
-  const sub = i >= 0 ? `${isToday ? DAYS_FULL[dowOf(k)] + ' ' : ''}${shortDate(k)} · den ${i + 1} z 91 · týden ${w} (${wtype(w)})` : `${DAYS_FULL[dowOf(k)]} ${shortDate(k)} · před startem`;
+  const sub = i >= 0 ? `${isToday ? DAYS_FULL[dowOf(k)] + ' ' : ''}${shortDate(k)} · den ${i + 1} z 91 · týden ${w}` : `${DAYS_FULL[dowOf(k)]} ${shortDate(k)} · před startem`;
   head.innerHTML = `<h1 class="t-large">${big}</h1><div class="t-sub l2">${sub}</div>${strip(k)}`;
   const h = [];
   if (i < 0) {
@@ -1213,8 +1538,8 @@ function renderToday(head, v) {
       const d = nx.m - nm, late = d < -45, [ic, col] = SLOT_STYLE[nx.slot.k];
       const when = d > 0 ? `za ${dur(d)}` : late ? `zpoždění ${dur(d)}` : 'teď';
       h.push(`<div class="card now ${late ? 'late' : ''}"><div class="eye">${tile(ic, col)}<span>${esc(nx.slot.n)} · <span class="num">${nx.time}</span> · ${when}</span></div>
-        <div><div class="t-title2">${esc(MEALS[nx.meal].n)}${nx.mult !== 1 ? ` (${fracLabel(nx.mult)})` : ''}</div><div class="t-sub l2" style="margin-top:3px">${kc(nx.kcal)} kcal · ${kc(nx.b)} g bílkovin · ${MEALS[nx.meal].min} min</div>${nx.boost ? `<div class="t-sub" style="margin-top:6px;color:var(--red-text);font-weight:600">Bomba: ${esc(nx.boostTxt)}</div>` : ''}</div>
-        <div class="btns"><button class="btn pri" data-act="toggle" data-slot="${nx.slot.k}">${ICO.check}Snědeno</button><button class="btn" data-act="meal" data-slot="${nx.slot.k}">Recept</button>${late && nx.meal !== 'shake' ? `<button class="btn" data-act="toshake" data-slot="${nx.slot.k}">Shake místo toho</button>` : ''}${late ? `<button class="btn" data-act="skip" data-slot="${nx.slot.k}">Vynechat</button>` : ''}</div></div>`);
+        <div><div class="t-title2">${esc(MEALS[nx.meal].n)}${nx.mult !== 1 ? ` (${fracLabel(nx.mult)})` : ''}</div><div class="t-sub l2" style="margin-top:3px">${kc(nx.kcal)} kcal · ${kc(nx.b)} g bílkovin · ${nx.lo ? 'jen ohřát' : MEALS[nx.meal].min + ' min'}</div>${nx.lo ? '<div class="t-sub" style="margin-top:6px">Zbytek ze včerejší večeře.</div>' : nx.cook2 ? '<div class="t-sub" style="margin-top:6px;font-weight:600">Uvař 2 porce, druhá je na zítřejší oběd.</div>' : ''}${nx.boost ? `<div class="t-sub" style="margin-top:6px;color:var(--red-text);font-weight:600">Bomba: ${esc(nx.boostTxt)}</div>` : ''}</div>
+        <div class="btns"><button class="btn pri" data-act="toggle" data-slot="${nx.slot.k}">${ICO.check}Snědeno</button><button class="btn" data-act="meal" data-slot="${nx.slot.k}">Recept</button>${late && MEALS[nx.meal].cat !== 'X' ? `<button class="btn" data-act="toshake" data-slot="${nx.slot.k}">Shake místo toho</button>` : ''}${late ? `<button class="btn" data-act="skip" data-slot="${nx.slot.k}">Vynechat</button>` : ''}</div></div>`);
     } else if (allClosed) h.push(noticeCard('info', 'tint', `<b>Na dnes hotovo.</b> Něco jsi vynechal a chybí ${kc(Math.max(0, t.kcal - t.dk))} kcal. Dožeň to extra jídlem v seznamu níž.`));
   }
   const nextK = isToday ? (items.find(x => !x.done && !x.skip) || {}).slot : null, loadDay = i < 5;
@@ -1222,7 +1547,7 @@ function renderToday(head, v) {
   if (!isPast) rows.push(`<label class="row has-tile">${tile('bolt', 'yellow')}<span class="row-text"><span class="row-title">Rychlý den</span><span class="row-sub">Jen jídla do 15 minut, kalorie zůstanou</span></span><input type="checkbox" class="sw" id="quick" ${rec.quick ? 'checked' : ''}></label>`);
   for (const x of items) {
     const m = MEALS[x.meal], swapped = x.meal !== x.planned, late = isToday && !x.done && !x.skip && x.m < nm - 45, [ic, col] = SLOT_STYLE[x.slot.k];
-    const tag = late ? '<span class="tag late">zpožděné</span>' : (nextK && nextK.k === x.slot.k ? '<span class="tag next">další</span>' : swapped ? '<span class="tag">vyměněno</span>' : x.auto === 'quick' ? '<span class="tag">rychlé</span>' : x.auto === 'rating' ? '<span class="tag">náhrada</span>' : (x.boost || x.auto === 'bomb') ? '<span class="tag bomb">bomba</span>' : '');
+    const tag = late ? '<span class="tag late">zpožděné</span>' : (nextK && nextK.k === x.slot.k ? '<span class="tag next">další</span>' : swapped ? '<span class="tag">vyměněno</span>' : x.auto === 'quick' ? '<span class="tag">rychlé</span>' : x.auto === 'rating' ? '<span class="tag">náhrada</span>' : x.lo ? '<span class="tag">zbytek</span>' : x.cook2 ? '<span class="tag">2 porce</span>' : (x.boost || x.auto === 'bomb') ? '<span class="tag bomb">bomba</span>' : '');
     rows.push(`<div class="row has-tile ${x.done ? 'done' : ''} ${x.skip ? 'skip' : ''}"><button class="row-main" data-act="meal" data-slot="${x.slot.k}">${tile(ic, col)}<span class="row-text"><span class="row-title">${esc(m.n)}${x.mult !== 1 ? ` (${fracLabel(x.mult)})` : ''}</span><span class="row-sub"><span class="num">${x.time}</span> · ${x.slot.n} · ${kc(x.kcal)} kcal</span></span>${tag}</button>${ckBtn(x.slot.k, x.done, x.slot.n + ' snědeno', UI.pop === x.slot.k)}</div>`);
     if (x.slot.k === 'snidane') rows.push(`<div class="row has-tile ${rec.done.kreatin ? 'done' : ''}"><div class="row-main" style="pointer-events:none">${tile('pill', 'teal')}<span class="row-text"><span class="row-title">${loadDay ? 'Kreatin 4× 5 g + vitamín D' : 'Kreatin 5 g + vitamín D'}</span><span class="row-sub">${loadDay ? `Nasycení, den ${i + 1} z 5 · dávky k jídlům` : 'Do shaku nebo k snídani'}</span></span></div>${ckBtn('kreatin', !!rec.done.kreatin, 'Kreatin vzat', UI.pop === 'kreatin')}</div>`);
   }
@@ -1262,7 +1587,7 @@ function trainingSec(k, rec) {
 // ---------- Týden ----------
 function weekHdr(w, act) {
   return `<div class="weekhdr"><button class="gbtn glass" data-act="${act}" data-d="-1" ${w <= 1 ? 'disabled' : ''} aria-label="Předchozí týden">${ICO.back}</button>
-    <div class="mid"><b>Týden ${w} · ${wtype(w)}</b><span>${weekLabel(w)}${w === curWeek() && idxOf(todayKey()) >= 0 ? ' · tento týden' : ''}</span></div>
+    <div class="mid"><b>Týden ${w}</b><span>${weekLabel(w)}${w === curWeek() && idxOf(todayKey()) >= 0 ? ' · tento týden' : ''}</span></div>
     <button class="gbtn glass" data-act="${act}" data-d="1" ${w >= 26 ? 'disabled' : ''} aria-label="Další týden">${ICO.fwd}</button></div>`;
 }
 function reportCard(rep) {
@@ -1284,6 +1609,7 @@ function renderWeek(head, v) {
     const tag = t.dk ? `<span class="tag ${t.pct >= .9 ? 'ok' : ''}">${Math.round(t.pct * 100)} %</span>` : (prepFor(k) ? '<span class="tag next">vaření</span>' : '');
     return `<button class="row" data-act="openday" data-k="${k}"><span class="row-text"><span class="row-title"><b style="font-weight:600">${capFirst(DAYS_FULL[d])}</b> ${shortDate(k)}${k === t0 ? ' · dnes' : ''}</span><span class="row-sub clamp2">${o ? esc(MEALS[o.meal].n) : ''}${ve ? ' · ' + esc(MEALS[ve.meal].n) : ''}</span></span><span class="row-trail">${tag}<span class="num">${kc(t.kcal)}</span>${ICO.chevron}</span></button>`;
   }).join(''), 'Klepni na den pro detail a odškrtávání. Čísla vpravo jsou plánované kcal.'));
+  h.push(menuSec());
   v.innerHTML = h.join('');
 }
 function weekBars(keys, tots) {
@@ -1404,13 +1730,39 @@ function gainBars(gains) {
 }
 
 // ---------- Recepty ----------
+const R_FILTERS = [['all', 'Vše'], ['quick', 'Do 15 min'], ['cold', 'Bez vaření'], ['prep', 'Dopředu'], ['fav', 'Oblíbené'], ['kure', 'Kuře'], ['ryba', 'Ryba'], ['veg', 'Bez masa']];
+function fold(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+function recipeMatches(id) {
+  const m = MEALS[id], f = UI.rf || 'all', q = fold(UI.rq || '').trim();
+  if (q) { const hay = fold(m.n + ' ' + m.ing.map(([k]) => ING[k].n).join(' ')); if (!q.split(/\s+/).every(w => hay.includes(w))) return false; }
+  else if (m.cat !== UI.rcat) return false;
+  const meat = m.ing.some(([k]) => ['ctvrtka', 'kure', 'kure_mlete', 'sunka', 'parky', 'tunak', 'sardinky', 'rybi_prsty'].includes(k));
+  return f === 'all' || (f === 'quick' && m.min <= 15) || (f === 'cold' && m.cold) || (f === 'prep' && m.prep) || (f === 'fav' && rating(id) === 1)
+    || (f === 'kure' && m.ing.some(([k]) => ['ctvrtka', 'kure', 'kure_mlete'].includes(k))) || (f === 'ryba' && m.p === 'ryba') || (f === 'veg' && !meat);
+}
+function recipeRows() {
+  const q = (UI.rq || '').trim();
+  const list = Object.keys(MEALS).filter(id => MEALS[id].cat !== 'E' && recipeMatches(id)).map(id => ({ id, ...mealStats(id), cost: mealCost(id, 1) }))
+    .sort((a, b) => (q ? 'SXHV'.indexOf(MEALS[a.id].cat) - 'SXHV'.indexOf(MEALS[b.id].cat) : 0) || MEALS[a.id].n.localeCompare(MEALS[b.id].n, 'cs'));
+  if (!list.length) return sec('', `<div class="row"><span class="row-text"><span class="row-title">Nic nenalezeno</span><span class="row-sub">Zkus jiné slovo nebo filtr Vše.</span></span></div>`);
+  return sec(q ? `${list.length} ${plural(list.length, 'recept', 'recepty', 'receptů')}` : '', list.map(x => { const m = MEALS[x.id], [ic, col] = CAT_STYLE[m.cat], r = rating(x.id); return `<button class="row has-tile" data-act="recipe" data-meal="${x.id}">${tile(ic, col)}<span class="row-text"><span class="row-title">${esc(m.n)}</span><span class="row-sub">${q ? CAT_N[m.cat].replace('Hlavní jídla', 'Hlavní') + ' · ' : ''}${m.min} min · ${kc(x.b)} g B · ~${kc(x.cost)} Kč${m.cold ? ' · bez vaření' : ''}${m.prep ? ' · dopředu' : ''}</span></span><span class="row-trail">${r === 1 ? `<span class="rate up" aria-label="Chutná mi">${ICO.up}</span>` : r === -1 ? `<span class="rate dn" aria-label="Nechci">${ICO.down}</span>` : ''}<span class="num">${kc(x.kcal)}</span>${ICO.chevron}</span></button>`; }).join(''),
+    'Čísla vpravo jsou kcal na porci. Palec dolů v receptu = v plánu se nahradí podobným jídlem, palec nahoru = dostane přednost.');
+}
+function menuSec() {
+  const c = menuCfg(menuFrom()), n = Object.values(MEALS).filter(m => m.cat !== 'E').length, when = idxOf(todayKey()) < 0 ? 'startu' : 'zítřka';
+  return sec('Jídelníček', `<label class="row has-tile">${tile('plate', 'green')}<span class="row-text"><span class="row-title">Oběd</span></span><select class="sel" id="s-lunch"><option value="fresh" ${c.mode === 'fresh' ? 'selected' : ''}>Každý den jiný</option><option value="leftover" ${c.mode === 'leftover' ? 'selected' : ''}>Zbytek z večeře</option></select>${ICO.chevron}</label>
+    <button class="row has-tile" data-act="shuffle">${tile('spark', 'purple')}<span class="row-text"><span class="row-title tint">Zamíchat jídla od ${when}</span><span class="row-sub">Nový výběr z ${n} receptů, nákup se přepočítá</span></span></button>`,
+    c.mode === 'leftover' ? 'K večeři uvaříš 2 porce a druhou máš zítra k obědu, vaříš tak jen jednou denně. Stejné jídlo se vrátí nejdřív za 10 dní.' : 'Oběd je rychlé jídlo do 20 minut nebo uvařené dopředu, k večeři cokoli. Stejné jídlo se vrátí nejdřív za 10 dní, snídaně za týden.');
+}
 function renderRecipes(head, v) {
   head.innerHTML = `<h1 class="t-large">Recepty</h1><div class="t-sub l2">${Object.values(MEALS).filter(m => m.cat !== 'E').length} jídel · bez vepřového a hovězího</div>`;
   const cats = ['S', 'H', 'V', 'X'], h = [];
-  h.push(`<div class="seg" role="group" aria-label="Kategorie">${cats.map(c => `<button data-act="rcat" data-c="${c}" aria-pressed="${UI.rcat === c}">${{ S: 'Snídaně', H: 'Hlavní', V: 'Svačiny', X: 'Shake' }[c]}</button>`).join('')}</div>`);
-  const list = Object.keys(MEALS).filter(id => MEALS[id].cat === UI.rcat).map(id => ({ id, ...mealStats(id), cost: mealCost(id, 1) })).sort((a, b) => b.kcal - a.kcal);
-  h.push(sec('', list.map(x => { const [ic, col] = CAT_STYLE[MEALS[x.id].cat], r = rating(x.id); return `<button class="row has-tile" data-act="recipe" data-meal="${x.id}">${tile(ic, col)}<span class="row-text"><span class="row-title">${esc(MEALS[x.id].n)}</span><span class="row-sub">${kc(x.b)} g bílkovin · ~${kc(x.cost)} Kč · ${MEALS[x.id].min} min${MEALS[x.id].prep ? ' · dopředu' : ''}</span></span><span class="row-trail">${r === 1 ? `<span class="rate up" aria-label="Chutná mi">${ICO.up}</span>` : r === -1 ? `<span class="rate dn" aria-label="Nechci">${ICO.down}</span>` : ''}<span class="num">${kc(x.kcal)}</span>${ICO.chevron}</span></button>`; }).join(''), 'Palec dolů = jídlo se v plánu automaticky nahradí podobným. Palec nahoru = dostane přednost při náhradách.'));
-  h.push(sec('Vaření dopředu', `<div class="row has-tile">${tile('pot', 'tint')}<span class="row-text"><span class="row-title">Neděle</span><span class="row-sub">Na nedělní oběd a pondělí až středu</span></span></div><div class="row has-tile">${tile('pot', 'tint')}<span class="row-text"><span class="row-title">Středa</span><span class="row-sub">Na čtvrtek až sobotu</span></span></div>`, 'Ten den ti appka na kartě Dnes ukáže přesný seznam podle jídelníčku i tvých výměn. Kuře peč vždy celé čtvrtky: 200 °C, 45–50 minut.'));
+  h.push(`<label class="search">${G('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>', 2.2)}<input type="search" id="r-q" value="${esc(UI.rq || '')}" placeholder="Hledat jídlo nebo surovinu" autocomplete="off" enterkeyhint="search" aria-label="Hledat recept"></label>`);
+  h.push(`<div class="seg" role="group" aria-label="Kategorie" ${UI.rq ? 'hidden' : ''} id="r-cats">${cats.map(c => `<button data-act="rcat" data-c="${c}" aria-pressed="${UI.rcat === c}">${{ S: 'Snídaně', H: 'Hlavní', V: 'Svačiny', X: 'Shake' }[c]}</button>`).join('')}</div>`);
+  h.push(`<div class="fchips" role="group" aria-label="Filtr">${R_FILTERS.map(([f, n]) => `<button data-act="rfilter" data-f="${f}" aria-pressed="${(UI.rf || 'all') === f}">${n}</button>`).join('')}</div>`);
+  h.push(`<div id="rlist">${recipeRows()}</div>`);
+  h.push(menuSec());
+  h.push(sec('Vaření dopředu', `<div class="row has-tile">${tile('pot', 'tint')}<span class="row-text"><span class="row-title">Neděle</span><span class="row-sub">Na neděli a pondělí až středu</span></span></div><div class="row has-tile">${tile('pot', 'tint')}<span class="row-text"><span class="row-title">Středa</span><span class="row-sub">Na čtvrtek až sobotu</span></span></div>`, 'Ten den ti appka na kartě Dnes ukáže, která jídla z příštích dní jde uvařit dopředu. Není to povinné, všechno se dá uvařit i v daný den.'));
   h.push(sec(`Trénink: fitko (${DAYS_FULL[Number(S.settings.gym)]})`, TRAINING.gym.map(ex => `<div class="row"><span class="row-text"><span class="row-title">${esc(ex.n)}</span><span class="row-sub">pauza ${ex.pause}${ex.note ? ' · ' + ex.note : ''}</span></span><span class="row-trail num">${ex.sets}×${ex.lo}–${ex.hi}</span></div>`).join(''), esc(TRAINING.gymNote)));
   h.push(sec('Trénink: doma (úterý a čtvrtek)', TRAINING.home.map(([a, b]) => `<div class="row"><span class="row-text"><span class="row-title">${esc(a)}</span></span><span class="row-trail t-sub" style="white-space:normal;text-align:right;max-width:52%;flex-shrink:1">${esc(b)}</span></div>`).join(''), esc(TRAINING.homeNote)));
   v.innerHTML = h.join('');
@@ -1431,26 +1783,35 @@ function closeSheet() {
   sh.classList.remove('open'); sc.classList.remove('open');
   setTimeout(() => { sh.hidden = true; sc.hidden = true; if (pendingRender) render(); }, 300);
 }
+function mealTags(m) {
+  const t = [];
+  if (m.cold) t.push('bez vaření'); else if (m.min <= 15) t.push('do 15 min');
+  if (m.prep) t.push('dá se dopředu');
+  if (m.p && P_NAME[m.p]) t.push(P_NAME[m.p]);
+  return t;
+}
 function mealSheet(o, keep) {
-  if (!keep) UI.portions = 1;
   UI.recipe = o;
   let id = o.id, mult = o.mult || 1, x = null;
   if (o.slot) { x = planFor(UI.date).find(y => y.slot.k === o.slot); if (!x) return; id = x.meal; mult = x.mult; }
+  if (!keep) UI.portions = x && x.cook2 ? 2 : 1;
   const m = MEALS[id], f = mult * UI.portions, h = [], r = rating(id);
-  const st = x && UI.portions === 1 ? { kcal: x.kcal, b: x.b } : mealStats(id, f), costNow = x && UI.portions === 1 ? x.cost : mealCost(id, f);
-  h.push(`<div><h2 class="t-title2">${esc(m.n)}</h2><div class="chips" style="margin:0 4px"><span class="chip tint num">${kc(st.kcal)} kcal</span><span class="chip">${kc(st.b)} g bílkovin</span><span class="chip">~${kc(costNow)} Kč</span><span class="chip">${m.min} min</span></div></div>`);
+  const st = x ? { kcal: x.kcal, b: x.b } : mealStats(id, f), costNow = x ? x.cost : mealCost(id, f);
+  h.push(`<div><h2 class="t-title2">${esc(m.n)}</h2><div class="chips" style="margin:0 4px"><span class="chip tint num">${kc(st.kcal)} kcal</span><span class="chip">${kc(st.b)} g bílkovin</span><span class="chip">~${kc(costNow)} Kč</span><span class="chip">${x && x.lo ? 'jen ohřát' : m.min + ' min'}</span>${mealTags(m).map(t => `<span class="chip">${esc(t)}</span>`).join('')}</div></div>`);
   if (x) {
     const rows = [`<button class="row has-tile" data-act="toggle" data-slot="${x.slot.k}" data-close="1">${tile('check', x.done ? 'gray' : 'green')}<span class="row-text"><span class="row-title">${x.done ? 'Zrušit „snědeno“' : 'Označit jako snědené'}</span></span></button>`];
-    if (m.cat !== 'X' || x.meal !== x.planned) rows.push(`<button class="row has-tile" data-act="swap" data-slot="${x.slot.k}">${tile('copy', 'blue')}<span class="row-text"><span class="row-title">Vyměnit za jiné jídlo</span></span>${ICO.chevron}</button>`);
-    if (x.meal !== 'shake' && !x.done) rows.push(`<button class="row has-tile" data-act="toshake" data-slot="${x.slot.k}" data-close="1">${tile('cup', 'brown')}<span class="row-text"><span class="row-title">Dát si místo toho shake</span></span></button>`);
+    rows.push(`<button class="row has-tile" data-act="swap" data-slot="${x.slot.k}">${tile('copy', 'blue')}<span class="row-text"><span class="row-title">Vyměnit za jiné jídlo</span></span>${ICO.chevron}</button>`);
+    if (m.cat !== 'X' && !x.done) rows.push(`<button class="row has-tile" data-act="toshake" data-slot="${x.slot.k}" data-close="1">${tile('cup', 'brown')}<span class="row-text"><span class="row-title">Dát si místo toho shake</span></span></button>`);
     if (!x.done && !x.skip) rows.push(`<button class="row has-tile" data-act="skip" data-slot="${x.slot.k}" data-close="1">${tile('close', 'red')}<span class="row-text"><span class="row-title" style="color:var(--red-text)">Vynechat</span></span></button>`);
-    h.push(sec(`${x.slot.n} · ${x.time}`, rows.join(''), x.auto === 'rating' ? 'V plánu bylo jídlo, které nechceš, tak ho appka nahradila tímhle.' : x.auto === 'quick' ? 'Rychlý den: pomalé jídlo nahrazeno rychlým se stejnými kaloriemi.' : ''));
+    const foot = x.auto === 'rating' ? 'V plánu bylo jídlo, které nechceš, tak ho appka nahradila tímhle.' : x.auto === 'quick' ? 'Rychlý den: pomalé jídlo nahrazeno rychlým se stejnými kaloriemi.'
+      : x.lo ? 'Zbytek ze včerejší večeře: ohřej v mikrovlnce 2–3 minuty. Když jsi včera vařil něco jiného, klepni na Vyměnit.' : x.cook2 ? 'Suroviny níž jsou na 2 porce. Druhou dej do krabičky, zítra je to oběd.' : '';
+    h.push(sec(`${x.slot.n} · ${x.time}`, rows.join(''), foot));
   }
   if (m.cat !== 'E') h.push(sec('Jak ti chutná?', `<div class="row" style="padding-block:10px"><div class="seg" style="width:100%" role="group" aria-label="Hodnocení"><button data-act="rate" data-meal="${id}" data-v="1" aria-pressed="${r === 1}"><span class="rate-i">${ICO.up}</span> Chutná mi</button><button data-act="rate" data-meal="${id}" data-v="-1" aria-pressed="${r === -1}"><span class="rate-i">${ICO.down}</span> Nechci v plánu</button></div></div>`, r === -1 ? 'V plánu se nahradí podobným jídlem, nákupní seznam se přepočítá.' : ''));
   const pl = UI.portions > 1 ? `${UI.portions} porce` : (mult !== 1 ? `${fracLabel(mult)} porce` : '1 porce');
   h.push(sec('Suroviny', m.ing.map(([k, q, note]) => `<div class="row"><span class="num" style="min-width:74px;font-weight:600">${fmtAmt(q * f, ING[k].u)}</span><span class="row-text"><span class="row-title">${esc(ING[k].n)}</span>${note && f === 1 ? `<span class="row-sub">${esc(note)}</span>` : ''}</span></div>`).join(''), '', `<span class="act stepper" style="margin-block:-6px"><button data-act="portions" data-d="-1" aria-label="Méně porcí">−</button><i></i><span>${pl}</span><i></i><button data-act="portions" data-d="1" aria-label="Více porcí">+</button></span>`));
   if (x && x.boost) h.push(sec('Kalorická bomba', x.boost.map(([k, q]) => `<div class="row has-tile">${tile('flame', 'red')}<span class="row-text"><span class="row-title">+ ${fmtAmt(q, ING[k].u)} ${esc(ING[k].n.toLowerCase())}</span><span class="row-sub">${esc(x.boostTxt)}</span></span><span class="row-trail"><span class="num" style="color:var(--green-text)">+${kc(ingStats(x.boost).kcal)}</span></span></div>`).join(''), 'Bomba přidává kalorie s minimem objemu navíc. Vypneš ji v Nastavení → Tempo.'));
-  h.push(sec('Postup', `<ol class="steps">${m.steps.map(s => `<li><span>${esc(s)}</span></li>`).join('')}</ol>`));
+  h.push(sec('Postup', `<ol class="steps">${m.steps.map(s => `<li><span>${esc(s)}</span></li>`).join('')}</ol>`, UI.portions > 1 ? `Množství v postupu jsou na 1 porci, vezmi je ${UI.portions}× (přesně jsou v surovinách).` : ''));
   openSheet(o.slot ? DAYS[dowOf(UI.date)] + ' ' + shortDate(UI.date) : CAT_N[m.cat], h.join(''));
 }
 function swapSheet(slotK) {
@@ -1478,6 +1839,7 @@ function settingsSheet() {
     ${sec('Tempo', `<label class="row has-tile">${tile('bolt', 'purple')}<span class="row-text"><span class="row-title">Večerní doplněk</span></span><select class="sel" id="s-add">${adds.map(a => `<option value="${a}" ${a === curAdd ? 'selected' : ''}>${a ? addName(a).replace(' večer', '') : 'Žádný'}</option>`).join('')}</select>${ICO.chevron}</label>
       <label class="row has-tile">${tile('gear', 'gray')}<span class="row-text"><span class="row-title">Upravovat automaticky</span></span><input type="checkbox" class="sw" id="s-auto" ${s.auto ? 'checked' : ''}></label>
       <label class="row has-tile">${tile('flame', 'red')}<span class="row-text"><span class="row-title">Kalorická bomba</span><span class="row-sub">${bombEffective(s) ? 'Teď zapnutá' : 'Teď vypnutá'}</span></span><select class="sel" id="s-bomb">${[['auto', 'Automaticky'], ['on', 'Zapnutá'], ['off', 'Vypnutá']].map(([v, n]) => `<option value="${v}" ${v === bombMode() ? 'selected' : ''}>${n}</option>`).join('')}</select>${ICO.chevron}</label>`, 'Doplněk platí od 3. týdne a každé pondělí se přepočítá podle tvého výdeje. Bomba přidá k jídlům olej, arašídové máslo a vločky (+500 kcal bez většího objemu); automaticky se zapne, když tempo zaostává.')}
+    ${menuSec()}
     ${sec('Cíl', `<label class="row"><span class="row-text"><span class="row-title">Cílová váha</span></span><input class="field-in num" id="s-goal" inputmode="decimal" value="${kg1(s.goalKg)}" style="max-width:80px"><span class="l2">kg</span></label>
       <label class="row"><span class="row-text"><span class="row-title">Do kdy</span></span><input type="date" class="field-in" id="s-gdate" value="${s.goalDate}"></label>`)}
     ${sec('Plán', `<label class="row"><span class="row-text"><span class="row-title">Začátek</span></span><input type="date" class="field-in" id="s-start" value="${s.start}"></label>
@@ -1712,6 +2074,8 @@ document.addEventListener('click', e => {
   else if (a === 'wdel') { delete S.weights[b.dataset.k]; persist('app/weights', { entries: S.weights }); render(); }
   else if (a === 'wedit') { UI.wDraft = kg1(S.weights[todayKey()]); delete S.weights[todayKey()]; render(); const i = document.querySelector('.wkg'); if (i) i.focus(); }
   else if (a === 'rcat') { UI.rcat = b.dataset.c; render(); }
+  else if (a === 'rfilter') { UI.rf = b.dataset.f; document.querySelectorAll('[data-act=rfilter]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); const l = document.getElementById('rlist'); if (l) l.innerHTML = recipeRows(); }
+  else if (a === 'shuffle') { saveSettings(menuPatch({ salt: 1 + Math.floor(Math.random() * 1e9) })); if (!document.getElementById('sheet').hidden) settingsSheet(); toast(`Zamícháno od ${idxOf(todayKey()) < 0 ? 'startu' : 'zítřka'}, nákup přepočítán`); }
   else if (a === 'ask') askSheet();
   else if (a === 'askmode') { UI.askMode = b.dataset.v; askSheet(); }
   else if (a === 'askstop') { if (UI.askCtl) UI.askCtl.abort(); }
@@ -1747,13 +2111,17 @@ document.addEventListener('submit', e => {
   } else if (f.matches('[data-form="ask"]')) runAsk();
   else if (f.matches('[data-form="sync"]')) runSyncKey();
 });
-document.addEventListener('input', e => { if (e.target.classList && e.target.classList.contains('wkg')) UI.wDraft = e.target.value; });
+document.addEventListener('input', e => {
+  if (e.target.classList && e.target.classList.contains('wkg')) UI.wDraft = e.target.value;
+  else if (e.target.id === 'r-q') { UI.rq = e.target.value; const l = document.getElementById('rlist'), c = document.getElementById('r-cats'); if (l) l.innerHTML = recipeRows(); if (c) c.hidden = !!UI.rq.trim(); }
+});
 document.addEventListener('change', async e => {
   const id = e.target.id, val = e.target.value;
   if (id === 's-start' && val) { const k = addDays(val, -dowOf(val)); e.target.value = k; saveSettings({ start: k }); }
   else if (id === 's-wake') saveSettings({ wake: val });
   else if (id === 's-gym') saveSettings({ gym: Number(val) });
   else if (id === 's-add') saveSettings({ add: Number(val) });
+  else if (id === 's-lunch') { e.target.blur(); saveSettings(menuPatch({ mode: val })); if (!document.getElementById('sheet').hidden) settingsSheet(); else render(); toast(val === 'leftover' ? `Od ${idxOf(todayKey()) < 0 ? 'startu' : 'zítřka'}: k obědu zbytek z večeře` : `Od ${idxOf(todayKey()) < 0 ? 'startu' : 'zítřka'}: každý den jiný oběd`); }
   else if (id === 's-bomb') { const st = { ...S.settings, bomb: val }; saveSettings({ bomb: val, bombHist: { ...(S.settings.bombHist || {}), [curWeek()]: bombEffective(st) } }); settingsSheet(); toast(bombEffective(st) ? 'Kalorická bomba zapnutá' : 'Kalorická bomba vypnutá'); }
   else if (id === 'n-meals' || id === 'n-late') { const n = { meals: true, late: true, ...(S.settings.notify || {}) }; n[id === 'n-meals' ? 'meals' : 'late'] = e.target.checked; saveSettings({ notify: n }); }
   else if (id === 's-auto' || id === 'autot') saveSettings({ auto: e.target.checked });

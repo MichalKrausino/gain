@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<style>body{margin:0}.ph.missing::after,figure.missing::after{content:'Fotka je v jiném zařízení';position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:8px;font-size:.706rem;color:var(--label-2)}figure.missing{position:relative;min-height:120px;background:var(--fill-3);border-radius:18px}</style>
+<style>body{margin:0}.ph.missing::after,figure.missing::after{content:'Fotka je v jiném zařízení';position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:8px;font-size:.706rem;color:var(--label-2)}figure.missing{position:relative;min-height:120px;background:var(--fill-3);border-radius:18px}.tag.bomb{background:rgba(255,59,48,.12);color:var(--red-text)}.row-sub.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.75rem;word-break:break-all}.steps b{font-weight:600}</style>
 <title>Plán 70 kg</title>
 <style>
 /* Layout: iOS 26 app shell per Apple HIG — large title that collapses into a glass nav bar, inset-grouped lists (26pt corners, 52pt rows, 16pt margins),
@@ -499,6 +499,8 @@ function mealStats(id, mult = 1) {
 
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, ROT, SLOTS, EXTRAS, ROT_IDX, TRAINING, MAINT, KCAL_PER_KG, mealStats, fmtAmt, fmtNum, plural };
 
+const WIDGET_SRC = "// Plán 70 kg – widget pro Scriptable (plocha i zamčená obrazovka)\n// Ukazuje, kolik máš dnes snědeno, kolik chybí a co je další jídlo. Klepnutím otevře appku.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst API = 'https://djeadsdsmsurjnneiclx.supabase.co/rest/v1/rpc/plan70_today';\nconst APP = 'https://michalkrausino.github.io/gain/';\nconst ORANGE = new Color('#FF9500');\nconst GREEN = new Color('#34C759');\nconst LABEL = Color.dynamic(new Color('#000000'), new Color('#FFFFFF'));\nconst SUB = Color.dynamic(new Color('#3C3C43', 0.7), new Color('#EBEBF5', 0.7));\nconst TRACK = Color.dynamic(new Color('#787880', 0.2), new Color('#787880', 0.36));\n\nfunction fmt(n) { return Math.round(n || 0).toLocaleString('cs-CZ').replace(/ /g, ' '); }\nfunction hm(t) { return String(t || '').replace(/^0/, ''); }\nfunction todayISO() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }\n\nasync function load() {\n  const r = new Request(API);\n  r.method = 'POST';\n  r.headers = { apikey: ANON, Authorization: 'Bearer ' + ANON, 'x-plan70-key': KEY, 'Content-Type': 'application/json' };\n  r.body = '{}';\n  r.timeoutInterval = 15;\n  try {\n    const j = await r.loadJSON();\n    if (j && j.date) { Keychain.set('plan70_today', JSON.stringify(j)); return j; }\n    throw new Error('bad response');\n  } catch (e) {\n    if (!Keychain.contains('plan70_today')) return null;\n    const c = JSON.parse(Keychain.get('plan70_today'));\n    if (c.date !== todayISO()) return null;\n    c.offline = true;\n    return c;\n  }\n}\n\nfunction bar(width, height, pct) {\n  const dc = new DrawContext();\n  dc.size = new Size(width, height); dc.opaque = false; dc.respectScreenScale = true;\n  const track = new Path(); track.addRoundedRect(new Rect(0, 0, width, height), height / 2, height / 2);\n  dc.addPath(track); dc.setFillColor(TRACK); dc.fillPath();\n  const w = Math.max(height, Math.min(1, pct) * width);\n  const fill = new Path(); fill.addRoundedRect(new Rect(0, 0, w, height), height / 2, height / 2);\n  dc.addPath(fill); dc.setFillColor(pct >= 1 ? GREEN : ORANGE); dc.fillPath();\n  return dc.getImage();\n}\n\nfunction ring(size, pct) {\n  const dc = new DrawContext();\n  dc.size = new Size(size, size); dc.opaque = false; dc.respectScreenScale = true;\n  const c = size / 2, r = size / 2 - 5, lw = 6;\n  for (let i = 0; i < 2; i++) {\n    const p = new Path(), end = i === 0 ? 1 : Math.min(1, pct), steps = Math.max(2, Math.round(80 * end));\n    for (let s = 0; s <= steps; s++) {\n      const a = -Math.PI / 2 + (s / 80) * 2 * Math.PI, pt = new Point(c + r * Math.cos(a), c + r * Math.sin(a));\n      s === 0 ? p.move(pt) : p.addLine(pt);\n    }\n    dc.addPath(p); dc.setStrokeColor(i === 0 ? new Color('#FFFFFF', 0.3) : Color.white()); dc.setLineWidth(lw); dc.strokePath();\n  }\n  return dc.getImage();\n}\n\nconst d = await load();\nconst fam = config.widgetFamily || 'medium';\nconst w = new ListWidget();\nw.url = APP + '#dnes';\nw.refreshAfterDate = new Date(Date.now() + 15 * 60 * 1000);\nconst pct = d && d.plan ? d.eaten / d.plan : 0;\nconst nx = d && d.next;\n\nif (!d || !d.hasPlan) {\n  if (fam.startsWith('accessory')) { const t = w.addText(fam === 'accessoryInline' ? 'Plán 70: otevři appku' : 'Plán 70\\nOtevři appku'); t.font = Font.semiboldSystemFont(12); }\n  else {\n    const t = w.addText('Plán 70 kg'); t.font = Font.boldRoundedSystemFont(15); t.textColor = ORANGE;\n    w.addSpacer(6);\n    const s = w.addText(d ? 'Na dnešek není plán. Otevři appku.' : 'Bez spojení. Otevři appku.'); s.font = Font.systemFont(13); s.textColor = SUB;\n  }\n} else if (fam === 'accessoryInline') {\n  w.addText(d.left > 0 ? `Chybí ${fmt(d.left)} kcal` : 'Plán splněn');\n} else if (fam === 'accessoryCircular') {\n  const st = w.addStack(); st.size = new Size(64, 64); st.backgroundImage = ring(64, pct); st.centerAlignContent();\n  const v = st.addText(`${Math.round(pct * 100)}%`); v.font = Font.boldRoundedSystemFont(15); v.minimumScaleFactor = 0.6;\n} else if (fam === 'accessoryRectangular') {\n  const a = w.addText(`Plán 70 · ${fmt(d.eaten)} / ${fmt(d.plan)}`); a.font = Font.semiboldSystemFont(12);\n  const b = w.addText(d.left > 0 ? `Chybí ${fmt(d.left)} kcal` : 'Plán splněn'); b.font = Font.boldRoundedSystemFont(15);\n  if (nx && d.left > 0) { const c = w.addText(`${nx.k === 'turbo' ? 'Shake navíc' : nx.slot} ${hm(nx.t)}`); c.font = Font.systemFont(12); }\n} else {\n  w.backgroundColor = Color.dynamic(new Color('#FFFFFF'), new Color('#1C1C1E'));\n  w.setPadding(14, 14, 14, 14);\n  const head = w.addStack(); head.centerAlignContent();\n  const ti = head.addText('PLÁN 70'); ti.font = Font.heavySystemFont(11); ti.textColor = ORANGE;\n  head.addSpacer();\n  if (d.offline) { const o = head.addText('offline'); o.font = Font.systemFont(10); o.textColor = SUB; }\n  w.addSpacer(6);\n  const big = w.addText(d.left > 0 ? `${fmt(d.left)} kcal` : 'Splněno'); big.font = Font.boldRoundedSystemFont(fam === 'small' ? 24 : 28); big.textColor = LABEL; big.minimumScaleFactor = 0.7;\n  const sub = w.addText(d.left > 0 ? `chybí · ${fmt(d.eaten)} z ${fmt(d.plan)}` : `${fmt(d.eaten)} kcal dnes`); sub.font = Font.mediumSystemFont(12); sub.textColor = SUB;\n  w.addSpacer(8);\n  const img = w.addImage(bar(fam === 'small' ? 130 : 300, 8, pct)); img.imageSize = new Size(fam === 'small' ? 130 : 300, 8);\n  w.addSpacer();\n  if (nx && d.left > 0) {\n    const n1 = w.addText(`Další: ${nx.k === 'turbo' ? 'shake navíc' : String(nx.slot).toLowerCase()} v ${hm(nx.t)}`); n1.font = Font.semiboldSystemFont(12); n1.textColor = LABEL;\n    if (fam !== 'small') { const n2 = w.addText(`${nx.n} · ${fmt(nx.kcal)} kcal`); n2.font = Font.systemFont(12); n2.textColor = SUB; n2.lineLimit = 1; }\n  } else {\n    const n1 = w.addText(`${d.nDone || 0} z ${d.nMeals || 0} jídel`); n1.font = Font.semiboldSystemFont(12); n1.textColor = SUB;\n  }\n}\n\nScript.setWidget(w);\nif (config.runsInApp) { fam === 'small' ? await w.presentSmall() : await w.presentMedium(); }\nScript.complete();\n";
+
 </script>
 <script>
 // ===== Pomocné =====
@@ -557,8 +559,8 @@ function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } 
 const SB_URL = 'https://djeadsdsmsurjnneiclx.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqZWFkc2RzbXN1cmpubmVpY2x4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0OTgyMzcsImV4cCI6MjEwMTA3NDIzN30.XUWwAGxhzRN6XUuBFuFvFOxNTTUh0iH-TkcnbAHoqgU';
 const SB_TABLE = 'plan70_docs', SYNC_KEY = LS_KEY + '.sync', EPOCH = '1970-01-01T00:00:00+00:00';
-let SY = { key: '', cursor: EPOCH, out: {}, ts: {}, have: {}, last: null, pulled: false, seeded: false, bad: false };
-function loadSync() { try { const o = JSON.parse(localStorage.getItem(SYNC_KEY) || '{}'); SY = { ...SY, ...o, out: o.out || {}, ts: o.ts || {}, have: o.have || {} }; } catch (e) { } }
+let SY = { key: '', cursor: EPOCH, out: {}, ts: {}, have: {}, mine: {}, last: null, pulled: false, seeded: false, bad: false };
+function loadSync() { try { const o = JSON.parse(localStorage.getItem(SYNC_KEY) || '{}'); SY = { ...SY, ...o, out: o.out || {}, ts: o.ts || {}, have: o.have || {}, mine: o.mine || {} }; } catch (e) { } }
 function saveSync() { try { localStorage.setItem(SYNC_KEY, JSON.stringify(SY)); } catch (e) { } }
 function pendingCount() { return Object.keys(SY.out).filter(p => p !== 'app/plan').length; }
 function hasLocalData() { return Object.keys(S.days).length > 0 || Object.keys(S.weights).length > 0; }
@@ -604,9 +606,17 @@ async function pushOut() {
     const r = await sbFetch(`${SB_URL}/rest/v1/${SB_TABLE}?on_conflict=path`, { method: 'POST', headers: sbHeaders({ 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' }), body: JSON.stringify(rows) });
     if (r.status === 401 || r.status === 403) { const e = new Error('auth'); e.auth = true; throw e; }
     if (!r.ok) throw new Error('push ' + r.status);
-    for (const row of rows) { if (SY.out[row.path] && SY.out[row.path].ts === row.ts) delete SY.out[row.path]; SY.have[row.path] = 1; }
+    for (const row of rows) { if (SY.out[row.path] && SY.out[row.path].ts === row.ts) delete SY.out[row.path]; SY.have[row.path] = 1; SY.mine[row.path] = row.ts; }
     saveSync();
   }
+}
+function mergeDay(remote, local) {
+  const r = remote || {}, l = local || {};
+  const done = { ...(r.done || {}), ...(l.done || {}) };
+  const skip = { ...(r.skip || {}), ...(l.skip || {}) }; for (const k in done) delete skip[k];
+  const seen = new Set(), extras = [];
+  for (const x of [...(r.extras || []), ...(l.extras || [])]) { const id = JSON.stringify(x); if (!seen.has(id)) { seen.add(id); extras.push(x); } }
+  return { ...r, ...l, done, skip, swap: { ...(r.swap || {}), ...(l.swap || {}) }, extras };
 }
 async function pullIn() {
   for (let guard = 0; guard < 50; guard++) {
@@ -618,6 +628,12 @@ async function pullIn() {
     for (const row of rows) {
       SY.cursor = row.updated_at; SY.have[row.path] = 1;
       const pend = SY.out[row.path];
+      const foreign = row.ts !== SY.mine[row.path]; // ne ozvěna vlastního zápisu
+      if (pend && foreign && row.path.startsWith('days/') && !row.deleted) { // den mohla změnit i zkratka nebo widget: slouč obě verze
+        const merged = mergeDay(row.data, pend.data), ts = Math.max(Date.now(), row.ts + 1, pend.ts);
+        SY.out[row.path] = { data: merged, ts }; SY.ts[row.path] = ts;
+        applyRemote(row.path, merged); ch = true; continue;
+      }
       if (pend && pend.ts > row.ts) continue; // místní novější změna čeká na odeslání
       if (pend) delete SY.out[row.path];
       SY.ts[row.path] = Math.max(SY.ts[row.path] || 0, row.ts);
@@ -646,8 +662,8 @@ async function syncNow() {
   syncing = true; const before = dbState; dbState = 'syncing'; if (before !== 'sync') renderSoft();
   let changedData = false;
   try {
-    await pushOut();
     changedData = await pullIn();
+    await pushOut();
     if (!SY.seeded) { seedLocal(); SY.seeded = true; saveSync(); await pushOut(); }
     SY.pulled = true; SY.bad = false; SY.last = new Date().toISOString(); dbState = 'sync';
   } catch (e) {
@@ -723,6 +739,28 @@ function addMult(add) { return clamp(Math.round(add / 801 * 4) / 4, 0.25, 2); }
 const FRAC = { 0.25: '¼', 0.5: '½', 0.75: '¾', 1: '1', 1.25: '1¼', 1.5: '1½', 1.75: '1¾', 2: '2' };
 function addName(add) { if (!(add > 0)) return 'bez doplňku'; const m = addMult(add); return m === 1 ? '+1 shake večer' : m === 2 ? '+2 shaky večer' : `+${FRAC[m]} shaku večer`; }
 function fracLabel(m) { return FRAC[m] || fmtNum(m, 2); }
+// ===== Kalorická bomba: víc kalorií bez většího objemu jídla =====
+const BOOST = {
+  S: { ing: [['aras_maslo', 20]], txt: 'lžíce arašídového másla (20 g) navíc, na chleba nebo do kaše' },
+  H: { ing: [['olej', 15]], txt: 'lžíce oleje (15 g) navíc do přílohy nebo omáčky' },
+  X: { ing: [['vlocky', 40]], txt: '40 g ovesných vloček do mixéru' },
+};
+function ingStats(list) { let kcal = 0, b = 0, kc = 0; for (const [k, q] of list) { const i = ING[k], f = i.u === 'ks' ? q : q / 100; kcal += i.kcal * f; b += i.b * f; kc += unitPrice(k) * q; } return { kcal, b, kc }; }
+function bombMode() { return S.settings.bomb || 'auto'; }
+function bombFor(w) {
+  const cw = curWeek(), h = S.settings.bombHist || {};
+  if (w < cw) { const ks = Object.keys(h).map(Number).filter(x => x <= w).sort((a, b) => a - b); return ks.length ? !!h[ks[ks.length - 1]] : false; }
+  const m = bombMode(); return m === 'on' ? true : m === 'off' ? false : (w >= 3 && !!S.settings.bombNow);
+}
+function bombSnack(k, meal) {
+  const c = Object.keys(MEALS).filter(id => MEALS[id].cat === 'V' && rating(id) !== -1).sort((a, b) => mealStats(b).kcal - mealStats(a).kcal).slice(0, 2);
+  if (!c.length) return null;
+  const pick = c[Math.abs(dayDiff('2026-01-05', k)) % c.length];
+  return mealStats(pick).kcal > mealStats(meal).kcal ? pick : null;
+}
+function itemIng(x) { const a = MEALS[x.meal].ing.map(([i, q]) => [i, q * x.mult]); return x.boost ? a.concat(x.boost) : a; }
+function itemDelta(x, sign) { const d = {}; for (const [i, q] of itemIng(x)) d[i] = (d[i] || 0) + sign * q; return d; }
+function bombEffective(st) { const m = st.bomb || 'auto'; return m === 'on' || (m === 'auto' && !!st.bombNow && curWeek() >= 3); }
 function rating(id) { return (S.prefs.rating || {})[id] || 0; }
 function subFor(meal, slotK, k, quick) {
   const cat = MEALS[meal].cat, bad = id => rating(id) === -1;
@@ -739,7 +777,7 @@ function planFor(k, opts = {}) {
   const i = idxOf(k); if (i < 0) return [];
   const w = weekOfIdx(i), dow = i % 7, wt = wtype(w);
   const raw = opts.base || opts.plan, rec = raw ? { done: {}, swap: {}, skip: {}, quick: false } : dayRec(k);
-  const add = opts.base ? 0 : addFor(w), out = [];
+  const add = opts.base ? 0 : addFor(w), bomb = !opts.nobomb && bombFor(w), out = [];
   for (const s of SLOTS) {
     if (w < s.from) continue;
     let meal, mult = 1, auto = '';
@@ -748,9 +786,13 @@ function planFor(k, opts = {}) {
     else meal = ROT[wt][dow][ROT_IDX[s.k]];
     let planned = meal;
     if (!opts.base && s.k !== 'shake' && s.k !== 'turbo') { const sub = subFor(meal, s.k, k, rec.quick); if (sub) { meal = sub.id; planned = sub.id; auto = sub.reason; } }
+    if (bomb && s.k === 'svacina' && !rec.swap[s.k]) { const dense = bombSnack(k, meal); if (dense) { meal = dense; planned = dense; auto = auto || 'bomb'; } }
     if (rec.swap[s.k] && MEALS[rec.swap[s.k]]) meal = rec.swap[s.k];
-    const st = mealStats(meal, mult), m = wakeMin() + s.off;
-    out.push({ slot: s, meal, planned, auto, mult, m, time: minLabel(m), kcal: st.kcal, b: st.b, cost: mealCost(meal, mult), done: !!rec.done[s.k], skip: !rec.done[s.k] && !!rec.skip[s.k] });
+    const st = mealStats(meal, mult), m = wakeMin() + s.off, cat = MEALS[meal].cat;
+    const boost = bomb && s.k !== 'turbo' && BOOST[cat] ? BOOST[cat].ing : null;
+    let kcal = st.kcal, b = st.b, cost = mealCost(meal, mult);
+    if (boost) { const bs = ingStats(boost); kcal += bs.kcal; b += bs.b; cost += bs.kc; }
+    out.push({ slot: s, meal, planned, auto, mult, m, time: minLabel(m), kcal, b, cost, boost, boostTxt: boost ? BOOST[cat].txt : '', done: !!rec.done[s.k], skip: !rec.done[s.k] && !!rec.skip[s.k] });
   }
   return out;
 }
@@ -812,7 +854,7 @@ function adjStock(delta) {
 function needBetween(fromK, toK) { // [fromK, toK), jen nesnězená jídla
   const need = {}; let k = fromK;
   while (k < toK) {
-    for (const x of planFor(k)) { if (x.done || x.skip) continue; for (const [i, q] of MEALS[x.meal].ing) need[i] = (need[i] || 0) + q * x.mult; }
+    for (const x of planFor(k)) { if (x.done || x.skip) continue; for (const [i, q] of itemIng(x)) need[i] = (need[i] || 0) + q; }
     k = addDays(k, 1);
   }
   return need;
@@ -845,7 +887,7 @@ function runOuts(days = 14) {
   const st = { ...stock() }, out = [], t0 = todayKey(), gone = new Set();
   for (let d = 0; d < days; d++) {
     const k = addDays(t0, d);
-    for (const x of planFor(k)) { if (x.done || x.skip) continue; for (const [i, q] of MEALS[x.meal].ing) { if (gone.has(i)) continue; st[i] = (st[i] || 0) - q * x.mult; if (st[i] < -1e-6) { gone.add(i); out.push({ i, k, d }); } } }
+    for (const x of planFor(k)) { if (x.done || x.skip) continue; for (const [i, q] of itemIng(x)) { if (gone.has(i)) continue; st[i] = (st[i] || 0) - q; if (st[i] < -1e-6) { gone.add(i); out.push({ i, k, d }); } } }
   }
   return out;
 }
@@ -908,6 +950,15 @@ function etaInfo() {
 function autoCheck() {
   const st = S.settings; if (!st.auto) return;
   const cw = curWeek(); if (idxOf(todayKey()) < 14 || st.autoWeek >= cw) return;
+  const wasBomb = bombEffective(st);
+  let bombNow = !!st.bombNow;
+  if ((st.bomb || 'auto') === 'auto') {
+    S.settings = { ...st, bombNow: false };
+    const e0 = engine();
+    bombNow = !e0.fast && (e0.addRec >= 600 || (e0.conf >= 0.3 && e0.tr && e0.tr.slope < e0.rateNeed * 0.85) || (e0.adherence != null && e0.adherence < 0.85));
+  }
+  S.settings = { ...st, bombNow };
+  const isBomb = bombEffective(S.settings);
   const e = engine(); let to = Number(st.add) || 0, txt;
   if (e.fast) { txt = `Rosteš ${kg1(e.tr.perWeek)} kg týdně, to je víc než bezpečných 2,5 kg. Doplněk nechávám, nezvyšuju.`; }
   else {
@@ -919,7 +970,9 @@ function autoCheck() {
     if (e.adherence != null && e.adherence < 0.9) txt += ` Plán ale plníš jen na ${Math.round(e.adherence * 100)} %, víc pomůže dojídat ho.`;
     if (e.capped) txt += ' Cíl k tomu datu by vyžadoval přes 2 kg týdně, držím bezpečné maximum.';
   }
-  S.settings = { ...st, add: to, addHist: { ...(st.addHist || {}), [cw]: to }, autoWeek: cw, autoMsg: { w: cw, from: Number(st.add) || 0, to, txt } };
+  if (isBomb && !wasBomb) txt += ' Zapínám kalorickou bombu: arašídové máslo ke snídani, lžíce oleje k obědu a večeři, vločky do shaku a kaloričtější svačina. Je to přes 500 kcal denně navíc bez většího objemu jídla.';
+  else if (!isBomb && wasBomb) txt += ' Kalorickou bombu vypínám, tempo sedí i bez ní.';
+  S.settings = { ...st, bombNow, bombHist: { ...(st.bombHist || {}), [cw]: isBomb }, add: to, addHist: { ...(st.addHist || {}), [cw]: to }, autoWeek: cw, autoMsg: { w: cw, from: Number(st.add) || 0, to, txt, bomb: isBomb !== wasBomb ? isBomb : undefined } };
   persist(SETTINGS_DOC, S.settings);
 }
 function streak() {
@@ -961,9 +1014,9 @@ function schedulePlanSync() { if (!SY.key || !(ready.st && ready.w && ready.d)) 
 function syncPlan() {
   if (!SY.key) return;
   const t0 = todayKey(), days = {};
-  for (let d = -7; d < 14; d++) {
+  for (let d = -7; d < 21; d++) {
     const k = addDays(t0, d), items = planFor(k); if (!items.length) continue;
-    days[k] = { kcal: Math.round(items.reduce((a, x) => a + x.kcal, 0)), slots: items.map(x => ({ k: x.slot.k, slot: x.slot.n, n: MEALS[x.meal].n + (x.mult !== 1 ? ` (${fracLabel(x.mult)} porce)` : ''), t: x.time, kcal: Math.round(x.kcal) })) };
+    days[k] = { kcal: Math.round(items.reduce((a, x) => a + x.kcal, 0)), slots: items.map(x => ({ k: x.slot.k, slot: x.slot.n, n: MEALS[x.meal].n + (x.mult !== 1 ? ` (${fracLabel(x.mult)} porce)` : ''), t: x.time, kcal: Math.round(x.kcal), ...(x.boost ? { boost: x.boostTxt } : {}) })) };
   }
   const e = engine();
   const body = { v: 1, today: t0, tz: 'Europe/Prague', wake: S.settings.wake, add: S.settings.add, goalKg: S.settings.goalKg, goalDate: S.settings.goalDate,
@@ -1005,6 +1058,10 @@ const ICO = {
   box: G('<path d="M3.5 7.5L12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5L12 12l8.5-4.5M12 12v9"/>', 2),
   tag: G('<path d="M3.5 12.5V4.5a1 1 0 0 1 1-1h8l8 8-9 9z"/><circle cx="8" cy="8" r="1.5"/>', 2),
   doc: G('<path d="M6 3h9l4 4v14H6z"/><path d="M9 11h7M9 15h7"/>', 2),
+  bell: G('<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>'),
+  flame: G('<path d="M12 3c.8 3.2 4.5 5.2 4.5 9.6A4.5 4.5 0 0 1 7.5 13c0-2 .9-3.3 2-4.3.1 1.8.9 3 2 3.3-.3-3.1-.5-5.6.5-9z"/>'),
+  grid: G('<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>'),
+  mic: G('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>'),
   chevron: '<svg class="chev" viewBox="0 0 9 15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 1.5l6 6-6 6"/></svg>',
 };
 const SLOT_STYLE = { snidane: ['egg', 'tint'], shake: ['cup', 'brown'], obed: ['plate', 'green'], svacina: ['apple', 'pink'], vecere: ['moon', 'indigo'], turbo: ['bolt', 'purple'] };
@@ -1165,7 +1222,7 @@ function renderToday(head, v) {
   if (!isPast) rows.push(`<label class="row has-tile">${tile('bolt', 'yellow')}<span class="row-text"><span class="row-title">Rychlý den</span><span class="row-sub">Jen jídla do 15 minut, kalorie zůstanou</span></span><input type="checkbox" class="sw" id="quick" ${rec.quick ? 'checked' : ''}></label>`);
   for (const x of items) {
     const m = MEALS[x.meal], swapped = x.meal !== x.planned, late = isToday && !x.done && !x.skip && x.m < nm - 45, [ic, col] = SLOT_STYLE[x.slot.k];
-    const tag = late ? '<span class="tag late">zpožděné</span>' : (nextK && nextK.k === x.slot.k ? '<span class="tag next">další</span>' : swapped ? '<span class="tag">vyměněno</span>' : x.auto === 'quick' ? '<span class="tag">rychlé</span>' : x.auto === 'rating' ? '<span class="tag">náhrada</span>' : '');
+    const tag = late ? '<span class="tag late">zpožděné</span>' : (nextK && nextK.k === x.slot.k ? '<span class="tag next">další</span>' : swapped ? '<span class="tag">vyměněno</span>' : x.auto === 'quick' ? '<span class="tag">rychlé</span>' : x.auto === 'rating' ? '<span class="tag">náhrada</span>' : (x.boost || x.auto === 'bomb') ? '<span class="tag bomb">bomba</span>' : '');
     rows.push(`<div class="row has-tile ${x.done ? 'done' : ''} ${x.skip ? 'skip' : ''}"><button class="row-main" data-act="meal" data-slot="${x.slot.k}">${tile(ic, col)}<span class="row-text"><span class="row-title">${esc(m.n)}${x.mult !== 1 ? ` (${fracLabel(x.mult)})` : ''}</span><span class="row-sub"><span class="num">${x.time}</span> · ${x.slot.n} · ${kc(x.kcal)} kcal</span></span>${tag}</button>${ckBtn(x.slot.k, x.done, x.slot.n + ' snědeno', UI.pop === x.slot.k)}</div>`);
     if (x.slot.k === 'snidane') rows.push(`<div class="row has-tile ${rec.done.kreatin ? 'done' : ''}"><div class="row-main" style="pointer-events:none">${tile('pill', 'teal')}<span class="row-text"><span class="row-title">${loadDay ? 'Kreatin 4× 5 g + vitamín D' : 'Kreatin 5 g + vitamín D'}</span><span class="row-sub">${loadDay ? `Nasycení, den ${i + 1} z 5 · dávky k jídlům` : 'Do shaku nebo k snídani'}</span></span></div>${ckBtn('kreatin', !!rec.done.kreatin, 'Kreatin vzat', UI.pop === 'kreatin')}</div>`);
   }
@@ -1295,6 +1352,7 @@ function renderProgress(head, v) {
     <div class="row has-tile">${tile('trophy', 'tint')}<span class="row-text"><span class="row-title">Potřebné tempo</span><span class="row-sub">${kg1(e.need)} kg za ${e.daysLeft} dní${e.capped ? ' · omezeno na bezpečné 2 kg/týden' : ''}</span></span><span class="row-trail"><span class="num">${kg1(e.rateNeed * 7)}</span> kg/týd.</span></div>
     <div class="row has-tile">${tile('plate', 'green')}<span class="row-text"><span class="row-title">Denní cíl</span><span class="row-sub">${e.adherence != null ? `Plníš ${Math.round(e.adherence * 100)} % plánu` : 'Podle plánu'}</span></span><span class="row-trail"><span class="num">~${kc(e.Istar)}</span> kcal</span></div>
     <div class="row has-tile">${tile('cup', 'brown')}<span class="row-text"><span class="row-title">Večerní doplněk</span><span class="row-sub">Motor teď doporučuje ${addName(e.addRec)}</span></span><span class="row-trail">${addName(s.add).replace(' večer', '')}</span></div>
+    <div class="row has-tile">${tile('flame', 'red')}<span class="row-text"><span class="row-title">Kalorická bomba</span><span class="row-sub">${bombMode() === 'auto' ? 'Automaticky, když tempo zaostává' : bombMode() === 'on' ? 'Zapnutá ručně' : 'Vypnutá ručně'}</span></span><span class="row-trail">${bombEffective(s) ? 'zapnutá' : 'vypnutá'}</span></div>
     <label class="row has-tile">${tile('gear', 'gray')}<span class="row-text"><span class="row-title">Upravovat automaticky každé pondělí</span></span><input type="checkbox" class="sw" id="autot" ${s.auto ? 'checked' : ''}></label>
     ${e.addRec !== Number(s.add) && idxOf(t) >= 14 ? `<button class="row has-tile" data-act="applyengine">${tile('check', 'green')}<span class="row-text"><span class="row-title tint">Použít doporučení hned</span></span></button>` : ''}`,
     `Výdej = co skutečně sníš minus změna váhy × 7 700 kcal/kg, z posledních 14 dní. Navíc se počítá s tím, že se uloží jen ~63 % přebytku. ${am ? `Týden ${am.w}: ${esc(am.txt)}${am.undone ? ' (vráceno)' : ''}` : ''}`));
@@ -1378,8 +1436,9 @@ function mealSheet(o, keep) {
   UI.recipe = o;
   let id = o.id, mult = o.mult || 1, x = null;
   if (o.slot) { x = planFor(UI.date).find(y => y.slot.k === o.slot); if (!x) return; id = x.meal; mult = x.mult; }
-  const m = MEALS[id], f = mult * UI.portions, st = mealStats(id, f), h = [], r = rating(id);
-  h.push(`<div><h2 class="t-title2">${esc(m.n)}</h2><div class="chips" style="margin:0 4px"><span class="chip tint num">${kc(st.kcal)} kcal</span><span class="chip">${kc(st.b)} g bílkovin</span><span class="chip">~${kc(mealCost(id, f))} Kč</span><span class="chip">${m.min} min</span></div></div>`);
+  const m = MEALS[id], f = mult * UI.portions, h = [], r = rating(id);
+  const st = x && UI.portions === 1 ? { kcal: x.kcal, b: x.b } : mealStats(id, f), costNow = x && UI.portions === 1 ? x.cost : mealCost(id, f);
+  h.push(`<div><h2 class="t-title2">${esc(m.n)}</h2><div class="chips" style="margin:0 4px"><span class="chip tint num">${kc(st.kcal)} kcal</span><span class="chip">${kc(st.b)} g bílkovin</span><span class="chip">~${kc(costNow)} Kč</span><span class="chip">${m.min} min</span></div></div>`);
   if (x) {
     const rows = [`<button class="row has-tile" data-act="toggle" data-slot="${x.slot.k}" data-close="1">${tile('check', x.done ? 'gray' : 'green')}<span class="row-text"><span class="row-title">${x.done ? 'Zrušit „snědeno“' : 'Označit jako snědené'}</span></span></button>`];
     if (m.cat !== 'X' || x.meal !== x.planned) rows.push(`<button class="row has-tile" data-act="swap" data-slot="${x.slot.k}">${tile('copy', 'blue')}<span class="row-text"><span class="row-title">Vyměnit za jiné jídlo</span></span>${ICO.chevron}</button>`);
@@ -1390,6 +1449,7 @@ function mealSheet(o, keep) {
   if (m.cat !== 'E') h.push(sec('Jak ti chutná?', `<div class="row" style="padding-block:10px"><div class="seg" style="width:100%" role="group" aria-label="Hodnocení"><button data-act="rate" data-meal="${id}" data-v="1" aria-pressed="${r === 1}"><span class="rate-i">${ICO.up}</span> Chutná mi</button><button data-act="rate" data-meal="${id}" data-v="-1" aria-pressed="${r === -1}"><span class="rate-i">${ICO.down}</span> Nechci v plánu</button></div></div>`, r === -1 ? 'V plánu se nahradí podobným jídlem, nákupní seznam se přepočítá.' : ''));
   const pl = UI.portions > 1 ? `${UI.portions} porce` : (mult !== 1 ? `${fracLabel(mult)} porce` : '1 porce');
   h.push(sec('Suroviny', m.ing.map(([k, q, note]) => `<div class="row"><span class="num" style="min-width:74px;font-weight:600">${fmtAmt(q * f, ING[k].u)}</span><span class="row-text"><span class="row-title">${esc(ING[k].n)}</span>${note && f === 1 ? `<span class="row-sub">${esc(note)}</span>` : ''}</span></div>`).join(''), '', `<span class="act stepper" style="margin-block:-6px"><button data-act="portions" data-d="-1" aria-label="Méně porcí">−</button><i></i><span>${pl}</span><i></i><button data-act="portions" data-d="1" aria-label="Více porcí">+</button></span>`));
+  if (x && x.boost) h.push(sec('Kalorická bomba', x.boost.map(([k, q]) => `<div class="row has-tile">${tile('flame', 'red')}<span class="row-text"><span class="row-title">+ ${fmtAmt(q, ING[k].u)} ${esc(ING[k].n.toLowerCase())}</span><span class="row-sub">${esc(x.boostTxt)}</span></span><span class="row-trail"><span class="num" style="color:var(--green-text)">+${kc(ingStats(x.boost).kcal)}</span></span></div>`).join(''), 'Bomba přidává kalorie s minimem objemu navíc. Vypneš ji v Nastavení → Tempo.'));
   h.push(sec('Postup', `<ol class="steps">${m.steps.map(s => `<li><span>${esc(s)}</span></li>`).join('')}</ol>`));
   openSheet(o.slot ? DAYS[dowOf(UI.date)] + ' ' + shortDate(UI.date) : CAT_N[m.cat], h.join(''));
 }
@@ -1416,11 +1476,14 @@ function settingsSheet() {
     ${sec('Den', `<label class="row has-tile">${tile('moon', 'indigo')}<span class="row-text"><span class="row-title">Vstávám v</span></span><select class="sel num" id="s-wake">${wakes.map(w => `<option ${w === s.wake ? 'selected' : ''}>${w}</option>`).join('')}</select>${ICO.chevron}</label>
       <label class="row has-tile">${tile('dumbbell', 'green')}<span class="row-text"><span class="row-title">Fitko</span></span><select class="sel" id="s-gym">${DAYS_FULL.map((d, i) => `<option value="${i}" ${i === Number(s.gym) ? 'selected' : ''}>${d}</option>`).join('')}</select>${ICO.chevron}</label>`, 'Snídaně je 30 minut po vstání, další jídla zhruba po 3 hodinách. Domácí trénink je v úterý a ve čtvrtek.')}
     ${sec('Tempo', `<label class="row has-tile">${tile('bolt', 'purple')}<span class="row-text"><span class="row-title">Večerní doplněk</span></span><select class="sel" id="s-add">${adds.map(a => `<option value="${a}" ${a === curAdd ? 'selected' : ''}>${a ? addName(a).replace(' večer', '') : 'Žádný'}</option>`).join('')}</select>${ICO.chevron}</label>
-      <label class="row has-tile">${tile('gear', 'gray')}<span class="row-text"><span class="row-title">Upravovat automaticky</span></span><input type="checkbox" class="sw" id="s-auto" ${s.auto ? 'checked' : ''}></label>`, 'Doplněk platí od 3. týdne. Automatika ho každé pondělí přepočítá podle tvého skutečného výdeje.')}
+      <label class="row has-tile">${tile('gear', 'gray')}<span class="row-text"><span class="row-title">Upravovat automaticky</span></span><input type="checkbox" class="sw" id="s-auto" ${s.auto ? 'checked' : ''}></label>
+      <label class="row has-tile">${tile('flame', 'red')}<span class="row-text"><span class="row-title">Kalorická bomba</span><span class="row-sub">${bombEffective(s) ? 'Teď zapnutá' : 'Teď vypnutá'}</span></span><select class="sel" id="s-bomb">${[['auto', 'Automaticky'], ['on', 'Zapnutá'], ['off', 'Vypnutá']].map(([v, n]) => `<option value="${v}" ${v === bombMode() ? 'selected' : ''}>${n}</option>`).join('')}</select>${ICO.chevron}</label>`, 'Doplněk platí od 3. týdne a každé pondělí se přepočítá podle tvého výdeje. Bomba přidá k jídlům olej, arašídové máslo a vločky (+500 kcal bez většího objemu); automaticky se zapne, když tempo zaostává.')}
     ${sec('Cíl', `<label class="row"><span class="row-text"><span class="row-title">Cílová váha</span></span><input class="field-in num" id="s-goal" inputmode="decimal" value="${kg1(s.goalKg)}" style="max-width:80px"><span class="l2">kg</span></label>
       <label class="row"><span class="row-text"><span class="row-title">Do kdy</span></span><input type="date" class="field-in" id="s-gdate" value="${s.goalDate}"></label>`)}
     ${sec('Plán', `<label class="row"><span class="row-text"><span class="row-title">Začátek</span></span><input type="date" class="field-in" id="s-start" value="${s.start}"></label>
       <label class="row"><span class="row-text"><span class="row-title">Startovní váha</span></span><input class="field-in num" id="s-kg" inputmode="decimal" value="${kg1(s.startKg)}" style="max-width:80px"><span class="l2">kg</span></label>`, 'Začátek je vždy pondělí.')}
+    ${notifySec()}
+    ${sec('Zkratky a widget', `<button class="row has-tile" data-act="toolsheet">${tile('grid', 'indigo')}<span class="row-text"><span class="row-title tint">Action button a widget na plochu</span><span class="row-sub">Zápis jídla hlasem, zbývající kalorie na ploše</span></span>${ICO.chevron}</button>`)}
     ${syncSec()}`);
 }
 function syncSec() {
@@ -1428,6 +1491,94 @@ function syncSec() {
   return sec('Záloha a synchronizace', `<div class="row has-tile">${tile('box', SY.key && !SY.bad ? 'green' : 'blue')}<span class="row-text"><span class="row-title">${SY.key ? (SY.bad || dbState === 'badkey' ? 'Klíč nesedí' : dbState === 'offline' ? 'Offline' : 'Zapnuto') : 'Vypnuto'}</span><span class="row-sub">${esc(syncText())}</span></span></div>
     <form class="row" data-form="sync" style="flex-wrap:wrap;gap:8px;padding-block:12px"><input class="cust-in" id="sync-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${SY.key ? 'Klíč je uložený, sem jen pro změnu' : 'Vlož synchronizační klíč'}" aria-label="Synchronizační klíč" style="flex:1 1 100%"><button class="btn pri sm" type="submit">Uložit klíč</button>${SY.key ? `<button class="btn sm" type="button" data-act="syncnow">Synchronizovat teď${n ? ` (${n})` : ''}</button>` : ''}</form>`,
     'Appka funguje i bez internetu. Změny se uloží v telefonu a po připojení se samy odešlou. Ze serveru je čte i večerní hlídač a nedělní report.');
+}
+// ---------- Notifikace (Web Push přes Supabase edge funkci) ----------
+const PUSH_FN = SB_URL + '/functions/v1/plan70-push', PUSH_LS = LS_KEY + '.push';
+function pushSupported() { return typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+function isStandalone() { try { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } }
+function pushOnHere() { try { return !!localStorage.getItem(PUSH_LS) && Notification.permission === 'granted'; } catch (e) { return false; } }
+function b64uToU8(b) { const s = atob(b.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((b.length + 3) % 4)); return Uint8Array.from(s, c => c.charCodeAt(0)); }
+async function pushId(endpoint) { const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(endpoint)); return [...new Uint8Array(h)].slice(0, 8).map(x => x.toString(16).padStart(2, '0')).join(''); }
+async function pushCall(op) {
+  const r = await sbFetch(`${PUSH_FN}?op=${op}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-plan70-key': SY.key }, body: '{}' });
+  if (!r.ok) throw new Error('push ' + r.status);
+  return r.json();
+}
+async function enablePush() {
+  if (!SY.key) { toast('Nejdřív propoj zálohu klíčem'); return; }
+  if (!pushSupported()) { toast('Tenhle prohlížeč notifikace neumí'); return; }
+  if (navigator.onLine === false) { toast('Na zapnutí notifikací potřebuješ internet'); return; }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { toast('Notifikace nejsou povolené'); settingsSheet(); return; }
+  try {
+    toast('Zapínám notifikace…');
+    const { publicKey } = await pushCall('vapid');
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (sub) { try { await sub.unsubscribe(); } catch (e) { } }
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToU8(publicKey) });
+    const j = sub.toJSON(), id = await pushId(j.endpoint);
+    localStorage.setItem(PUSH_LS, id);
+    persist('push/' + id, { endpoint: j.endpoint, keys: j.keys, ua: navigator.userAgent.slice(0, 120), created: new Date().toISOString() });
+    await syncNow();
+    await pushCall('test');
+    toast('Hotovo, poslal jsem zkušební notifikaci');
+  } catch (e) { console.warn('push', e); toast('Notifikace se nepodařilo zapnout'); }
+  if (!document.getElementById('sheet').hidden) settingsSheet();
+}
+async function disablePush() {
+  try {
+    const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription();
+    if (sub) { const id = await pushId(sub.endpoint); persist('push/' + id, { endpoint: sub.endpoint, off: true }); await sub.unsubscribe(); }
+  } catch (e) { console.warn('push off', e); }
+  try { localStorage.removeItem(PUSH_LS); } catch (e) { }
+  toast('Notifikace v tomto zařízení vypnuté'); settingsSheet();
+}
+function notifySec() {
+  const n = { meals: true, late: true, ...(S.settings.notify || {}) }, on = pushOnHere();
+  let rows, foot;
+  if (on) {
+    rows = `<div class="row has-tile">${tile('bell', 'red')}<span class="row-text"><span class="row-title">Zapnuto v tomto zařízení</span></span></div>
+      <label class="row"><span class="row-text"><span class="row-title">Připomenout jídlo v jeho čase</span></span><input type="checkbox" class="sw" id="n-meals" ${n.meals ? 'checked' : ''}></label>
+      <label class="row"><span class="row-text"><span class="row-title">Ozvat se, když jídlo hodinu chybí</span></span><input type="checkbox" class="sw" id="n-late" ${n.late ? 'checked' : ''}></label>
+      <div class="row" style="gap:8px;padding-block:12px"><button class="btn sm" data-act="pushtest">Poslat zkušební</button><button class="btn sm" data-act="pushoff" style="color:var(--red-text)">Vypnout</button></div>`;
+    foot = 'Časy se řídí plánem a budíkem. Odškrtnuté jídlo se už nepřipomíná.';
+  } else if (!pushSupported() || !isStandalone()) {
+    rows = `<div class="row has-tile">${tile('bell', 'gray')}<span class="row-text"><span class="row-title">Jen v appce na ploše</span><span class="row-sub">Otevři appku z ikony na ploše (iOS 16.4 a novější)</span></span></div>`;
+    foot = 'iPhone posílá notifikace jen webovým appkám přidaným na plochu.';
+  } else {
+    const denied = typeof Notification !== 'undefined' && Notification.permission === 'denied';
+    rows = `<button class="row has-tile" data-act="pushon" ${denied ? 'disabled' : ''}>${tile('bell', 'red')}<span class="row-text"><span class="row-title tint">Zapnout notifikace</span><span class="row-sub">${denied ? 'Zakázané v Nastavení iPhonu → Oznámení → Plán 70' : 'Připomenutí jídel a popostrčení, když něco chybí'}</span></span></button>`;
+    foot = SY.key ? 'Po zapnutí přijde zkušební notifikace.' : 'Nejdřív propoj zálohu klíčem, notifikace posílá server.';
+  }
+  return sec('Notifikace', rows, foot);
+}
+
+// ---------- Zkratka pro Action button a widget ----------
+const SIRI_URL = SB_URL + '/rest/v1/rpc/plan70_zkratka?apikey=' + SB_KEY;
+function copyText(t, ok) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast(ok || 'Zkopírováno')).catch(() => toast('Kopírování se nepovedlo')); }
+function copyRow(label, value, act, hide) {
+  return `<div class="row"><span class="row-text"><span class="row-title">${esc(label)}</span><span class="row-sub mono">${esc(hide ? value.slice(0, 6) + '…' + value.slice(-4) : value.length > 44 ? value.slice(0, 40) + '…' : value)}</span></span><button class="btn sm" data-act="${act}">Kopírovat</button></div>`;
+}
+function toolSheet() {
+  if (!SY.key) { openSheet('', `<h2 class="t-title2">Zkratky a widget</h2>${noticeCard('box', 'blue', 'Nejdřív propoj zálohu klíčem. Zkratka i widget čtou data ze zálohy.', `<button class="btn sm" data-act="syncsheet" style="margin-top:10px">Vložit klíč</button>`)}`); return; }
+  const steps = (arr) => `<ol class="steps">${arr.map(t => `<li><span>${t}</span></li>`).join('')}</ol>`;
+  openSheet('', `<h2 class="t-title2">Zkratky a widget</h2>
+    ${sec('Action button: „Snědl jsem…“', steps([
+      'Otevři appku <b>Zkratky</b> → <b>+</b> a přidej akci <b>Diktovat text</b>. Jazyk nastav na čeština.',
+      'Přidej akci <b>Získat obsah URL</b>. Do URL vlož adresu níž, rozbal <b>Zobrazit více</b> a nastav metodu <b>POST</b>.',
+      'Přidej hlavičku <b>Accept</b> s hodnotou <b>text/plain</b>.',
+      'Tělo požadavku <b>JSON</b>, dvě textová pole: <b>what</b> = <b>Diktovaný text</b> (proměnná z prvního kroku) a <b>key</b> = tvůj klíč níž.',
+      'Přidej akci <b>Mluvit text</b> s výsledkem z předchozí akce. Pojmenuj zkratku „Snědl jsem“.',
+      'V Nastavení iPhonu → <b>Tlačítko Akce</b> → <b>Zkratka</b> vyber „Snědl jsem“.',
+    ]), 'Pak stačí zmáčknout Action button a říct „oběd“, „shake“, „dal jsem si shake navíc“, „všechno“ nebo „kolik mi chybí“. Telefon odpoví, kolik máš a co je další. Siri česky neumí, proto Action button nebo ikona zkratky.')}
+    ${sec('Hodnoty do zkratky', copyRow('URL', SIRI_URL, 'cp-url') + copyRow('key (do těla JSON)', SY.key, 'cp-key', true) + `<div class="row" style="padding-block:12px"><button class="btn sm" data-act="siritest">Vyzkoušet odpověď</button><span class="row-sub" id="siri-out" style="margin-left:10px;flex:1"></span></div>`, 'Hlavička Accept = text/plain zajistí, že telefon přečte čistou větu.')}
+    ${sec('Widget na plochu a zamčenou obrazovku', steps([
+      'Nainstaluj z App Store appku <b>Scriptable</b> (zdarma).',
+      'Klepni na <b>Zkopírovat skript</b> níž. Ve Scriptable dej <b>+</b>, vlož ho a nahoře ho pojmenuj „Plán 70“.',
+      'Na ploše podrž prst → <b>Upravit</b> → <b>Přidat widget</b> → Scriptable, vyber malou nebo střední velikost.',
+      'Podrž widget → <b>Upravit widget</b> → Script: <b>Plán 70</b>. Stejně ho přidáš i na zamčenou obrazovku.',
+    ]) + `<div class="row" style="padding-block:12px"><button class="btn pri block" data-act="cp-widget">Zkopírovat skript</button></div>`, 'Widget ukazuje, kolik ti dnes chybí, a další jídlo. Obnovuje se zhruba každých 15 minut, bez signálu ukáže poslední stav.')}`);
 }
 function syncSheet() { openSheet('', `<h2 class="t-title2">Záloha</h2>${syncSec()}`); setTimeout(() => { const i = document.getElementById('sync-key'); if (i) i.focus(); }, 350); }
 async function runSyncKey() {
@@ -1492,7 +1643,7 @@ function toggleSlot(k, s) {
   const r = dayRec(k), on = !r.done[s], x = planFor(k).find(y => y.slot.k === s);
   if (on) r.done[s] = x ? Math.round(x.kcal) || true : true; else delete r.done[s]; delete r.skip[s];
   saveDay(k, r);
-  if (x && pantryActive()) adjStock(mealDelta(x.meal, x.mult, on ? -1 : 1));
+  if (x && pantryActive()) adjStock(itemDelta(x, on ? -1 : 1));
   return on;
 }
 document.addEventListener('click', e => {
@@ -1521,6 +1672,15 @@ document.addEventListener('click', e => {
   else if (a === 'close') closeSheet();
   else if (a === 'settings') settingsSheet();
   else if (a === 'syncsheet') syncSheet();
+  else if (a === 'toolsheet') toolSheet();
+  else if (a === 'pushon') enablePush();
+  else if (a === 'pushoff') disablePush();
+  else if (a === 'pushtest') { pushCall('test').then(() => toast('Zkušební notifikace odeslána')).catch(() => toast('Nepodařilo se odeslat')); }
+  else if (a === 'cp-url') copyText(SIRI_URL);
+  else if (a === 'siritest') { const o = document.getElementById('siri-out'); if (o) o.textContent = 'Ptám se…'; sbFetch(SIRI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'text/plain' }, body: JSON.stringify({ what: 'kolik mi chybí', key: SY.key }) }).then(r => r.text()).then(t => { if (o) o.textContent = t; }).catch(() => { if (o) o.textContent = 'Bez spojení.'; }); }
+  else if (a === 'cp-key') copyText(SY.key, 'Klíč zkopírován');
+  else if (a === 'cp-accept') copyText('text/plain');
+  else if (a === 'cp-widget') copyText(WIDGET_SRC.replace('__KEY__', SY.key).replace('__ANON__', SB_KEY), 'Skript zkopírován, vlož ho do Scriptable');
   else if (a === 'syncnow') { toast('Synchronizuji…'); syncNow().then(() => { if (!document.getElementById('sheet').hidden) settingsSheet(); toast(dbState === 'sync' ? 'Synchronizováno' : dbState === 'offline' ? 'Offline, odešle se později' : 'Synchronizace se nepovedla'); }); }
   else if (a === 'week') { UI.week = Math.max(1, (UI.week || curWeek()) + Number(b.dataset.d)); render(); }
   else if (a === 'shopweek') { UI.shopWeek = Math.max(1, (UI.shopWeek || defaultShopWeek()) + Number(b.dataset.d)); render(); }
@@ -1594,6 +1754,8 @@ document.addEventListener('change', async e => {
   else if (id === 's-wake') saveSettings({ wake: val });
   else if (id === 's-gym') saveSettings({ gym: Number(val) });
   else if (id === 's-add') saveSettings({ add: Number(val) });
+  else if (id === 's-bomb') { const st = { ...S.settings, bomb: val }; saveSettings({ bomb: val, bombHist: { ...(S.settings.bombHist || {}), [curWeek()]: bombEffective(st) } }); settingsSheet(); toast(bombEffective(st) ? 'Kalorická bomba zapnutá' : 'Kalorická bomba vypnutá'); }
+  else if (id === 'n-meals' || id === 'n-late') { const n = { meals: true, late: true, ...(S.settings.notify || {}) }; n[id === 'n-meals' ? 'meals' : 'late'] = e.target.checked; saveSettings({ notify: n }); }
   else if (id === 's-auto' || id === 'autot') saveSettings({ auto: e.target.checked });
   else if (id === 's-kg') { const x = num(val); if (x > 30 && x < 200) saveSettings({ startKg: Math.round(x * 10) / 10 }); }
   else if (id === 's-goal') { const x = num(val); if (x > 40 && x < 150) saveSettings({ goalKg: Math.round(x * 10) / 10 }); }

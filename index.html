@@ -750,6 +750,7 @@ function mealStats(id, mult = 1) {
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Vzhled si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\n// Spuštěním ve Scriptable si vybereš velikost a uvidíš náhled.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(force) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (force || age > 6 * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\n\nasync function build(family, force) {\n  const code = await core(force);\n  if (code) {\n    try {\n      const run = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n      const w = await run({ KEY, ANON, family });\n      if (w) return w;\n    } catch (e) { console.error(e); }\n  }\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\n\nif (config.runsInApp) {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i >= 0) {\n    const fam = sizes[i][1], w = await build(fam, true);\n    if (fam === 'small') await w.presentSmall();\n    else if (fam === 'large') await w.presentLarge();\n    else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n    else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n    else await w.presentMedium();\n  }\n} else {\n  Script.setWidget(await build(config.widgetFamily || 'medium', false));\n}\nScript.complete();\n";
+const APP_VERSION = 'd9dd304b', APP_BUILT = '2026-10-04T21:42:04Z';
 
 </script>
 <script>
@@ -1846,7 +1847,8 @@ function settingsSheet() {
       <label class="row"><span class="row-text"><span class="row-title">Startovní váha</span></span><input class="field-in num" id="s-kg" inputmode="decimal" value="${kg1(s.startKg)}" style="max-width:80px"><span class="l2">kg</span></label>`, 'Začátek je vždy pondělí.')}
     ${notifySec()}
     ${sec('Zkratky a widget', `<button class="row has-tile" data-act="toolsheet">${tile('grid', 'indigo')}<span class="row-text"><span class="row-title tint">Action button a widget na plochu</span><span class="row-sub">Zápis jídla hlasem, zbývající kalorie na ploše</span></span>${ICO.chevron}</button>`)}
-    ${syncSec()}`);
+    ${syncSec()}
+    ${aboutSec()}`);
 }
 function syncSec() {
   const n = pendingCount();
@@ -2154,8 +2156,51 @@ for (const id of ['view', 'head']) {
 document.addEventListener('visibilitychange', () => { if (document.hidden) return; const t = todayKey(); if (UI.lastToday && UI.lastToday !== t && UI.date === UI.lastToday) UI.date = t; UI.lastToday = t; if (ready.st && ready.w && ready.d) { autoCheck(); schedulePlanSync(); } render(); scheduleSync(0); });
 setInterval(() => { if (!document.hidden && UI.tab === 'dnes' && document.getElementById('sheet').hidden && !(document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName))) render(); }, 60000);
 
+// ---------- Aktualizace appky ----------
+// Při každém otevření (i návratu do appky) se porovná verze se serverem; je-li novější, appka se sama přenačte.
+const UPD = { reg: null, busy: false, pending: false, hadCtl: false, checked: null };
+function safeToReload() { const a = document.activeElement; return document.getElementById('sheet').hidden && !(a && ['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName)); }
+async function applyUpdate() {
+  if (UPD.busy) return; UPD.busy = true;
+  try {
+    if (UPD.reg) await Promise.race([UPD.reg.update().catch(() => { }), sleep(4000)]);
+    if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.filter(k => k.startsWith('plan70-')).map(k => caches.delete(k))); }
+  } catch (e) { }
+  try { sessionStorage.setItem(LS_KEY + '.updated', APP_VERSION); } catch (e) { }
+  location.reload();
+}
+async function checkVersion(manual) {
+  if (navigator.onLine === false) { if (manual) toast('Jsi offline, zkus to s internetem'); return; }
+  try {
+    const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('version ' + r.status);
+    const j = await r.json(); UPD.checked = new Date().toISOString();
+    if (j.v && j.v !== APP_VERSION) {
+      let tried = null; try { tried = sessionStorage.getItem(LS_KEY + '.tried'); sessionStorage.setItem(LS_KEY + '.tried', j.v); } catch (e) { }
+      if (tried === j.v && !manual) return; // jednou za otevření, ať se to nezacyklí
+      if (manual || safeToReload()) { if (manual) toast('Stahuji novou verzi…'); applyUpdate(); } else UPD.pending = true;
+    } else if (manual) { toast('Máš nejnovější verzi'); if (!document.getElementById('sheet').hidden) settingsSheet(); }
+  } catch (e) { if (manual) toast('Nepodařilo se ověřit, zkus to za chvíli'); }
+}
+function verLabel() { const d = new Date(APP_BUILT); return isNaN(d) ? APP_VERSION : `${d.getDate()}. ${d.getMonth() + 1}. ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function aboutSec() {
+  return sec('O appce', `<div class="row has-tile">${tile('info', 'gray')}<span class="row-text"><span class="row-title">Verze z ${verLabel()}</span><span class="row-sub">${APP_VERSION}${UPD.checked ? ' · ověřeno ' + agoLabel(UPD.checked) : ''}</span></span></div>
+    <button class="row has-tile" data-act="checkupd">${tile('spark', 'blue')}<span class="row-text"><span class="row-title tint">Zkontrolovat aktualizaci</span></span></button>`,
+    'Appka se aktualizuje sama, když ji otevřeš s internetem. Data zůstanou, jsou v telefonu i v záloze.');
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-act="checkupd"]'); if (b) checkVersion(true); });
+setInterval(() => { if (UPD.pending && safeToReload()) { UPD.pending = false; applyUpdate(); } }, 2000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { if (UPD.reg) UPD.reg.update().catch(() => { }); checkVersion(false); } });
+
 loadLocal(); UI.lastToday = todayKey(); render(); connect();
-if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e)); }); }
+try { if (sessionStorage.getItem(LS_KEY + '.updated')) { sessionStorage.removeItem(LS_KEY + '.updated'); setTimeout(() => toast('Appka je aktualizovaná'), 600); } } catch (e) { }
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  UPD.hadCtl = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!UPD.hadCtl) { UPD.hadCtl = true; return; } if (safeToReload()) applyUpdate(); else UPD.pending = true; });
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { UPD.reg = r; r.update().catch(() => { }); }).catch(e => console.warn('sw', e)); });
+}
+setTimeout(() => checkVersion(false), 1500);
+setInterval(() => { if (!document.hidden) checkVersion(false); }, 30 * 60000);
 if (navigator.storage && navigator.storage.persist) { navigator.storage.persist().catch(() => { }); }
 </script>
 

@@ -1213,7 +1213,7 @@ function renderToday(head, v) {
       const d = nx.m - nm, late = d < -45, [ic, col] = SLOT_STYLE[nx.slot.k];
       const when = d > 0 ? `za ${dur(d)}` : late ? `zpoždění ${dur(d)}` : 'teď';
       h.push(`<div class="card now ${late ? 'late' : ''}"><div class="eye">${tile(ic, col)}<span>${esc(nx.slot.n)} · <span class="num">${nx.time}</span> · ${when}</span></div>
-        <div><div class="t-title2">${esc(MEALS[nx.meal].n)}${nx.mult !== 1 ? ` (${fracLabel(nx.mult)})` : ''}</div><div class="t-sub l2" style="margin-top:3px">${kc(nx.kcal)} kcal · ${kc(nx.b)} g bílkovin · ${MEALS[nx.meal].min} min</div></div>
+        <div><div class="t-title2">${esc(MEALS[nx.meal].n)}${nx.mult !== 1 ? ` (${fracLabel(nx.mult)})` : ''}</div><div class="t-sub l2" style="margin-top:3px">${kc(nx.kcal)} kcal · ${kc(nx.b)} g bílkovin · ${MEALS[nx.meal].min} min</div>${nx.boost ? `<div class="t-sub" style="margin-top:6px;color:var(--red-text);font-weight:600">Bomba: ${esc(nx.boostTxt)}</div>` : ''}</div>
         <div class="btns"><button class="btn pri" data-act="toggle" data-slot="${nx.slot.k}">${ICO.check}Snědeno</button><button class="btn" data-act="meal" data-slot="${nx.slot.k}">Recept</button>${late && nx.meal !== 'shake' ? `<button class="btn" data-act="toshake" data-slot="${nx.slot.k}">Shake místo toho</button>` : ''}${late ? `<button class="btn" data-act="skip" data-slot="${nx.slot.k}">Vynechat</button>` : ''}</div></div>`);
     } else if (allClosed) h.push(noticeCard('info', 'tint', `<b>Na dnes hotovo.</b> Něco jsi vynechal a chybí ${kc(Math.max(0, t.kcal - t.dk))} kcal. Dožeň to extra jídlem v seznamu níž.`));
   }

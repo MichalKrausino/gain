@@ -1,5 +1,5 @@
 // Plán 70 kg: offline režim. Appka se načítá z mezipaměti a na pozadí si stahuje novou verzi.
-const V = 'plan70-461af92045';
+const V = 'plan70-2ed3a38569';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));

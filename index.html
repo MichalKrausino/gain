@@ -300,6 +300,134 @@ button.row:active, .row-main:active { background: var(--press); }
 .cust-in { font: inherit; padding: 11px 12px; border-radius: 12px; border: 0; background: var(--fill-3); color: var(--label); min-width: 0; min-height: 44px; }
 .seg button:disabled, .btn:disabled { opacity: .45; }
 textarea::placeholder { color: var(--label-3); }
+
+/* ===== Dnes: souhrn, časová osa dne, rychlé akce =====
+   Jedna dominanta (další jídlo v ose), souhrn na jeden pohled, žádné opakování.
+   Barevné dlaždice jen tam, kde nesou význam (akce, upozornění); osa je jednobarevná. */
+:root { --next-bg: rgba(255,149,0,.085); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --next-bg: rgba(255,159,10,.075); } }
+:root[data-theme="dark"] { --next-bg: rgba(255,159,10,.075); }
+
+.strip { margin-top: 12px; }
+.dayb { min-height: 58px; gap: 3px; }
+.dayb b { width: 34px; height: 34px; font-size: 1rem; }
+
+/* Souhrn dne */
+.sum { display: flex; flex-direction: column; gap: 14px; padding: 18px 18px 16px; }
+.sum-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.sum-k { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; min-width: 0; }
+.sum-k b { font-size: 2.6rem; font-weight: 700; line-height: .95; letter-spacing: -.025em; }
+.sum-k span { font-size: 1rem; font-weight: 500; color: var(--label-2); white-space: nowrap; }
+.sum-tags { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; padding-top: 3px; }
+.sum-tags .tag { font-size: .765rem; padding: 4px 10px; }
+.segbar { display: flex; gap: 4px; height: 10px; }
+.segbar i { position: relative; flex-basis: 0; min-width: 8px; border-radius: 5px; background: var(--fill-3); overflow: hidden; }
+.segbar i u { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--tint); transition: width .6s cubic-bezier(.2,.8,.2,1); }
+.segbar i.nx { background: transparent; box-shadow: inset 0 0 0 1.5px var(--tint); }
+.segbar i.sk { opacity: .45; }
+.segbar i.ex u { background: var(--green); }
+.sum.win .segbar i u { background: var(--green); }
+.sum.cele .segbar { animation: win .9s ease 1; }
+.sum-meta { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: .882rem; color: var(--label-2); }
+.sum-meta b { color: var(--label); font-weight: 600; }
+
+/* Přepínač v hlavičce sekce */
+.hchip { margin: -10px 0 -10px auto; display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 13px; border-radius: 99px; background: var(--fill-3); color: var(--label-2); font-size: .824rem; font-weight: 600; }
+.hchip svg { width: 15px; height: 15px; }
+.hchip[aria-pressed="true"] { background: var(--yellow); color: #000; }
+.hchip:active { transform: scale(.96); }
+
+/* Časová osa dne */
+.tl-row { --rail: var(--fill-2); position: relative; display: grid; grid-template-columns: 44px 30px minmax(0, 1fr) auto; column-gap: 10px; align-items: start; padding: 11px 16px 11px 14px;
+  background-image: linear-gradient(var(--rail), var(--rail)), linear-gradient(var(--rail), var(--rail)); background-repeat: no-repeat;
+  background-size: 2px 9px, 2px calc(100% - 43px); background-position: 82px 0, 82px 43px; }
+.tl-row.done { --rail: var(--green-ui); }
+.tl-row:first-child { background-size: 0 0, 2px calc(100% - 43px); }
+.tl-row:last-child { background-size: 2px 9px, 0 0; }
+.tl-row:only-child { background-size: 0 0, 0 0; }
+.tl-row + .tl-row::after { content: ''; position: absolute; top: 0; right: 0; left: 108px; border-top: .5px solid var(--sep); }
+.tl-time { padding-top: 5px; font-size: .882rem; font-weight: 600; color: var(--label-2); white-space: nowrap; }
+.tl-row.done .tl-time { color: var(--label-3); }
+.tl-row.late .tl-time { color: var(--red-text); }
+.tl-node { position: relative; height: 30px; display: grid; place-items: center; }
+.tl .ck { width: 44px; height: 44px; margin: -7px; }
+.tl .ck i { position: relative; width: 26px; height: 26px; background: var(--card); }
+.tl .ck[aria-pressed="true"] i, .tl .ck.on i { background: var(--green-ui); border-color: var(--green-ui); }
+.tl .ck.on svg { opacity: 1; }
+.tl-row.next .ck i { border-color: var(--tint); border-width: 2.5px; background: transparent; }
+.tl-row.next .ck i::before { content: ''; position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--tint); }
+.tl-row.late .ck i { border-color: var(--red); }
+.tl-row.late.next .ck i::before { background: var(--red); }
+.tl-dot { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--fill-2); color: var(--label-2); }
+.tl-dot svg { width: 14px; height: 14px; }
+.tl-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left; margin: -6px -8px; padding: 8px 8px 6px; border-radius: 14px; }
+button.tl-main:active { background: var(--press); }
+.tl-t { font-size: 1rem; line-height: 1.24; }
+.tl-t b { font-weight: 600; margin-left: 4px; }
+.tl-s { font-size: .824rem; color: var(--label-2); line-height: 1.3; }
+.tl-s .red, .tl-n.red { color: var(--red-text); font-weight: 600; }
+.tl-row:not(.next) .tl-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-row.done .tl-t { color: var(--label-2); }
+.tl-row.done .tl-t b { color: var(--label); }
+.tl-row.skip .tl-t { color: var(--label-2); text-decoration: line-through; }
+.tl-x { width: 36px; height: 36px; margin: -3px -8px -3px 0; border-radius: 50%; display: grid; place-items: center; color: var(--label-3); }
+.tl-x svg { width: 15px; height: 15px; }
+.tl-x:active { background: var(--press); }
+/* sbalené hotové */
+button.tl-row { width: 100%; text-align: left; }
+.tl-row.fold { align-items: start; }
+.tl-row.fold:active { background-color: var(--press); }
+.tl-row.fold .tl-t { color: var(--label); font-weight: 600; }
+.tl-row.fold .tl-s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-row.fold .tl-t b { color: var(--label-2); font-weight: 600; margin-left: 4px; }
+.tl-row.fold > .chev { transform: rotate(90deg); align-self: center; margin-right: 2px; }
+.tl-more { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 40px; font-size: .824rem; font-weight: 600; color: var(--label-2); }
+.tl-more .chev { transform: rotate(-90deg); width: 8px; height: 13px; color: currentColor; }
+.tl-more + .tl-row::after { display: none; }
+.tl-more + .tl-row { border-top: .5px solid var(--sep); }
+/* další jídlo: rozbalené přímo v ose */
+.tl-row.next { background-color: var(--next-bg); padding-block: 14px 16px; background-size: 2px 17px, 2px calc(100% - 47px); background-position: 82px 0, 82px 47px; }
+.tl-row.next:first-child { background-size: 0 0, 2px calc(100% - 47px); }
+.tl-row.next:last-child { background-size: 2px 17px, 0 0; }
+.tl-row.next .tl-time { padding-top: 8px; color: var(--tint-text); }
+.tl-row.next.late .tl-time { color: var(--red-text); }
+.tl-row.next .tl-node { margin-top: 3px; }
+.tl-body { grid-column: 3 / -1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.tl-eye { font-size: .706rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--tint-text); margin-bottom: 2px; }
+.tl-row.late .tl-eye { color: var(--red-text); }
+.tl-row.next .tl-t { font-size: 1.235rem; font-weight: 700; line-height: 1.22; letter-spacing: -.01em; }
+.tl-row.next .tl-s { font-size: .824rem; margin-top: 2px; }
+.tl-n { font-size: .882rem; color: var(--label); margin-top: 4px; }
+.tl-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font-size: .882rem; font-weight: 600; color: var(--tint-text); }
+.tl-link .chev { color: currentColor; width: 7px; height: 12px; }
+.tl-body .btns { gap: 8px; }
+.tl-body .btns .btn { flex: 1 1 auto; padding: 0 14px; }
+.tl-body .btns .btn.pri { flex-grow: 1.7; }
+.tl-alt { display: flex; gap: 18px; margin-top: -4px; }
+.tl-alt button { min-height: 36px; font-size: .882rem; font-weight: 600; color: var(--tint-text); }
+.tl-alt button:active { opacity: .6; }
+
+/* Rychlé akce */
+.qa { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: -8px; }
+.qa.one { grid-template-columns: 1fr; }
+.qa-b { display: flex; align-items: center; gap: 11px; min-height: 64px; padding: 12px 14px; background: var(--card); border-radius: 22px; text-align: left; min-width: 0; }
+.qa-b:active { background: var(--press); }
+.qa-i { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; flex: none; color: var(--c); background: color-mix(in srgb, var(--c) 17%, transparent); }
+.qa-i svg { width: 20px; height: 20px; }
+.qa-tx { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.qa-tx b { font-size: .941rem; font-weight: 600; }
+.qa-tx small { font-size: .765rem; color: var(--label-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Vážení v listu */
+.wsheet { display: flex; flex-direction: column; gap: 14px; }
+.wbig { display: flex; align-items: baseline; justify-content: center; gap: 8px; background: var(--card); border-radius: 26px; padding: 24px 16px 20px; }
+.wbig input { width: 4.4ch; font-family: var(--font-num); font-size: 3.4rem; font-weight: 700; line-height: 1; border: 0; background: none; color: var(--label); text-align: right; outline: none; padding: 0; font-variant-numeric: tabular-nums; }
+.wbig input::placeholder { color: var(--label-3); }
+.wbig span { font-size: 1.35rem; font-weight: 600; color: var(--label-2); }
+.wbig:focus-within { box-shadow: 0 0 0 2px var(--tint); }
+
+.foot-sync { text-align: center; margin-top: -6px; color: var(--label-3); }
+@media (max-width: 370px) { .tl-row { grid-template-columns: 40px 30px minmax(0, 1fr) auto; column-gap: 8px; background-position: 76px 0, 76px 43px; } .tl-row.next { background-position: 76px 0, 76px 47px; } .tl-row + .tl-row::after { left: 100px; } .qa-tx small { display: none; } }
 </style>
 
 <div class="app">
@@ -904,7 +1032,7 @@ const FOODS = [
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish, FOODS, FOOD_CATS };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Verze 2: ťuknutím na widget zapíšeš jídlo rovnou tady, bez otevírání Safari.\n// Vzhled a nabídky si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(maxAgeH) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (age > maxAgeH * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\nasync function run(ctx, maxAgeH) {\n  const code = await core(maxAgeH);\n  if (!code) return { ok: false };\n  try {\n    const fn = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n    return { ok: true, res: await fn({ KEY, ANON, loader: 2, script: Script.name(), ...ctx }) };\n  } catch (e) { console.error(e); return { ok: false }; }\n}\nfunction fallback() {\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\nasync function preview() {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript. Ťuknutím na widget pak zapíšeš jídlo.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i < 0) return;\n  const fam = sizes[i][1], r = await run({ family: fam }, 0), w = r.ok && r.res ? r.res : fallback();\n  if (fam === 'small') await w.presentSmall();\n  else if (fam === 'large') await w.presentLarge();\n  else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n  else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n  else await w.presentMedium();\n}\n\nif (config.runsInWidget || config.runsInAccessoryWidget) {\n  const r = await run({ family: config.widgetFamily || 'medium' }, 6);\n  Script.setWidget(r.ok && r.res ? r.res : fallback());\n} else {\n  const params = (typeof args !== 'undefined' && args.queryParameters) || {};\n  const fromWidget = Object.keys(params).length > 0;\n  const r = await run({ mode: 'app', params }, fromWidget ? 6 : 0); // ruční spuštění si vždy stáhne nejnovější verzi\n  if (!r.ok) { const a = new Alert(); a.title = 'Plán 70 kg'; a.message = 'Nepodařilo se načíst. Spusť skript jednou s internetem.'; a.addAction('OK'); await a.presentAlert(); }\n  else if (r.res === 'preview') await preview();\n}\nScript.complete();\n";
-const APP_VERSION = 'ec5e3874', APP_BUILT = '2026-10-04T23:48:44Z';
+const APP_VERSION = '204e63f4', APP_BUILT = '2026-10-05T11:03:43Z';
 
 </script>
 <script>
@@ -1689,10 +1817,18 @@ function strip(k) {
 function noticeCard(ic, col, html, extra = '') { return `<div class="card notice">${tile(ic, col)}<div style="min-width:0;flex:1"><p>${html}</p>${extra}</div></div>`; }
 
 // ---------- Dnes ----------
+// Jedna obrazovka = jedna otázka: „Co mám teď sníst a jak na tom dnes jsem?“
+// Nahoře souhrn dne (kalorie + pruh po jídlech), pod ním plán dne jako časová
+// osa, kde je další jídlo rozbalené s akcemi. Vážení je první bod osy, ne
+// samostatný formulář. Pomocné akce jsou dvě dlaždice pod osou, připomínky
+// až na konci a krátce.
+const MES_G = ['ledna', 'února', 'března', 'dubna', 'května', 'června', 'července', 'srpna', 'září', 'října', 'listopadu', 'prosince'];
+function longDate(k) { const d = parseKey(k); return `${d.getDate()}. ${MES_G[d.getMonth()]}`; }
 function renderToday(head, v) {
-  const k = UI.date, i = idxOf(k), w = weekOfIdx(i), t0 = todayKey(), isToday = k === t0, isPast = dayDiff(k, t0) > 0;
-  const big = isToday ? 'Dnes' : capFirst(DAYS_FULL[dowOf(k)]);
-  const sub = i >= 0 ? `${isToday ? DAYS_FULL[dowOf(k)] + ' ' : ''}${shortDate(k)} · den ${i + 1} z 91 · týden ${w}` : `${DAYS_FULL[dowOf(k)]} ${shortDate(k)} · před startem`;
+  const k = UI.date, i = idxOf(k), w = weekOfIdx(i), t0 = todayKey(), isToday = k === t0, isPast = dayDiff(k, t0) > 0, rel = dayDiff(k, t0);
+  const big = isToday ? 'Dnes' : rel === 1 ? 'Včera' : rel === -1 ? 'Zítra' : capFirst(DAYS_FULL[dowOf(k)]);
+  const named = isToday || rel === 1 || rel === -1;
+  const sub = `${named ? DAYS_FULL[dowOf(k)] + ' ' : ''}${longDate(k)}${i >= 0 ? ` · den ${i + 1} z 91` : ' · před startem'}`;
   head.innerHTML = `<h1 class="t-large">${big}</h1><div class="t-sub l2">${sub}</div>${strip(k)}`;
   const h = [];
   if (i < 0) {
@@ -1711,72 +1847,140 @@ function renderToday(head, v) {
   const items = planFor(k), ex = extrasFor(k), t = dayTotals(k), nm = nowMin(), rec = dayRec(k);
   const due = isToday ? items.filter(x => x.m + 60 <= nm).reduce((a, x) => a + x.kcal, 0) : (isPast ? t.kcal : 0);
   const behind = due - t.dk, allDone = t.n && items.every(x => x.done), win = allDone && t.pct >= 0.9, allClosed = t.n && items.every(x => x.done || x.skip);
-  const C = 2 * Math.PI * 54, p = Math.min(1, t.pct), over = t.pct > 1 ? Math.min(1, t.pct - 1) : 0, sk = streak();
-  let status = '';
-  if (win) status = `<span class="tag ok">Den splněn</span>`;
-  else if (isToday && behind > 350) status = `<span class="tag late">Dožeň ${kc(behind)} kcal</span>`;
-  else if (isToday && t.dk > 0) status = `<span class="tag ok">Držíš tempo</span>`;
-  else if (isPast) status = `<span class="tag ${t.pct >= .9 ? 'ok' : 'late'}">${Math.round(t.pct * 100)} % plánu</span>`;
-  h.push(`<div class="card hero ${win && UI.pop ? 'win' : ''}"><div class="ring" role="img" aria-label="Snědeno ${kc(t.dk)} z ${kc(t.kcal)} kcal"><svg viewBox="0 0 128 128"><circle class="trk" cx="64" cy="64" r="54" fill="none" stroke-width="14"/><circle class="val" cx="64" cy="64" r="54" fill="none" stroke-width="14" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - p)}"/>${over ? `<circle class="over" cx="64" cy="64" r="54" fill="none" stroke-width="14" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - over)}"/>` : ''}</svg><div class="c"><b>${kc(t.dk)}</b><span>z ${kc(t.kcal)} kcal</span></div></div>
-    <div class="hstats"><div class="stat"><div class="l"><span>Bílkoviny</span><span><b>${kc(t.db)}</b> / ${kc(t.b)} g</span></div><div class="pbar"><i style="width:${Math.min(100, t.b ? t.db / t.b * 100 : 0)}%"></i></div></div>
-      <div class="stat"><div class="l"><span>Jídla</span><span><b>${t.nd}</b> / ${t.n}</span></div><div class="pbar green"><i style="width:${t.n ? t.nd / t.n * 100 : 0}%"></i></div></div>
-      <div class="chips">${status}${sk >= 2 ? `<span class="tag next">${sk} ${plural(sk, 'den', 'dny', 'dní')} v řadě</span>` : ''}</div></div></div>`);
-  // Ráno: vážení patří před snídani, takže je nahoře, dokud se nic nesnědlo
-  const weighTop = isToday && S.weights[k] == null && t.nd === 0 && nm < 13 * 60;
-  if (weighTop) h.push(weighSec());
+  const nx = isToday ? items.find(x => !x.done && !x.skip) : null, sk = streak();
+
+  // 1) Souhrn dne
+  h.push(summaryCard(k, items, ex, t, { win, behind, isToday, isPast, nx, sk }));
+
+  // 2) Co je potřeba řešit hned (jen když to platí)
   const after = [], notes = [];
   if (isToday) {
-    const e = engine(), nx = items.find(x => !x.done && !x.skip);
-    if (win) h.push(`<div class="card notice">${tile('trophy', 'green')}<p><b>Den splněn.</b> ${kc(t.dk)} kcal${sk >= 2 ? ` a ${sk} ${plural(sk, 'den', 'dny', 'dní')} v řadě` : ''}. Zítra znovu.</p></div>`);
-    else if (nx) {
-      const d = nx.m - nm, late = d < -45, [ic, col] = SLOT_STYLE[nx.slot.k];
-      const when = d > 0 ? `za ${dur(d)}` : late ? `zpoždění ${dur(d)}` : 'teď';
-      h.push(`<div class="card now ${late ? 'late' : ''}"><div class="eye">${tile(ic, col)}<span>${esc(nx.slot.n)} · <span class="num">${nx.time}</span> · ${when}</span></div>
-        <button class="now-main" data-act="meal" data-slot="${nx.slot.k}"><span class="t-title2">${esc(MEALS[nx.meal].n)}${nx.mult !== 1 ? ` (${fracLabel(nx.mult)})` : ''}</span><span class="t-sub l2">${kc(nx.kcal)} kcal · ${kc(nx.b)} g bílkovin · ${nx.lo ? 'jen ohřát' : MEALS[nx.meal].min + ' min'}</span>${nx.lo ? '<span class="t-sub">Zbytek ze včerejší večeře.</span>' : nx.cook2 ? '<span class="t-sub" style="font-weight:600">Uvař 2 porce, druhá je na zítřejší oběd.</span>' : ''}${nx.boost ? `<span class="t-sub" style="color:var(--red-text);font-weight:600">Bomba: ${esc(nx.boostTxt)}</span>` : ''}<span class="t-sub tint now-link">Recept a postup${ICO.chevron}</span></button>
-        <div class="btns"><button class="btn pri" data-act="toggle" data-slot="${nx.slot.k}">${ICO.check}Snědeno</button><button class="btn" data-act="part" data-slot="${nx.slot.k}">Jen část</button>${late && MEALS[nx.meal].cat !== 'X' ? `<button class="btn" data-act="toshake" data-slot="${nx.slot.k}">Shake místo toho</button>` : ''}${late ? `<button class="btn" data-act="skip" data-slot="${nx.slot.k}">Vynechat</button>` : ''}</div></div>`);
-    }
-    // Dorovnání: vynechané jídlo nebo nedojedená porce, nebo večer, když je plán uzavřený a kalorie chybí
-    const gap = allClosed && !win ? Math.max(lostKcal(k), Math.round(t.kcal - t.dk)) : lostKcal(k);
-    if (gap >= 150) h.push(fillSec(gap, allClosed));
+    const e = engine();
     if (e.fast) h.push(noticeCard('warn', 'red', `<b>Rosteš moc rychle.</b> ${kg1(e.tr.perWeek)} kg týdně je nad bezpečnými 2,5 kg. Doplněk nezvyšuju; když se přidají otoky nebo dušnost, jdi k lékaři.`));
     const gi = giIssues(k, 4);
     if (gi >= 2) h.push(noticeCard('warn', 'tint', `<b>Trávení zlobí ${gi}× za 4 dny.</b> Rozděl shake na dvě půlky a pij mezi jídly, ne k nim. ${giIssues(k, 7) >= 4 ? 'Trvá to přes týden, ukaž se praktikovi.' : ''}`, S.settings.add > 0 ? `<button class="btn sm" data-act="slower" style="margin-top:10px">Ubrat doplněk o ¼ shaku</button>` : ''));
-    // Pod seznamem jídel: co se týká dne, ale ne teď
+  }
+
+  // 3) Plán dne: časová osa, další jídlo je rozbalené
+  const qchip = !isPast ? `<button class="hchip" data-act="quickday" aria-pressed="${rec.quick}">${ICO.bolt}<span>Rychlý den</span></button>` : '';
+  h.push(sec('Plán dne', timeline(k, items, ex, rec, { isToday, nx, nm, i }), rec.quick && !isPast ? 'Rychlý den: jen jídla do 15 minut, kalorie zůstávají stejné.' : '', qchip));
+
+  // 4) Dorovnání: vynechané jídlo, nedojedená porce, nebo večer chybí kalorie
+  if (isToday) {
+    const gap = allClosed && !win ? Math.max(lostKcal(k), Math.round(t.kcal - t.dk)) : lostKcal(k);
+    if (gap >= 150) h.push(fillSec(gap, allClosed));
+  }
+
+  // 5) Rychlé akce
+  if (isToday) h.push(`<div class="qa"><button class="qa-b" data-act="extras"><span class="qa-i" style="--c:var(--tint)">${ICO.plus}</span><span class="qa-tx"><b>Něco navíc</b><small>Rohlík, kebab…</small></span></button><button class="qa-b" data-act="ask"><span class="qa-i" style="--c:var(--purple)">${ICO.spark}</span><span class="qa-tx"><b>Jím venku</b><small>Poradí Claude</small></span></button></div>`);
+  else if (isPast) h.push(`<div class="qa one"><button class="qa-b" data-act="extras"><span class="qa-i" style="--c:var(--tint)">${ICO.plus}</span><span class="qa-tx"><b>Zapsat něco navíc</b><small>Co jsi ten den snědl mimo plán</small></span></button></div>`);
+
+  // 6) Co se týká dne, ale ne teď
+  if (isToday) {
     const am = S.settings.autoMsg;
     if (am && am.w === curWeek() && !am.undone) after.push(noticeCard('bolt', 'purple', `<b>Chytré tempo.</b> ${esc(am.txt)}`, am.to !== am.from ? `<button class="btn sm" data-act="autoundo" style="margin-top:10px">Vrátit</button>` : ''));
     const ro = runOuts(3).filter(r => r.d <= 1);
     if (ro.length) after.push(noticeCard('box', 'teal', `<b>Dochází ${ro.map(r => ING[r.i].n.toLowerCase()).join(', ')}</b> (${ro[0].d === 0 ? 'už dnes' : 'zítra'}).`, `<button class="btn sm" data-act="goshop" data-w="${curWeek()}" style="margin-top:10px">Otevřít nákup</button>`));
     if (dowOf(k) === 6 && !waistEntries().some(([d]) => dayDiff(d, k) < 6)) after.push(sec('Nedělní měření pasu', `<form class="row" data-form="waist" style="padding-block:12px"><div class="wbox" style="width:100%"><label class="inp"><input class="wwaist" inputmode="decimal" autocomplete="off" placeholder="${waistEntries().length ? kg1(waistEntries().slice(-1)[0][1]) : '70,0'}" aria-label="Obvod pasu v cm"><span>cm</span></label><button class="btn pri sm" type="submit">Uložit</button></div></form>`, 'Ráno, v úrovni pupku, volně vydechnout. Ukáže, kolik přírůstku jde do břicha.'));
-    if (!weighTop && S.weights[k] == null && nm < 14 * 60) after.push(weighSec());
     if (!SY.key || SY.bad || dbState === 'badkey') notes.push(noteRow('box', 'blue', SY.key ? 'Klíč pro zálohu nesedí' : 'Propoj zálohu', SY.key ? 'Bez něj se data neodesílají.' : 'Data jsou zatím jen v tomhle telefonu.', `<button class="btn sm" data-act="syncsheet">Vložit klíč</button>`));
-    if (!(S.body.blood && S.body.blood.done) && i < 21) notes.push(noteRow('drop', 'red', 'Krevní testy u praktika', 'Do 2 týdnů od startu: krevní obraz, TSH, glykémie, játra, celiakie.', `<button class="btn sm" data-act="blood">Hotovo</button>`));
-    if (w === 1 && i <= 2) notes.push(noteRow('info', 'blue', 'Týden 1: tři jídla a shake', 'Nafukuje tě shake? Rozděl ho na dvě půlky. Kreatin prvních 5 dní 4× 5 g.'));
+    if (!(S.body.blood && S.body.blood.done) && i < 21) notes.push(noteRow('drop', 'red', 'Krevní testy u praktika', 'Krevní obraz, TSH, glykémie, játra, celiakie', `<button class="btn sm" data-act="blood">Hotovo</button>`));
+    if (w === 1 && i <= 2) notes.push(noteRow('info', 'blue', 'Týden 1: tři jídla a shake', 'Nafukuje tě shake? Rozděl ho na dvě půlky.'));
     else if (w === 2 && dowOf(k) === 0) notes.push(noteRow('info', 'blue', 'Týden 2: přibyla svačina', 'Od příštího pondělí přidám večerní doplněk.'));
   }
-  const nextK = isToday ? (items.find(x => !x.done && !x.skip) || {}).slot : null, loadDay = i < 5;
-  const rows = [];
-  if (!isPast) rows.push(`<label class="row has-tile">${tile('bolt', 'yellow')}<span class="row-text"><span class="row-title">Rychlý den</span><span class="row-sub">Jen jídla do 15 minut, kalorie zůstanou</span></span><input type="checkbox" class="sw" id="quick" ${rec.quick ? 'checked' : ''}></label>`);
-  for (const x of items) {
-    const m = MEALS[x.meal], swapped = x.meal !== x.planned, late = isToday && !x.done && !x.skip && x.m < nm - 45, [ic, col] = SLOT_STYLE[x.slot.k], pf = x.done ? partOf(k, x.slot.k) : 1;
-    const tag = late ? '<span class="tag late">zpožděné</span>' : (nextK && nextK.k === x.slot.k ? '<span class="tag next">další</span>' : pf < 1 ? `<span class="tag">${fracLabel(pf)} porce</span>` : swapped ? '<span class="tag">vyměněno</span>' : x.auto === 'quick' ? '<span class="tag">rychlé</span>' : x.auto === 'rating' ? '<span class="tag">náhrada</span>' : x.lo ? '<span class="tag">zbytek</span>' : x.cook2 ? '<span class="tag">2 porce</span>' : (x.boost || x.auto === 'bomb') ? '<span class="tag bomb">bomba</span>' : '');
-    rows.push(`<div class="row has-tile ${x.done ? 'done' : ''} ${x.skip ? 'skip' : ''}"><button class="row-main" data-act="meal" data-slot="${x.slot.k}">${tile(ic, col)}<span class="row-text"><span class="row-title">${esc(m.n)}${x.mult !== 1 ? ` (${fracLabel(x.mult)})` : ''}</span><span class="row-sub"><span class="num">${x.time}</span> · ${x.slot.n} · ${pf < 1 ? `${kc(x.kcal * pf)} z ${kc(x.kcal)}` : kc(x.kcal)} kcal</span></span>${tag}</button>${ckBtn(x.slot.k, x.done, x.slot.n + ' snědeno', UI.pop === x.slot.k)}</div>`);
-    if (x.slot.k === 'snidane') rows.push(`<div class="row has-tile ${rec.done.kreatin ? 'done' : ''}"><div class="row-main" style="pointer-events:none">${tile('pill', 'teal')}<span class="row-text"><span class="row-title">${loadDay ? 'Kreatin 4× 5 g + vitamín D' : 'Kreatin 5 g + vitamín D'}</span><span class="row-sub">${loadDay ? `Nasycení, den ${i + 1} z 5 · dávky k jídlům` : 'Do shaku nebo k snídani'}</span></span></div>${ckBtn('kreatin', !!rec.done.kreatin, 'Kreatin vzat', UI.pop === 'kreatin')}</div>`);
-  }
-  for (const x of ex) rows.push(`<div class="row has-tile done"><div class="row-main" style="pointer-events:none">${tile(x.custom ? 'spark' : 'plus', x.custom ? 'purple' : 'gray')}<span class="row-text"><span class="row-title">${esc(x.name)}</span><span class="row-sub">${x.time ? `<span class="num">${x.time}</span> · ` : ''}Extra · +${kc(x.kcal)} kcal</span></span></div><button class="gbtn" style="color:var(--red-text)" data-act="xdel" data-i="${x.i}" aria-label="Odebrat ${esc(x.name)}">${ICO.close}</button></div>`);
-  rows.push(`<button class="row has-tile" data-act="extras">${tile('plus', 'tint')}<span class="row-text"><span class="row-title tint">Snědl jsem něco navíc</span><span class="row-sub">Rohlík, kebab, tatranka… vyber, kalorie dopočítám</span></span></button>`);
-  rows.push(`<button class="row has-tile" data-act="ask">${tile('spark', 'purple')}<span class="row-text"><span class="row-title tint">Jím venku, poraď mi</span><span class="row-sub">Otevře Clauda s připraveným dotazem</span></span>${ICO.chevron}</button>`);
-  h.push(sec('Jídla', rows.join(''), 'Klepni na jídlo pro recept, výměnu nebo zápis části porce. Kolečkem vpravo ho odškrtneš.'));
   h.push(...after);
   if (notes.length) h.push(sec('Připomínky', notes.join('')));
   if (isPast || (isToday && nm >= 14 * 60)) h.push(sec('Trávení dnes', `<div class="row" style="padding-block:10px"><div class="seg" style="width:100%" role="group" aria-label="Trávení">${GI.map(([g, n]) => `<button data-act="gi" data-g="${g}" aria-pressed="${rec.gi === g}">${n}</button>`).join('')}</div></div>`, 'Když trávení zlobí víc dní, appka poradí, co upravit.'));
   const pp = prepFor(k); if (pp) h.push(prepSec(pp));
   const tr = trainingSec(k, rec); if (tr) h.push(tr);
-  h.push(`<p class="sec-f" style="text-align:center">${syncText()}</p>`);
+  h.push(`<p class="sec-f foot-sync">${syncText()}</p>`);
   v.innerHTML = h.join('');
   return big;
 }
+function summaryCard(k, items, ex, t, o) {
+  const exK = ex.reduce((a, x) => a + x.kcal, 0);
+  const segs = items.map(x => {
+    const pf = x.done ? partOf(k, x.slot.k) : 0, cls = x.done ? 'dn' : x.skip ? 'sk' : (o.nx && o.nx.slot.k === x.slot.k ? 'nx' : '');
+    return `<i class="${cls}" style="flex-grow:${Math.max(1, Math.round(x.kcal))}"><u style="width:${Math.round(pf * 100)}%"></u></i>`;
+  });
+  if (exK > 0) segs.push(`<i class="ex" style="flex-grow:${Math.round(exK)}"><u style="width:100%"></u></i>`);
+  let status = '';
+  if (o.win) status = `<span class="tag ok">Den splněn</span>`;
+  else if (o.isToday && o.behind > 350) status = `<span class="tag late">Dožeň ${kc(o.behind)} kcal</span>`;
+  else if (o.isToday && t.dk > 0) status = `<span class="tag ok">Držíš tempo</span>`;
+  else if (o.isPast) status = `<span class="tag ${t.pct >= .9 ? 'ok' : 'late'}">${Math.round(t.pct * 100)} % plánu</span>`;
+  const streakTag = o.sk >= 2 && (o.isToday || o.win) ? `<span class="tag next">${o.sk} ${plural(o.sk, 'den', 'dny', 'dní')} v řadě</span>` : '';
+  return `<div class="card sum ${o.win ? 'win' : ''} ${o.win && UI.pop ? 'cele' : ''}">
+    <div class="sum-top"><div class="sum-k"><b class="num">${kc(t.dk)}</b><span>/ ${kc(t.kcal)} kcal</span></div>${status || streakTag ? `<div class="sum-tags">${status}${streakTag}</div>` : ''}</div>
+    <div class="segbar" role="img" aria-label="Snědeno ${kc(t.dk)} z ${kc(t.kcal)} kcal, ${t.nd} z ${t.n} jídel">${segs.join('')}</div>
+    <div class="sum-meta"><span>Bílkoviny <b class="num">${kc(t.db)}</b> / ${kc(t.b)} g</span><span>Jídla <b class="num">${t.nd}</b> / ${t.n}</span></div></div>`;
+}
+function timeline(k, items, ex, rec, o) {
+  const rows = [], loadDay = o.i < 5;
+  if (o.isToday || S.weights[k] != null) rows.push({ m: wakeMin() - 0.5, done: S.weights[k] != null, lab: 'vážení', html: weighRow(k, o.isToday, o.nm) });
+  for (const x of items) {
+    const isNext = !!(o.nx && o.nx.slot.k === x.slot.k);
+    rows.push({ m: x.m, next: isNext, done: x.done || x.skip, skip: x.skip, lab: x.slot.n.toLowerCase() + (x.skip ? ' (vynecháno)' : ''), html: isNext ? nextRow(x, o.nm) : mealRow(k, x, o.isToday, o.nm) });
+    if (x.slot.k === 'snidane') rows.push({ m: x.m + 0.5, done: !!rec.done.kreatin, lab: 'kreatin', html: creatineRow(rec, o.i, loadDay) });
+  }
+  for (const x of ex) rows.push({ m: x.time ? toMin(x.time) + 0.25 : 1e4 + x.i, done: true, lab: 'navíc', html: extraRow(x) });
+  rows.sort((a, b) => a.m - b.m);
+  // Hotové před dalším jídlem se sbalí do jednoho řádku, ať je to, co je teď, hned nahoře
+  const ni = rows.findIndex(r => r.next), fold = ni > 0 ? rows.slice(0, ni).filter(r => r.done) : [];
+  if (fold.length >= 3) {
+    if (UI.tlOpen) rows.unshift({ html: `<button class="tl-more" data-act="tlopen">Sbalit hotové${ICO.chevron}</button>` });
+    else {
+      const at = rows.indexOf(fold[0]);
+      const row = `<button class="tl-row done fold" data-act="tlopen" aria-expanded="false"><span class="tl-time num">${minLabel(Math.round(Math.min(...fold.map(r => r.m))))}</span><span class="tl-node"><span class="ck on" aria-hidden="true"><i>${ICO.check}</i></span></span><span class="tl-main static"><span class="tl-t">${fold.some(r => r.skip) ? 'Za tebou' : 'Hotovo'} <b class="num">${fold.length}</b></span><span class="tl-s">${capFirst(fold.map(r => r.lab).join(', '))}</span></span>${ICO.chevron}</button>`;
+      const keep = rows.filter(r => !fold.includes(r));
+      keep.splice(at, 0, { html: row });
+      return `<div class="tl">${keep.map(r => r.html).join('')}</div>`;
+    }
+  }
+  return `<div class="tl">${rows.map(r => r.html).join('')}</div>`;
+}
+function weighRow(k, isToday, nm) {
+  const wv = S.weights[k], done = wv != null, prev = weightEntries().filter(([d]) => d < k).pop();
+  const sub = done ? (prev ? `${wv - prev[1] >= 0 ? '+' : '−'}${kg1(Math.abs(wv - prev[1]))} kg od ${shortDate(prev[0])}` : 'Zapsáno') : nm >= 14 * 60 ? 'Dnes nezváženo, zapiš klidně teď' : 'Po probuzení, před snídaní';
+  const node = isToday ? `<button class="ck" data-act="weigh" aria-pressed="${done}" aria-label="${done ? 'Upravit váhu' : 'Zapsat váhu'}"><i>${ICO.check}</i></button>` : `<span class="ck on" aria-hidden="true"><i>${ICO.check}</i></span>`;
+  return `<div class="tl-row ${done ? 'done' : ''}"><span class="tl-time num">${esc(S.settings.wake)}</span><span class="tl-node">${node}</span>
+    <${isToday ? 'button class="tl-main" data-act="weigh"' : 'div class="tl-main static"'}><span class="tl-t">Ranní vážení${done ? ` <b class="num">${kg1(wv)} kg</b>` : ''}</span><span class="tl-s">${sub}</span></${isToday ? 'button' : 'div'}></div>`;
+}
+function mealNote(x, pf) {
+  if (pf < 1) return `${fracLabel(pf)} porce`;
+  if (x.meal !== x.planned) return 'vyměněno';
+  if (x.auto === 'quick') return 'rychlá náhrada';
+  if (x.auto === 'rating') return 'náhrada';
+  if (x.lo) return 'zbytek z večeře';
+  if (x.cook2) return 'uvař 2 porce';
+  if (x.boost || x.auto === 'bomb') return '<b class="red">bomba</b>';
+  return '';
+}
+function mealRow(k, x, isToday, nm) {
+  const m = MEALS[x.meal], pf = x.done ? partOf(k, x.slot.k) : 1, late = isToday && !x.done && !x.skip && x.m < nm - 45, note = mealNote(x, pf);
+  const kcal = pf < 1 ? `${kc(x.kcal * pf)} z ${kc(x.kcal)}` : kc(x.kcal);
+  return `<div class="tl-row ${x.done ? 'done' : ''} ${x.skip ? 'skip' : ''} ${late ? 'late' : ''}"><span class="tl-time num">${x.time}</span><span class="tl-node">${ckBtn(x.slot.k, x.done, x.slot.n + ' snědeno', UI.pop === x.slot.k)}</span>
+    <button class="tl-main" data-act="meal" data-slot="${x.slot.k}"><span class="tl-t">${esc(m.n)}${x.mult !== 1 ? ` (${fracLabel(x.mult)})` : ''}</span><span class="tl-s">${x.slot.n} · ${kcal} kcal${x.skip ? ' · vynecháno' : late ? ' · <b class="red">zpožděné</b>' : ''}${note ? ` · ${note}` : ''}</span></button></div>`;
+}
+function nextRow(x, nm) {
+  const m = MEALS[x.meal], d = x.m - nm, late = d < -45;
+  const eye = `${x.slot.n} · ${late ? `zpoždění ${dur(-d)}` : d <= 0 ? 'teď' : d <= 120 ? `za ${dur(d)}` : nm < wakeMin() - 60 ? 'ráno' : 'na řadě'}`;
+  const notes = [];
+  if (x.lo) notes.push('<span class="tl-n">Zbytek ze včerejší večeře, stačí ohřát.</span>');
+  else if (x.cook2) notes.push('<span class="tl-n"><b>Uvař 2 porce</b>, druhá je zítřejší oběd.</span>');
+  if (x.boost) notes.push(`<span class="tl-n red">Bomba: ${esc(x.boostTxt)}</span>`);
+  return `<div class="tl-row next ${late ? 'late' : ''}"><span class="tl-time num">${x.time}</span><span class="tl-node">${ckBtn(x.slot.k, false, x.slot.n + ' snědeno', false)}</span>
+    <div class="tl-body"><button class="tl-main" data-act="meal" data-slot="${x.slot.k}"><span class="tl-eye">${eye}</span><span class="tl-t">${esc(m.n)}${x.mult !== 1 ? ` (${fracLabel(x.mult)})` : ''}</span><span class="tl-s">${kc(x.kcal)} kcal · ${kc(x.b)} g bílkovin · ${x.lo ? 'jen ohřát' : m.min + ' min'}</span>${notes.join('')}<span class="tl-link">Recept a postup${ICO.chevron}</span></button>
+    <div class="btns"><button class="btn pri sm" data-act="toggle" data-slot="${x.slot.k}">${ICO.check}Snědeno</button><button class="btn sm" data-act="part" data-slot="${x.slot.k}">Jen část</button></div>${late ? `<div class="tl-alt">${m.cat !== 'X' ? `<button data-act="toshake" data-slot="${x.slot.k}">Shake místo toho</button>` : ''}<button data-act="skip" data-slot="${x.slot.k}">Vynechat</button></div>` : ''}</div></div>`;
+}
+function creatineRow(rec, i, loadDay) {
+  const on = !!rec.done.kreatin;
+  return `<div class="tl-row ${on ? 'done' : ''}"><span class="tl-time"></span><span class="tl-node">${ckBtn('kreatin', on, 'Kreatin vzat', UI.pop === 'kreatin')}</span><div class="tl-main static"><span class="tl-t">${loadDay ? 'Kreatin 4× 5 g + vitamín D' : 'Kreatin 5 g + vitamín D'}</span><span class="tl-s">${loadDay ? `Nasycení, den ${i + 1} z 5 · dávky k jídlům` : 'Do shaku nebo k snídani'}</span></div></div>`;
+}
+function extraRow(x) {
+  return `<div class="tl-row done extra"><span class="tl-time num">${x.time ? esc(x.time) : ''}</span><span class="tl-node"><span class="tl-dot">${ICO[x.custom ? 'spark' : 'plus']}</span></span><div class="tl-main static"><span class="tl-t">${esc(x.name)}</span><span class="tl-s">Navíc · +${kc(x.kcal)} kcal</span></div><button class="tl-x" data-act="xdel" data-i="${x.i}" aria-label="Odebrat ${esc(x.name)}">${ICO.close}</button></div>`;
+}
 function noteRow(ic, col, title, sub, btn) {
-  return `<div class="row has-tile">${tile(ic, col)}<span class="row-text"><span class="row-title">${title}</span>${sub ? `<span class="row-sub">${sub}</span>` : ''}</span>${btn || ''}</div>`;
+  return `<div class="row has-tile">${tile(ic, col)}<span class="row-text"><span class="row-title">${title}</span>${sub ? `<span class="row-sub clamp2">${sub}</span>` : ''}</span>${btn || ''}</div>`;
 }
 function fillSec(gap, evening) {
   const opts = fillOptions(gap);
@@ -1788,6 +1992,11 @@ function weighSec() {
   const e = weightEntries(), last = e.length ? e[e.length - 1] : null;
   return sec('Ranní vážení', `<form class="row" data-form="w" style="padding-block:12px"><div class="wbox" style="width:100%"><label class="inp"><input class="wkg" inputmode="decimal" autocomplete="off" placeholder="${kg1(last ? last[1] : S.settings.startKg)}" value="${esc(UI.wDraft)}" aria-label="Váha v kilogramech"><span>kg</span></label><button class="btn pri sm" type="submit">Uložit</button></div></form>`,
     `Po záchodě, před jídlem a pitím, ve spodním prádle.${last ? ` Minule ${kg1(last[1])} kg (${shortDate(last[0])}).` : ''}`);
+}
+function weighSheet() {
+  const t = todayKey(), cur = S.weights[t], prev = weightEntries().filter(([d]) => d < t).pop(), val = UI.wDraft || (cur != null ? kg1(cur) : '');
+  openSheet('Ranní vážení', `<form data-form="w" class="wsheet"><label class="wbig"><input class="wkg" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="${kg1(prev ? prev[1] : S.settings.startKg)}" value="${esc(val)}" aria-label="Váha v kilogramech"><span>kg</span></label><button class="btn pri block" type="submit">${cur != null ? 'Uložit změnu' : 'Uložit'}</button></form><p class="sec-f" style="text-align:center">Po záchodě, před jídlem a pitím, ve spodním prádle.${prev ? `<br>Minule <b class="num">${kg1(prev[1])} kg</b> (${shortDate(prev[0])}).` : ''}</p>`);
+  setTimeout(() => { const i = document.querySelector('#sheet .wkg'); if (i) { i.focus(); i.select(); } }, 340);
 }
 function prepSec(p) {
   const days = p.cover.map(d => DAYS[dowOf(d)]), rng = days.length > 1 ? days[0] + '–' + days[days.length - 1] : days[0];
@@ -2276,6 +2485,9 @@ document.addEventListener('click', e => {
     if (b.dataset.close) closeSheet(); render();
   }
   else if (a === 'part') partSheet(b.dataset.slot);
+  else if (a === 'weigh') weighSheet();
+  else if (a === 'tlopen') { UI.tlOpen = !UI.tlOpen; render(); }
+  else if (a === 'quickday') { const k = UI.date, r = dayRec(k); r.quick = !r.quick; saveDay(k, r); render(); toast(r.quick ? 'Rychlý den: jen jídla do 15 minut' : 'Rychlý den vypnut'); }
   else if (a === 'portion') {
     const k = UI.date, sl = b.dataset.slot, f = Number(b.dataset.f); setEaten(k, sl, f); UI.pop = sl;
     if (b.dataset.close) closeSheet(); render();
@@ -2367,7 +2579,7 @@ document.addEventListener('submit', e => {
     if (!(val > 30 && val < 200)) { toast('Zadej váhu v kg, třeba 52,4'); return; }
     const t = todayKey(), prev = weightEntries().filter(([k]) => k < t).pop();
     S.weights[t] = Math.round(val * 10) / 10; UI.wDraft = ''; inp.blur();
-    persist('app/weights', { entries: S.weights }); render();
+    persist('app/weights', { entries: S.weights }); if (f.closest('#sheet')) closeSheet(); render();
     toast(prev ? `Uloženo · ${S.weights[t] - prev[1] >= 0 ? '+' : '−'}${kg1(Math.abs(S.weights[t] - prev[1]))} kg od ${shortDate(prev[0])}` : 'Uloženo');
   } else if (f.matches('[data-form="waist"]')) {
     const val = num(f.querySelector('.wwaist').value); if (!(val > 40 && val < 150)) { toast('Zadej obvod v cm, třeba 68,5'); return; }

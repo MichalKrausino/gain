@@ -121,8 +121,11 @@ const ok = d && d.hasPlan;
 const pct = ok && d.plan ? d.eaten / d.plan : 0;
 const done = ok && d.left <= 0;
 const meals = ok ? (d.meals || []) : [];
-const nx = ok && !done ? (d.next || meals.find(m => !m.done && !m.skip) || null) : null;
-const nm = nowMin(), nxMin = nx ? tmin(nx.t) : null, late = nx && nxMin != null && nm > nxMin + 45;
+// další jídlo = nejbližší, ne to, co mělo být před 12 hodinami (starší nepotvrzené se potvrdí večer v appce, stejně jako na Dnes)
+const nm = nowMin(), soon = m => m && !m.done && !m.skip && (tmin(m.t) == null || tmin(m.t) >= nm - 120);
+const nx = ok && !done ? (soon(d.next) ? d.next : meals.find(soon) || null) : null;
+const unconf = ok && !done && !nx && meals.some(m => !m.done && !m.skip);
+const nxMin = nx ? tmin(nx.t) : null, late = nx && nxMin != null && nm > nxMin + 45;
 { // obnova: v čase dalšího jídla, jinak za 15 minut
   let r = new Date(Date.now() + 15 * 60000);
   if (nx && nxMin != null && nxMin > nm) { const t = dateAt(nx.t); t.setMinutes(t.getMinutes() + 1); if (t < r) r = t; }
@@ -226,6 +229,7 @@ function ringWithPct(p, size, lw) {
 
 function nextLine(p) {
   const r = hstack(p, 4);
+  if (!nx && unconf) { sym(r, 'checkmark.circle', 11, ORANGE_TXT); text(r, 'Potvrď den v appce', Font.semiboldSystemFont(11), LABEL, { lines: 1 }); r.addSpacer(); return r; }
   if (!nx) { sym(r, 'trophy.fill', 11, GREEN_TXT); text(r, `Všech ${d.nMeals || meals.length} jídel odškrtnuto`, Font.semiboldSystemFont(11), LABEL, { lines: 1 }); r.addSpacer(); return r; }
   text(r, `${hm(nx.t)}`, Font.boldRoundedSystemFont(11), late ? RED_TXT : ORANGE_TXT);
   text(r, nx.n || slotName(nx), Font.semiboldSystemFont(11), LABEL, { lines: 1, scale: 0.85 });

@@ -1074,7 +1074,7 @@ const FOODS = [
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish, FOODS, FOOD_CATS };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Verze 2: ťuknutím na widget zapíšeš jídlo rovnou tady, bez otevírání Safari.\n// Vzhled a nabídky si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(maxAgeH) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (age > maxAgeH * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\nasync function run(ctx, maxAgeH) {\n  const code = await core(maxAgeH);\n  if (!code) return { ok: false };\n  try {\n    const fn = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n    return { ok: true, res: await fn({ KEY, ANON, loader: 2, script: Script.name(), ...ctx }) };\n  } catch (e) { console.error(e); return { ok: false }; }\n}\nfunction fallback() {\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\nasync function preview() {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript. Ťuknutím na widget pak zapíšeš jídlo.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i < 0) return;\n  const fam = sizes[i][1], r = await run({ family: fam }, 0), w = r.ok && r.res ? r.res : fallback();\n  if (fam === 'small') await w.presentSmall();\n  else if (fam === 'large') await w.presentLarge();\n  else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n  else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n  else await w.presentMedium();\n}\n\nif (config.runsInWidget || config.runsInAccessoryWidget) {\n  const r = await run({ family: config.widgetFamily || 'medium' }, 6);\n  Script.setWidget(r.ok && r.res ? r.res : fallback());\n} else {\n  const params = (typeof args !== 'undefined' && args.queryParameters) || {};\n  const fromWidget = Object.keys(params).length > 0;\n  const r = await run({ mode: 'app', params }, fromWidget ? 6 : 0); // ruční spuštění si vždy stáhne nejnovější verzi\n  if (!r.ok) { const a = new Alert(); a.title = 'Plán 70 kg'; a.message = 'Nepodařilo se načíst. Spusť skript jednou s internetem.'; a.addAction('OK'); await a.presentAlert(); }\n  else if (r.res === 'preview') await preview();\n}\nScript.complete();\n";
-const APP_VERSION = '5cf8d420', APP_BUILT = '2026-10-06T15:18:05Z';
+const APP_VERSION = 'c079e3b9', APP_BUILT = '2026-10-06T16:55:48Z';
 
 </script>
 <script>
@@ -1086,14 +1086,16 @@ const TAB_KEYS = ['dnes', 'tyden', 'nakup', 'pokrok', 'recepty'];
 function pad(n) { return String(n).padStart(2, '0'); }
 function keyOf(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
 function parseKey(k) { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); }
-function todayKey() { return keyOf(new Date()); }
+// Den končí spánkem, ne půlnocí: do 3:00 ráno je pořád „včera“ (pizza v půl jedné patří k večeři, ne k zítřku).
+const DAY_CUT = 180;
+function todayKey() { const d = new Date(); if (d.getHours() * 60 + d.getMinutes() < DAY_CUT) d.setDate(d.getDate() - 1); return keyOf(d); }
 function addDays(k, n) { const d = parseKey(k); d.setDate(d.getDate() + n); return keyOf(d); }
 function dayDiff(a, b) { const [y1, m1, d1] = a.split('-').map(Number), [y2, m2, d2] = b.split('-').map(Number); return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 864e5); }
 function dowOf(k) { return (parseKey(k).getDay() + 6) % 7; }
 function shortDate(k) { const d = parseKey(k); return d.getDate() + '. ' + (d.getMonth() + 1) + '.'; }
 function toMin(hhmm) { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; }
 function minLabel(t) { return pad(Math.floor(t / 60) % 24) + ':' + pad(t % 60); }
-function nowMin() { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+function nowMin() { const d = new Date(), m = d.getHours() * 60 + d.getMinutes(); return m < DAY_CUT ? m + 1440 : m; } // po půlnoci 24:30 = 1470, ať den pokračuje
 function dur(m) { m = Math.abs(Math.round(m)); const h = Math.floor(m / 60), r = m % 60; return h ? `${h} h${r ? ' ' + r + ' min' : ''}` : `${r} min`; }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function kc(x) { return fmtNum(Math.round(x)); }
@@ -1542,6 +1544,25 @@ function foodSearch(q, cat) { // potraviny i recepty z appky; bez diakritiky, v�
   return out;
 }
 function fold(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+function isClosed(k) { const its = planFor(k); return its.length > 0 && its.every(x => x.done || x.skip); }
+function openMeals(k, nm) { // co zůstalo neodškrtnuté: celý minulý den, dnes jen jídla zpožděná o víc než 90 minut
+  const t0 = todayKey(); if (idxOf(k) < 0 || k > t0) return [];
+  return planFor(k).filter(x => !x.done && !x.skip && (k < t0 || x.m < nm - 90));
+}
+function closeMeals(k, slots, how) { // how: 'all' = snědeno celé, 'none' = vynecháno
+  const r = dayRec(k); let n = 0;
+  for (const s of slots) {
+    if (r.done[s] || r.skip[s]) continue;
+    if (how === 'all') { setEaten(k, s, 1); n++; }
+    else { const r2 = dayRec(k); r2.skip[s] = true; saveDay(k, r2); n++; }
+  }
+  return n;
+}
+function lastOpenDay() { // nejbližší minulý den plánu (max 3 dny zpět) s neodškrtnutým jídlem
+  const t0 = todayKey();
+  for (let d = 1; d <= 3; d++) { const k = addDays(t0, -d); if (idxOf(k) < 0) break; if (openMeals(k).length) return k; }
+  return null;
+}
 function isLogged(k) { const r = S.days[k]; return !!r && ((r.done && Object.keys(r.done).some(s => SLOTS.some(z => z.k === s) && r.done[s])) || (r.extras && r.extras.length > 0)); }
 function weekKeys(w) { const s = addDays(S.settings.start, (w - 1) * 7); return [...Array(7)].map((_, d) => addDays(s, d)); }
 function curWeek() { return Math.max(1, weekOfIdx(idxOf(todayKey()))); }
@@ -1627,6 +1648,7 @@ function runOuts(days = 14) {
 }
 
 // ===== Projekce a motor =====
+const ADD_STEP = 400; // o kolik nejvýš zvednout večerní doplněk za týden
 const E_KG = 7700, STORE = 0.63; // kcal na kg tkáně; podíl přebytku, který se uloží (Bouchard 1990)
 function maintAt(kg) { return MAINT + 30 * (kg - S.settings.startKg); }
 function projection(useBase) {
@@ -1652,7 +1674,7 @@ function currentKg() { const tr = trend(); if (tr) return tr.now; const a = avg7
 function engine() {
   const t0 = todayKey(), s = S.settings, tr = trend();
   const win = []; for (let d = 1; d <= 14; d++) { const k = addDays(t0, -d); if (idxOf(k) >= 14) win.push(k); }
-  const logged = win.filter(isLogged);
+  const logged = win.filter(isClosed); // jen uzavřené dny: neodškrtnuté jídlo není „nesnědené“, ale neznámé
   const curKg = currentKg() ?? s.startKg, maint = maintAt(curKg);
   const wk = Math.max(3, curWeek());
   const baseAvg = mean(weekKeys(wk).map(k => planFor(k, { base: true }).reduce((a, x) => a + x.kcal, 0)));
@@ -1664,12 +1686,13 @@ function engine() {
   const Iref = conf ? conf * avgIn + (1 - conf) * refPlan : refPlan;
   const predSlope = Math.max(0, Iref - maint) * STORE / E_KG;
   const slopeRef = conf ? conf * tr.slope + (1 - conf) * predSlope : predSlope;
-  const tdee = clamp(Iref - slopeRef * E_KG, 1800, 5000);
+  const tdee = clamp(Iref - slopeRef * E_KG / STORE, 1800, 5000); // přebytek se ukládá jen z 63 %, stejně jako v predSlope
   const daysLeft = Math.max(7, dayDiff(t0, s.goalDate)), need = Math.max(0, s.goalKg - curKg);
   const cap = 2 / 7, rateRaw = need / daysLeft, rateNeed = Math.min(rateRaw, cap);
   const Istar = Iref + (rateNeed - slopeRef) * E_KG / STORE;
   const addRec = clamp(Math.round((Istar - baseAvg) / 50) * 50, 0, 1600);
-  const adherence = avgIn != null && planDays ? avgIn / planDays : null;
+  const planLogged = logged.length ? mean(logged.map(k => dayTotals(k).kcal)) : null;
+  const adherence = avgIn != null && planLogged ? avgIn / planLogged : null; // plnění jen ze stejných (uzavřených) dnů
   const fast = tr && idxOf(t0) >= 14 && tr.perWeek > 2.5;
   const eta = (() => { if (curKg >= s.goalKg) return null; const r = conf ? tr.slope : predSlope; if (!(r > 0.01)) return null; const d = Math.ceil((s.goalKg - curKg) / r); return d < 400 ? addDays(t0, d) : null; })();
   return { tdee, conf, logged: logged.length, win: win.length, curKg, maint, baseAvg, planAvg, avgIn, adherence, slopeRef, rateNeed, rateRaw, capped: rateRaw > cap, Istar, addRec, need, daysLeft, fast, eta, tr };
@@ -1696,12 +1719,18 @@ function autoCheck() {
   const e = engine(); let to = Number(st.add) || 0, txt;
   if (e.fast) { txt = `Rosteš ${kg1(e.tr.perWeek)} kg týdně, to je víc než bezpečných 2,5 kg. Doplněk nechávám, nezvyšuju.`; }
   else {
+    const prevAdd = Number(st.add) || 0;
     to = e.addRec;
+    // objem jídla se přidává postupně (žaludek si zvyká) a nepřidává se vůbec, když se nedojídá ani to, co v plánu už je
+    const hold = e.adherence != null && e.adherence < 0.85 && to > prevAdd, step = !hold && to > prevAdd + ADD_STEP;
+    if (hold) to = prevAdd; else if (step) to = prevAdd + ADD_STEP;
     const dateTxt = shortDate(st.goalDate);
     txt = e.conf > 0
       ? `Tvůj výdej vychází ~${kc(e.tdee)} kcal (z ${e.logged} zapsaných dní). Na ${st.goalKg} kg do ${dateTxt} potřebuješ ~${kg1(e.rateNeed * 7)} kg týdně, tedy ~${kc(e.Istar)} kcal denně. Večerní doplněk proto ${addName(to).replace(' večer', '')}.`
       : `Zatím málo dat ze 3. týdne, počítám podle modelu: ~${kc(e.Istar)} kcal denně, večerní doplněk ${addName(to).replace(' večer', '')}.`;
-    if (e.adherence != null && e.adherence < 0.9) txt += ` Plán ale plníš jen na ${Math.round(e.adherence * 100)} %, víc pomůže dojídat ho.`;
+    if (hold) txt += ` Plán ale plníš jen na ${Math.round(e.adherence * 100)} %, proto doplněk nezvyšuju: víc pomůže dojídat to, co v plánu už je. Kaloričtější jídla zajistí bomba.`;
+    else if (e.adherence != null && e.adherence < 0.9) txt += ` Plán plníš na ${Math.round(e.adherence * 100)} %, víc pomůže dojídat ho.`;
+    if (step) txt += ` Přidávám postupně, nejvýš o ${ADD_STEP} kcal za týden, ať si žaludek zvykne.`;
     if (e.capped) txt += ' Cíl k tomu datu by vyžadoval přes 2 kg týdně, držím bezpečné maximum.';
   }
   if (isBomb && !wasBomb) txt += ' Zapínám kalorickou bombu: arašídové máslo ke snídani, lžíce oleje k obědu a večeři, vločky do shaku a kaloričtější svačina. Je to přes 500 kcal denně navíc bez většího objemu jídla.';
@@ -1931,6 +1960,10 @@ function renderToday(head, v) {
 
   // 2) Co je potřeba řešit hned (jen když to platí)
   const after = [], notes = [];
+  if (isToday) { // neodškrtnuté jídlo: bez odpovědi appka neví, kolik jsi snědl
+    const od = lastOpenDay(); if (od) h.push(openCard(od, openMeals(od), true));
+    const ov = openMeals(k, nm); if (ov.length >= 2) h.push(openCard(k, ov, false));
+  } else if (isPast) { const om = openMeals(k); if (om.length) h.push(openCard(k, om, false)); }
   if (isToday) {
     const e = engine();
     if (e.fast) h.push(noticeCard('warn', 'red', `<b>Rosteš moc rychle.</b> ${kg1(e.tr.perWeek)} kg týdně je nad bezpečnými 2,5 kg. Doplněk nezvyšuju; když se přidají otoky nebo dušnost, jdi k lékaři.`));
@@ -1973,6 +2006,14 @@ function renderToday(head, v) {
   v.innerHTML = h.join('');
   return big;
 }
+function openCard(k, items, other) {
+  const t0 = todayKey(), today = k === t0, rel = dayDiff(k, t0), kcal = items.reduce((a, x) => a + x.kcal, 0), slots = items.map(x => x.slot.k).join(',');
+  const names = items.map(x => x.slot.n.toLowerCase() + (today ? ` ${x.time}` : '')).join(', ');
+  const day = rel === 1 ? 'Včera' : `${capFirst(DAYS_FULL[dowOf(k)])} ${shortDate(k)}`;
+  const txt = today ? `<b>Nemáš odškrtnuté: ${esc(names)}.</b> Snědl jsi to? Ať appka ví, kolik ti dnes chybí.`
+    : `<b>${other ? day + ' zůstalo' : 'Zůstalo'} neodškrtnuté: ${esc(names)}.</b> Bez odpovědi appka neví, kolik jsi opravdu snědl, a tempo by přepočítala špatně.`;
+  return noticeCard('warn', 'tint', txt, `<div class="btns" style="margin-top:10px"><button class="btn sm pri" data-act="closeday" data-k="${k}" data-how="all" data-s="${slots}">${items.length > 1 ? 'Snědl jsem všechno' : 'Snědl jsem to'} · ${kc(kcal)} kcal</button><button class="btn sm" data-act="closeday" data-k="${k}" data-how="none" data-s="${slots}">${items.length > 1 ? 'Nic z toho' : 'Nesnědl'}</button>${other ? `<button class="btn sm" data-act="pick" data-k="${k}">Po jednom</button>` : ''}</div>`);
+}
 function summaryCard(k, items, ex, t, o) {
   const exK = ex.reduce((a, x) => a + x.kcal, 0);
   const segs = items.map(x => {
@@ -1999,7 +2040,7 @@ function timeline(k, items, ex, rec, o) {
     rows.push({ m: x.m, next: isNext, done: x.done || x.skip, skip: x.skip, lab: x.slot.n.toLowerCase() + (x.skip ? ' (vynecháno)' : ''), html: isNext ? nextRow(x, o.nm) : mealRow(k, x, o.isToday, o.nm) });
     if (x.slot.k === 'snidane') rows.push({ m: x.m + 0.5, done: !!rec.done.kreatin, lab: 'kreatin', html: creatineRow(rec, o.i, loadDay) });
   }
-  for (const x of ex) rows.push({ m: x.time ? toMin(x.time) + 0.25 : 1e4 + x.i, done: true, lab: 'navíc', html: extraRow(x) });
+  for (const x of ex) { const tm = x.time ? toMin(x.time) : null; rows.push({ m: tm == null ? 1e4 + x.i : (tm < DAY_CUT ? tm + 1440 : tm) + 0.25, done: true, lab: 'navíc', html: extraRow(x) }); }
   rows.sort((a, b) => a.m - b.m);
   // Hotové před dalším jídlem se sbalí do jednoho řádku, ať je to, co je teď, hned nahoře
   const ni = rows.findIndex(r => r.next), fold = ni > 0 ? rows.slice(0, ni).filter(r => r.done) : [];
@@ -2678,13 +2719,13 @@ function lkInfoSheet(i) {
     const v = S.lk[x.lk], st = LK.setup ? 'Rutina zatím nemá spouštěcí token, nastav ho níž. Požadavek počká.' : v && v.st === 'work' ? 'Claude teď hledá na webu. Obvykle to trvá 1–3 minuty.' : 'Čeká na Clauda. Rutina se spouští, obvykle do minuty začne hledat.';
     openSheet('Přesné hodnoty', `<div><h2 class="t-title2">„${esc(x.q || x.c.n)}“</h2></div>${spinner(st)}
       ${LK.setup ? lkSetupSec() : ''}
-      ${sec('', `<button class="row has-tile" data-act="lkdel">${tile('close', 'red')}<span class="row-text"><span class="row-title" style="color:var(--red-text)">Zrušit a smazat záznam</span></span></button>`, 'Appku můžeš zavřít, hodnoty se doplní samy.')}`);
+      ${sec('', `<button class="row has-tile" data-act="manual" data-lkdel="1" data-n="${esc(x.q || x.c.n)}">${tile('plus', 'gray')}<span class="row-text"><span class="row-title tint">Zapsat ručně místo toho</span><span class="row-sub">Když znáš kalorie z obalu</span></span></button><button class="row has-tile" data-act="lkdel">${tile('close', 'red')}<span class="row-text"><span class="row-title" style="color:var(--red-text)">Zrušit a smazat záznam</span></span></button>`, 'Appku můžeš zavřít, hodnoty se doplní samy.')}`);
     return;
   }
   if (x.st === 'none') {
     openSheet('Přesné hodnoty', `<div><h2 class="t-title2">„${esc(x.q || x.c.n)}“</h2></div>${noticeCard('warn', 'tint', `Přesné hodnoty jsem nenašel.${x.pozn ? ' ' + esc(x.pozn) : ''}`)}
       ${sec('Zkusit jinak', `<form class="row" data-form="lkre" style="gap:8px;padding-block:12px"><input class="cust-in" id="lk-re" value="${esc(x.q || x.c.n)}" aria-label="Co jsi snědl" style="flex:1"><button class="btn pri sm" type="submit">Hledat</button></form>`, 'Pomůže značka, podnik nebo přesnější název, třeba „svíčková na smetaně s houskovým knedlíkem“.')}
-      ${sec('', `<button class="row has-tile" data-act="manual" data-n="${esc(x.q || x.c.n)}">${tile('plus', 'gray')}<span class="row-text"><span class="row-title tint">Zapsat ručně</span></span></button><button class="row has-tile" data-act="lkdel">${tile('close', 'red')}<span class="row-text"><span class="row-title" style="color:var(--red-text)">Smazat záznam</span></span></button>`)}`);
+      ${sec('', `<button class="row has-tile" data-act="manual" data-lkdel="1" data-n="${esc(x.q || x.c.n)}">${tile('plus', 'gray')}<span class="row-text"><span class="row-title tint">Zapsat ručně</span></span></button><button class="row has-tile" data-act="lkdel">${tile('close', 'red')}<span class="row-text"><span class="row-title" style="color:var(--red-text)">Smazat záznam</span></span></button>`)}`);
     return;
   }
   const unit = /(^|\W)(ml|l)(\W|$)|nápoj|kofola|pivo|cola|džus|mléko|limonád/i.test((x.p || '') + ' ' + x.c.n) ? 'ml' : 'g';
@@ -3004,9 +3045,13 @@ document.addEventListener('click', e => {
   else if (a === 'vhint') { extrasSheet(); setTimeout(() => { const i = document.getElementById('f-q'); if (i) i.focus(); }, 380); }
   else if (a === 'aiadd') addAiResult();
   else if (a === 'aix') { UI.aiX = Number(b.dataset.f); const sh = document.getElementById('sheet'), sc = sh.scrollTop; aiResultSheet(UI.aiRes); sh.scrollTop = sc; }
-  else if (a === 'manual') { UI.fq = b.dataset.n || ''; extrasSheet(); setTimeout(() => { const n = document.getElementById('cx-n'); if (n) { n.value = b.dataset.n || ''; n.scrollIntoView({ block: 'center' }); } }, 350); }
+  else if (a === 'manual') { if (b.dataset.lkdel) { const k = UI.date, r = dayRec(k), x = r.extras[UI.lkI]; if (x && x.lk) { r.extras.splice(UI.lkI, 1); saveDay(k, r); } } UI.fq = b.dataset.n || ''; extrasSheet(); setTimeout(() => { const n = document.getElementById('cx-n'); if (n) { n.value = b.dataset.n || ''; n.scrollIntoView({ block: 'center' }); } }, 350); }
   else if (a === 'fcat') { UI.fcat = UI.fcat === b.dataset.c ? '' : b.dataset.c; UI.fq = ''; const i = document.getElementById('f-q'); if (i) i.value = ''; document.querySelectorAll('[data-act=fcat]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.c === UI.fcat))); const l = document.getElementById('flist'); if (l) l.innerHTML = foodList(); }
   else if (a === 'fx') { UI.fx = Number(b.dataset.f); document.querySelectorAll('[data-act=fx]').forEach(x => x.setAttribute('aria-pressed', String(Number(x.dataset.f) === UI.fx))); const l = document.getElementById('flist'); if (l) l.innerHTML = foodList(); }
+  else if (a === 'closeday') {
+    const k = b.dataset.k, how = b.dataset.how, n = closeMeals(k, (b.dataset.s || '').split(',').filter(Boolean), how);
+    render(); if (n) toast(how === 'all' ? `Zapsáno ${n} ${plural(n, 'jídlo', 'jídla', 'jídel')}` : k === todayKey() ? 'Vynecháno, dožeň to extra jídlem' : 'Zapsáno jako vynechané');
+  }
   else if (a === 'skip') { const k = UI.date, r = dayRec(k); r.skip[b.dataset.slot] = true; saveDay(k, r); if (b.dataset.close) closeSheet(); render(); toast('Vynecháno, dožeň to extra jídlem'); }
   else if (a === 'toshake') { const k = UI.date, r = dayRec(k); r.swap[b.dataset.slot] = 'shake'; saveDay(k, r); if (b.dataset.close) closeSheet(); render(); toast('Místo jídla shake'); }
   else if (a === 'meal') mealSheet({ slot: b.dataset.slot });

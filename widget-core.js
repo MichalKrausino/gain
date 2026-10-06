@@ -30,7 +30,7 @@ const SYM = { snidane: 'sunrise.fill', shake: 'cup.and.saucer.fill', obed: 'fork
 const SHORT = { snidane: 'Snídaně', shake: 'Shake', obed: 'Oběd', svacina: 'Svačina', turbo: 'Shake navíc', vecere: 'Večeře' };
 
 // ---------- data ----------
-function todayISO() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function todayISO() { const d = new Date(); if (d.getHours() < 3) d.setDate(d.getDate() - 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 async function load() {
   const r = new Request(API);
   r.method = 'POST';
@@ -56,7 +56,7 @@ const kilo = n => (n >= 1000 ? (Math.round(n / 100) / 10).toLocaleString('cs-CZ'
 const kg1 = n => (Math.round(n * 10) / 10).toLocaleString('cs-CZ', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const hm = t => String(t || '').replace(/^0/, '');
 const tmin = t => { const m = /^(\d{1,2}):(\d{2})$/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
-const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+const nowMin = () => { const d = new Date(), m = d.getHours() * 60 + d.getMinutes(); return m < 180 ? m + 1440 : m; }; // do 3:00 pokračuje včerejšek, jako v appce
 const dateAt = t => { const m = tmin(t), d = new Date(); d.setHours(Math.floor(m / 60), m % 60, 0, 0); return d; };
 function hex(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
 function mix(stops, t) {

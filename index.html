@@ -190,6 +190,21 @@ button.row:active, .row-main:active { background: var(--press); }
 .scan-aim { position: absolute; left: 10%; right: 10%; top: 30%; bottom: 30%; border: 3px solid rgba(255,255,255,.92); border-radius: 16px; box-shadow: 0 0 0 999px rgba(0,0,0,.28); }
 .scan-aim::after { content: ''; position: absolute; left: 6%; right: 6%; top: 50%; height: 2px; border-radius: 1px; background: #ff453a; animation: scanl 1.4s ease-in-out infinite alternate; }
 @keyframes scanl { from { transform: translateY(-30px); } to { transform: translateY(30px); } }
+.ingr { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "t t" "s q"; align-items: center; column-gap: 10px; row-gap: 4px; padding-block: 10px; }
+.ingr .row-text { display: contents; }
+.ingr .row-title { grid-area: t; }
+.ingr .row-sub { grid-area: s; }
+.ingr .qty { grid-area: q; }
+.stepper.qty span.qu { min-width: 0; text-align: left; font-weight: 500; }
+.ingr .row-sub b { white-space: nowrap; }
+.ingr .row-sub b.plus { color: var(--green-text); font-weight: 600; }
+.ingr .row-sub b.minus { color: var(--red-text); font-weight: 600; }
+.stepper.qty { height: 40px; flex: none; }
+.stepper.qty button { width: 40px; height: 40px; color: var(--tint-text); }
+.qin { width: 50px; height: 40px; border: 0; background: transparent; text-align: right; font-weight: 600; font-size: max(16px, 1rem); color: var(--label); padding: 0 2px; border-radius: 8px; }
+.qin:focus { outline: none; background: var(--card); }
+.qu { font-size: .765rem; color: var(--label-2); min-width: 22px; padding-left: 2px; }
+.ingr.chg .qin { color: var(--tint-text); }
 .stepn { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none; font-weight: 700; font-size: .882rem; color: var(--label); background: color-mix(in srgb, var(--purple) 20%, transparent); }
 .aithumb { width: 100%; max-height: 210px; object-fit: cover; border-radius: 22px; display: block; }
 .spin { width: 22px; height: 22px; flex: none; border: 3px solid var(--fill-3); border-top-color: var(--tint); border-radius: 50%; animation: spin .8s linear infinite; }
@@ -1074,7 +1089,7 @@ const FOODS = [
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish, FOODS, FOOD_CATS };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Verze 2: ťuknutím na widget zapíšeš jídlo rovnou tady, bez otevírání Safari.\n// Vzhled a nabídky si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(maxAgeH) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (age > maxAgeH * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\nasync function run(ctx, maxAgeH) {\n  const code = await core(maxAgeH);\n  if (!code) return { ok: false };\n  try {\n    const fn = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n    return { ok: true, res: await fn({ KEY, ANON, loader: 2, script: Script.name(), ...ctx }) };\n  } catch (e) { console.error(e); return { ok: false }; }\n}\nfunction fallback() {\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\nasync function preview() {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript. Ťuknutím na widget pak zapíšeš jídlo.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i < 0) return;\n  const fam = sizes[i][1], r = await run({ family: fam }, 0), w = r.ok && r.res ? r.res : fallback();\n  if (fam === 'small') await w.presentSmall();\n  else if (fam === 'large') await w.presentLarge();\n  else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n  else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n  else await w.presentMedium();\n}\n\nif (config.runsInWidget || config.runsInAccessoryWidget) {\n  const r = await run({ family: config.widgetFamily || 'medium' }, 6);\n  Script.setWidget(r.ok && r.res ? r.res : fallback());\n} else {\n  const params = (typeof args !== 'undefined' && args.queryParameters) || {};\n  const fromWidget = Object.keys(params).length > 0;\n  const r = await run({ mode: 'app', params }, fromWidget ? 6 : 0); // ruční spuštění si vždy stáhne nejnovější verzi\n  if (!r.ok) { const a = new Alert(); a.title = 'Plán 70 kg'; a.message = 'Nepodařilo se načíst. Spusť skript jednou s internetem.'; a.addAction('OK'); await a.presentAlert(); }\n  else if (r.res === 'preview') await preview();\n}\nScript.complete();\n";
-const APP_VERSION = 'c079e3b9', APP_BUILT = '2026-10-06T16:55:48Z';
+const APP_VERSION = '128c3b9b', APP_BUILT = '2026-10-06T18:40:44Z';
 
 </script>
 <script>
@@ -1160,7 +1175,7 @@ function applyRemote(p, v) {
     if (id === 'config') S.settings = migrateSettings(v);
     else if (id === 'weights') S.weights = { ...(v.entries || {}) };
     else if (id === 'pantry') S.pantry = { stock: { ...(v.stock || {}) } };
-    else if (id === 'prefs') S.prefs = { rating: { ...(v.rating || {}) }, foods: Array.isArray(v.foods) ? v.foods.slice(0, 16) : [], products: v.products && typeof v.products === 'object' ? v.products : {} };
+    else if (id === 'prefs') S.prefs = { rating: { ...(v.rating || {}) }, foods: Array.isArray(v.foods) ? v.foods.slice(0, 16) : [], products: v.products && typeof v.products === 'object' ? v.products : {}, rec: v.rec && typeof v.rec === 'object' ? v.rec : {} };
     else if (id === 'body') S.body = { waist: {}, blood: null, ...v, photos: (S.body && S.body.photos) || {} };
     else if (id === 'prices') S.prices = v;
   } else if (['days', 'shop', 'training', 'reports'].includes(c) && id) S[c] = { ...S[c], [id]: v };
@@ -1229,7 +1244,7 @@ function seedLocal() { // co je jen v tomto zařízení (např. zapsané offline
   if (JSON.stringify(S.settings) !== JSON.stringify(migrateSettings(null))) put(SETTINGS_DOC, S.settings);
   if (Object.keys(S.weights).length) put('app/weights', { entries: S.weights });
   if (Object.keys(S.pantry.stock || {}).length) put('app/pantry', S.pantry);
-  if (Object.keys(S.prefs.rating || {}).length || (S.prefs.foods || []).length || Object.keys(S.prefs.products || {}).length) put('app/prefs', S.prefs);
+  if (Object.keys(S.prefs.rating || {}).length || (S.prefs.foods || []).length || Object.keys(S.prefs.products || {}).length || Object.keys(S.prefs.rec || {}).length) put('app/prefs', S.prefs);
   if (Object.keys(S.body.waist || {}).length || S.body.blood) put('app/body', S.body);
   for (const c of ['days', 'shop', 'training']) for (const k in S[c]) put(c + '/' + k, S[c][k]);
 }
@@ -1369,7 +1384,7 @@ function effDinner(j) { // co se večer j opravdu vařilo (po náhradách a vým
   if (r.swap.vecere && MEALS[r.swap.vecere]) m = r.swap.vecere;
   return m;
 }
-function dayRec(k) { const r = S.days[k] || {}; return { done: { ...(r.done || {}) }, part: { ...(r.part || {}) }, swap: { ...(r.swap || {}) }, skip: { ...(r.skip || {}) }, extras: (r.extras || []).map(x => ({ ...x })), quick: !!r.quick, gi: r.gi || null }; }
+function dayRec(k) { const r = S.days[k] || {}; return { done: { ...(r.done || {}) }, part: { ...(r.part || {}) }, swap: { ...(r.swap || {}) }, skip: { ...(r.skip || {}) }, extras: (r.extras || []).map(x => ({ ...x })), quick: !!r.quick, gi: r.gi || null, ing: JSON.parse(JSON.stringify(r.ing || {})) }; }
 function saveDay(k, r) { S.days[k] = r; persist('days/' + k, r); }
 // ===== Přesné hodnoty od rutiny Claude: záznam „hledám…“ se doplní, až na serveru přijde výsledek =====
 function lkEntries(id, v, base) {
@@ -1439,7 +1454,16 @@ function bombSnack(k, meal, i) { // kaloričtější svačina, ale pořád pestr
   const near = i == null ? new Set() : nearMeals(i), f = c.filter(id => !near.has(id));
   return best(f.length ? f : c, id => hash01(k + '|bomb|' + id));
 }
-function itemIng(x) { const a = MEALS[x.meal].ing.map(([i, q]) => [i, q * x.mult]); return x.boost ? a.concat(x.boost) : a; }
+// ===== Vlastní množství surovin =====
+// Jen dnes: den.ing[slot] = { m: jídlo, q: { surovina: množství v téhle porci } } – platí jen pro to jídlo v ten den (výměna ho zruší).
+// Natrvalo: prefs.rec[jídlo] = { from: den, q: { surovina: množství na 1 porci } } – „vařím to tak vždycky“, platí od toho dne dál,
+// takže dřívější dny se nepřepočítají. Generátor jídelníčku počítá dál s původním receptem, ať se minulé dny nepřeházejí.
+function hasOwnRecipe(id, k) { const pr = S.prefs && S.prefs.rec && S.prefs.rec[id]; return !!(pr && pr.q && (!k || !pr.from || k >= pr.from)); }
+function recipeIng(id, k) { return hasOwnRecipe(id, k) ? Object.entries(S.prefs.rec[id].q).filter(([i, q]) => ING[i] && q > 0) : MEALS[id].ing.map(([i, q]) => [i, q]); }
+function recStats(id, mult = 1, k) { return hasOwnRecipe(id, k) ? ingStats(recipeIng(id, k).map(([i, q]) => [i, q * mult])) : mealStats(id, mult); }
+function dayIng(rec, slotK, meal) { const o = rec && rec.ing && rec.ing[slotK]; return o && o.m === meal && o.q ? Object.entries(o.q).filter(([i]) => ING[i]).map(([i, q]) => [i, Number(q) || 0]) : null; }
+function sameIng(a, b) { const A = Object.fromEntries(a.filter(([, q]) => q > 0)), B = Object.fromEntries(b.filter(([, q]) => q > 0)); const ks = new Set([...Object.keys(A), ...Object.keys(B)]); for (const i of ks) if (Math.abs((A[i] || 0) - (B[i] || 0)) > 0.01) return false; return true; }
+function itemIng(x) { const a = (x.ing || MEALS[x.meal].ing.map(([i, q]) => [i, q * x.mult])).map(([i, q]) => [i, q]); return x.boost ? a.concat(x.boost) : a; }
 function itemDelta(x, sign) { const d = {}; for (const [i, q] of itemIng(x)) d[i] = (d[i] || 0) + sign * q; return d; }
 function bombEffective(st) { const m = st.bomb || 'auto'; return m === 'on' || (m === 'auto' && !!st.bombNow && curWeek() >= 3); }
 function rating(id) { return (S.prefs.rating || {})[id] || 0; }
@@ -1470,20 +1494,24 @@ function planFor(k, opts = {}) {
     if (!opts.base && !lo) { const sub = subFor(meal, s.k, k, rec.quick, i); if (sub) { meal = sub.id; planned = sub.id; auto = sub.reason; } }
     if (bomb && s.k === 'svacina' && !rec.swap[s.k]) { const dense = bombSnack(k, meal, i); if (dense) { meal = dense; planned = dense; auto = auto || 'bomb'; } }
     if (rec.swap[s.k] && MEALS[rec.swap[s.k]]) { meal = rec.swap[s.k]; if (meal !== planned) lo = false; }
-    const st = mealStats(meal, mult), m = wakeMin() + s.off, cat = MEALS[meal].cat;
+    let ing = raw ? null : dayIng(rec, s.k, meal), ingTag = ing ? 'day' : '';
+    if (!ing && lo && !raw) { ing = dayIng(dayRec(addDays(k, -1)), 'vecere', meal); if (ing) ingTag = 'lo'; } // zbytek = stejné množství jako včerejší večeře
+    const own = hasOwnRecipe(meal, k), baseIng = recipeIng(meal, k).map(([i, q]) => [i, q * mult]);
+    if (!ing) { ing = baseIng; if (own) ingTag = 'own'; }
+    const st = ingTag ? ingStats(ing) : mealStats(meal, mult), m = wakeMin() + s.off, cat = MEALS[meal].cat;
     const boost = bomb && s.k !== 'turbo' && BOOST[cat] ? BOOST[cat].ing : null;
-    let kcal = st.kcal, b = st.b, cost = mealCost(meal, mult);
+    let kcal = st.kcal, b = st.b, cost = ingTag ? st.kc : mealCost(meal, mult);
     if (boost) { const bs = ingStats(boost); kcal += bs.kcal; b += bs.b; cost += bs.kc; }
     const nsw = raw ? null : (S.days[addDays(k, 1)] || {}).swap;
     const cook2 = s.k === 'vecere' && !!next.lo && leftoverOk(meal) && !(nsw && nsw.obed);
-    out.push({ slot: s, meal, planned, auto, mult, m, time: minLabel(m), kcal, b, cost, boost, boostTxt: boost ? BOOST[cat].txt : '', lo, cook2, done: !!rec.done[s.k], skip: !rec.done[s.k] && !!rec.skip[s.k] });
+    out.push({ slot: s, meal, planned, auto, mult, m, time: minLabel(m), kcal, b, cost, ing, baseIng, ingTag, boost, boostTxt: boost ? BOOST[cat].txt : '', lo, cook2, done: !!rec.done[s.k], skip: !rec.done[s.k] && !!rec.skip[s.k] });
   }
   return out;
 }
 function extrasFor(k) {
   return dayRec(k).extras.map((x, i) => {
     if (x.c) return { i, custom: true, name: x.c.n, mult: 1, time: x.t, kcal: Number(x.c.kcal) || 0, b: Number(x.c.b) || 0, lk: x.lk || '', st: x.st || '', src: x.z || '', k1: x.k1 || 0 };
-    const st = mealStats(x.m, x.x); return { i, meal: x.m, name: MEALS[x.m].n + (x.x !== 1 ? ` (${fracLabel(x.x)})` : ''), mult: x.x, time: x.t, kcal: st.kcal, b: st.b };
+    const st = recStats(x.m, x.x, k); return { i, meal: x.m, name: MEALS[x.m].n + (x.x !== 1 ? ` (${fracLabel(x.x)})` : ''), mult: x.x, time: x.t, kcal: st.kcal, b: st.b };
   });
 }
 function dayTotals(k) {
@@ -1506,13 +1534,35 @@ function setEaten(k, s, f) { // f = podíl porce, 0 = zrušit „snědeno“
   if (x && pantryActive() && was !== (f > 0)) adjStock(itemDelta(x, f > 0 ? -1 : 1)); // uvařilo se celé jídlo, i když se snědla jen část
   return f > 0;
 }
+function setIngAmount(k, slotK, ingKey, q) { // q = množství v téhle porci; vrací { before, after } kcal
+  const x0 = planFor(k).find(y => y.slot.k === slotK); if (!x0 || !ING[ingKey]) return null;
+  const cur = x0.ing.map(([i, v]) => [i, v]), j = cur.findIndex(([i]) => i === ingKey), v = Math.max(0, Math.round(q * 100) / 100);
+  if (j >= 0) cur[j][1] = v; else if (v > 0) cur.push([ingKey, v]);
+  const r = dayRec(k);
+  if (sameIng(cur, x0.baseIng)) delete r.ing[slotK]; else r.ing[slotK] = { m: x0.meal, q: Object.fromEntries(cur) };
+  saveDay(k, r); return syncEaten(k, slotK, x0);
+}
+function resetIng(k, slotK) { const x0 = planFor(k).find(y => y.slot.k === slotK), r = dayRec(k); if (!x0) return null; delete r.ing[slotK]; saveDay(k, r); return syncEaten(k, slotK, x0); }
+function syncEaten(k, slotK, x0) { // snědené kalorie a spíž po změně surovin
+  const x1 = planFor(k).find(y => y.slot.k === slotK), r = dayRec(k);
+  if (r.done[slotK]) { r.done[slotK] = Math.max(1, Math.round(x1.kcal * partOf(k, slotK))); saveDay(k, r); }
+  if (x0.done && pantryActive()) { const d = {}; for (const [i, q] of x0.ing) d[i] = (d[i] || 0) + q; for (const [i, q] of x1.ing) d[i] = (d[i] || 0) - q; adjStock(d); }
+  return { before: x0.kcal, after: x1.kcal };
+}
+function saveOwnRecipe(k, slotK) { // „vařím to tak vždycky“: množství z téhle porce na 1 porci, platí od toho dne
+  const x = planFor(k).find(y => y.slot.k === slotK); if (!x) return;
+  const per = {}; for (const [i, q] of x.ing) if (q > 0) per[i] = Math.round(q / (x.mult || 1) * 100) / 100;
+  S.prefs = { ...S.prefs, rec: { ...(S.prefs.rec || {}), [x.meal]: { from: k < todayKey() ? k : todayKey(), q: per } } }; persist('app/prefs', S.prefs);
+  const r = dayRec(k); if (r.ing[slotK]) { delete r.ing[slotK]; saveDay(k, r); }
+}
+function dropOwnRecipe(id) { const rec = { ...(S.prefs.rec || {}) }; delete rec[id]; S.prefs = { ...S.prefs, rec }; persist('app/prefs', S.prefs); }
 function lostKcal(k) { // co dnes propadlo (vynechané jídlo, nedojedená porce) a extra jídlem se ještě nedorovnalo
   let lost = 0;
   for (const x of planFor(k)) { if (x.skip) lost += x.kcal; else if (x.done) lost += x.kcal * (1 - partOf(k, x.slot.k)); }
   return Math.max(0, Math.round(lost - dayTotals(k).ek));
 }
 function fillOptions(gap, n = 3) { // nejrychlejší doplňky velikostí podle mezery: jeden kus, nebo dva různé
-  const base = EXTRAS.map(([m, x]) => { const st = mealStats(m, x); return { m, x, n: MEALS[m].n + (x !== 1 ? ' (½)' : ''), kcal: st.kcal, b: st.b, min: MEALS[m].min }; });
+  const base = EXTRAS.map(([m, x]) => { const st = recStats(m, x, todayKey()); return { m, x, n: MEALS[m].n + (x !== 1 ? ' (½)' : ''), kcal: st.kcal, b: st.b, min: MEALS[m].min }; });
   const cands = base.map(a => [a]);
   for (let i = 0; i < base.length; i++) for (let j = i + 1; j < base.length; j++) if (base[i].m !== base[j].m) cands.push([base[i], base[j]]);
   const sum = c => c.reduce((a, o) => a + o.kcal, 0), g = Math.max(gap, 150);
@@ -1598,7 +1648,7 @@ function unitPrice(i) { const p = priceOverride(i); return p ? p.unit : ING[i].p
 function mealCost(meal, mult) { let c = 0; for (const [i, q] of MEALS[meal].ing) c += unitPrice(i) * q * mult; return c; }
 
 // ===== Spíž a nákup =====
-function mealDelta(meal, mult, sign) { const d = {}; for (const [i, q] of MEALS[meal].ing) d[i] = (d[i] || 0) + sign * q * mult; return d; }
+function mealDelta(meal, mult, sign) { const d = {}; for (const [i, q] of recipeIng(meal, todayKey())) d[i] = (d[i] || 0) + sign * q * mult; return d; }
 function stock() { return (S.pantry && S.pantry.stock) || {}; }
 function pantryActive() { return Object.keys(stock()).length > 0 || Object.values(S.shop || {}).some(w => w && w.checked && Object.keys(w.checked).length); }
 function adjStock(delta) {
@@ -1678,7 +1728,7 @@ function engine() {
   const curKg = currentKg() ?? s.startKg, maint = maintAt(curKg);
   const wk = Math.max(3, curWeek());
   const baseAvg = mean(weekKeys(wk).map(k => planFor(k, { base: true }).reduce((a, x) => a + x.kcal, 0)));
-  const addK = s.add > 0 ? mealStats('shake', addMult(s.add)).kcal : 0, planAvg = baseAvg + addK;
+  const addK = s.add > 0 ? recStats('shake', addMult(s.add), t0).kcal : 0, planAvg = baseAvg + addK;
   const planDays = win.length ? mean(win.map(k => dayTotals(k).kcal)) : planAvg;
   const avgIn = logged.length ? mean(logged.map(k => dayTotals(k).dk)) : null;
   const conf = tr && logged.length >= 5 ? Math.min(1, logged.length / 12) * Math.min(1, tr.n / 8) : 0;
@@ -1784,7 +1834,7 @@ function syncPlan() {
   const e = engine();
   const body = { v: 1, today: t0, tz: 'Europe/Prague', wake: S.settings.wake, add: S.settings.add, goalKg: S.settings.goalKg, goalDate: S.settings.goalDate,
     engine: { tdee: Math.round(e.tdee), targetKcal: Math.round(e.Istar), kgPerWeekNeeded: Math.round(e.rateNeed * 70) / 10, curKg: Math.round(e.curKg * 10) / 10 },
-    extras: EXTRAS.map(([m, x]) => ({ n: MEALS[m].n + (x !== 1 ? ' (½)' : ''), kcal: Math.round(mealStats(m, x).kcal) })), days };
+    extras: EXTRAS.map(([m, x]) => ({ n: MEALS[m].n + (x !== 1 ? ' (½)' : ''), kcal: Math.round(recStats(m, x, t0).kcal) })), days };
   const j = JSON.stringify(body); if (j === lastPlanJSON) return; lastPlanJSON = j;
   persist('app/plan', { ...body, updated: new Date().toISOString() });
 }
@@ -2294,7 +2344,7 @@ function recipeMatches(id) {
 }
 function recipeRows() {
   const q = (UI.rq || '').trim();
-  const list = Object.keys(MEALS).filter(id => MEALS[id].cat !== 'E' && recipeMatches(id)).map(id => ({ id, ...mealStats(id), cost: mealCost(id, 1) }))
+  const list = Object.keys(MEALS).filter(id => MEALS[id].cat !== 'E' && recipeMatches(id)).map(id => { const st = recStats(id, 1, todayKey()); return { id, ...st, cost: hasOwnRecipe(id, todayKey()) ? st.kc : mealCost(id, 1) }; })
     .sort((a, b) => (q ? 'SXHV'.indexOf(MEALS[a.id].cat) - 'SXHV'.indexOf(MEALS[b.id].cat) : 0) || MEALS[a.id].n.localeCompare(MEALS[b.id].n, 'cs'));
   if (!list.length) return sec('', `<div class="row"><span class="row-text"><span class="row-title">Nic nenalezeno</span><span class="row-sub">Zkus jiné slovo nebo filtr Vše.</span></span></div>`);
   return sec(q ? `${list.length} ${plural(list.length, 'recept', 'recepty', 'receptů')}` : '', list.map(x => { const m = MEALS[x.id], [ic, col] = CAT_STYLE[m.cat], r = rating(x.id); return `<button class="row has-tile" data-act="recipe" data-meal="${x.id}">${tile(ic, col)}<span class="row-text"><span class="row-title">${esc(m.n)}</span><span class="row-sub">${q ? CAT_N[m.cat].replace('Hlavní jídla', 'Hlavní') + ' · ' : ''}${m.min} min · ${kc(x.b)} g B · ~${kc(x.cost)} Kč${m.cold ? ' · bez vaření' : ''}${m.prep ? ' · dopředu' : ''}</span></span><span class="row-trail">${r === 1 ? `<span class="rate up" aria-label="Chutná mi">${ICO.up}</span>` : r === -1 ? `<span class="rate dn" aria-label="Nechci">${ICO.down}</span>` : ''}<span class="num">${kc(x.kcal)}</span>${ICO.chevron}</span></button>`; }).join(''),
@@ -2358,7 +2408,7 @@ function mealSheet(o, keep) {
   if (o.slot) { x = planFor(UI.date).find(y => y.slot.k === o.slot); if (!x) return; id = x.meal; mult = x.mult; }
   if (!keep) UI.portions = x && x.cook2 ? 2 : 1;
   const m = MEALS[id], f = mult * UI.portions, h = [], r = rating(id);
-  const st = x ? { kcal: x.kcal, b: x.b } : mealStats(id, f), costNow = x ? x.cost : mealCost(id, f);
+  const own = hasOwnRecipe(id, UI.date), st0 = recStats(id, f, UI.date), st = x ? { kcal: x.kcal, b: x.b } : st0, costNow = x ? x.cost : own ? st0.kc : mealCost(id, f);
   h.push(`<div><h2 class="t-title2">${esc(m.n)}</h2><div class="chips" style="margin:0 4px"><span class="chip tint num">${kc(st.kcal)} kcal</span><span class="chip">${kc(st.b)} g bílkovin</span><span class="chip">~${kc(costNow)} Kč</span><span class="chip">${x && x.lo ? 'jen ohřát' : m.min + ' min'}</span>${mealTags(m).map(t => `<span class="chip">${esc(t)}</span>`).join('')}</div></div>`);
   if (x) {
     const rows = [`<div class="row" style="padding-block:12px;flex-direction:column;align-items:stretch;gap:8px"><span class="row-sub">${x.done ? 'Snědl jsem' : 'Kolik jsi snědl?'}</span>${portionGrid(x, UI.date, true)}</div>`];
@@ -2370,16 +2420,44 @@ function mealSheet(o, keep) {
       : x.lo ? 'Zbytek ze včerejší večeře: ohřej v mikrovlnce 2–3 minuty. Když jsi včera vařil něco jiného, klepni na Vyměnit.' : x.cook2 ? 'Suroviny níž jsou na 2 porce. Druhou dej do krabičky, zítra je to oběd.' : '';
     h.push(sec(`${x.slot.n} · ${x.time}`, rows.join(''), foot));
   }
-  if (m.cat !== 'E') h.push(sec('Jak ti chutná?', `<div class="row" style="padding-block:10px"><div class="seg" style="width:100%" role="group" aria-label="Hodnocení"><button data-act="rate" data-meal="${id}" data-v="1" aria-pressed="${r === 1}"><span class="rate-i">${ICO.up}</span> Chutná mi</button><button data-act="rate" data-meal="${id}" data-v="-1" aria-pressed="${r === -1}"><span class="rate-i">${ICO.down}</span> Nechci v plánu</button></div></div>`, r === -1 ? 'V plánu se nahradí podobným jídlem, nákupní seznam se přepočítá.' : ''));
   const pl = UI.portions > 1 ? `${UI.portions} porce` : (mult !== 1 ? `${fracLabel(mult)} porce` : '1 porce');
-  h.push(sec('Suroviny', m.ing.map(([k, q, note]) => `<div class="row"><span class="num" style="min-width:74px;font-weight:600">${fmtAmt(q * f, ING[k].u)}</span><span class="row-text"><span class="row-title">${esc(ING[k].n)}</span>${note && f === 1 ? `<span class="row-sub">${esc(note)}</span>` : ''}</span></div>`).join(''), '', `<span class="act stepper" style="margin-block:-6px"><button data-act="portions" data-d="-1" aria-label="Méně porcí">−</button><i></i><span>${pl}</span><i></i><button data-act="portions" data-d="1" aria-label="Více porcí">+</button></span>`));
+  const pStep = `<span class="act stepper" style="margin-block:-6px"><button data-act="portions" data-d="-1" aria-label="Méně porcí">−</button><i></i><span>${pl}</span><i></i><button data-act="portions" data-d="1" aria-label="Více porcí">+</button></span>`;
+  if (x) h.push(ingSec(x, m, pl, pStep));
+  else h.push(sec(own ? 'Suroviny · tvůj recept' : 'Suroviny', recipeIng(id, UI.date).map(([k, q]) => { const note = (m.ing.find(e => e[0] === k) || [])[2]; return `<div class="row"><span class="num" style="min-width:74px;font-weight:600">${fmtAmt(q * f, ING[k].u)}</span><span class="row-text"><span class="row-title">${esc(ING[k].n)}</span>${note && f === 1 && !own ? `<span class="row-sub">${esc(note)}</span>` : ''}</span></div>`; }).join('')
+    + (own ? `<button class="row has-tile" data-act="recreset" data-meal="${id}">${tile('close', 'gray')}<span class="row-text"><span class="row-title tint">Vrátit původní recept</span><span class="row-sub">${esc(MEALS[id].ing.map(([k, q]) => fmtAmt(q, ING[k].u) + ' ' + ING[k].n.toLowerCase()).slice(0, 3).join(', '))}…</span></span></button>` : ''),
+    own ? 'Množství sis upravil podle toho, jak to vaříš. Platí pro plán i nákup.' : 'Množství změníš v detailu jídla v plánu dne.', pStep));
+  if (m.cat !== 'E') h.push(sec('Jak ti chutná?', `<div class="row" style="padding-block:10px"><div class="seg" style="width:100%" role="group" aria-label="Hodnocení"><button data-act="rate" data-meal="${id}" data-v="1" aria-pressed="${r === 1}"><span class="rate-i">${ICO.up}</span> Chutná mi</button><button data-act="rate" data-meal="${id}" data-v="-1" aria-pressed="${r === -1}"><span class="rate-i">${ICO.down}</span> Nechci v plánu</button></div></div>`, r === -1 ? 'V plánu se nahradí podobným jídlem, nákupní seznam se přepočítá.' : ''));
   if (x && x.boost) h.push(sec('Kalorická bomba', x.boost.map(([k, q]) => `<div class="row has-tile">${tile('flame', 'red')}<span class="row-text"><span class="row-title">+ ${fmtAmt(q, ING[k].u)} ${esc(ING[k].n.toLowerCase())}</span><span class="row-sub">${esc(x.boostTxt)}</span></span><span class="row-trail"><span class="num" style="color:var(--green-text)">+${kc(ingStats(x.boost).kcal)}</span></span></div>`).join(''), 'Bomba přidává kalorie s minimem objemu navíc. Vypneš ji v Nastavení → Tempo.'));
-  h.push(sec('Postup', `<ol class="steps">${m.steps.map(s => `<li><span>${esc(s)}</span></li>`).join('')}</ol>`, UI.portions > 1 ? `Množství v postupu jsou na 1 porci, vezmi je ${UI.portions}× (přesně jsou v surovinách).` : ''));
+  const changedIng = (x && x.ingTag) || own;
+  h.push(sec('Postup', `<ol class="steps">${m.steps.map(s => `<li><span>${esc(s)}</span></li>`).join('')}</ol>`, changedIng ? 'Čísla v postupu jsou podle původního receptu, platí množství v surovinách.' : UI.portions > 1 ? `Množství v postupu jsou na 1 porci, vezmi je ${UI.portions}× (přesně jsou v surovinách).` : ''));
   openSheet(o.slot ? DAYS[dowOf(UI.date)] + ' ' + shortDate(UI.date) : CAT_N[m.cat], h.join(''));
 }
 function portionGrid(x, k, close) {
   const cur = x.done ? partOf(k, x.slot.k) : 0;
   return `<div class="portions" role="group" aria-label="Snědená porce">${PORTIONS.map(([f, n]) => `<button class="pbtn" data-act="portion" data-slot="${x.slot.k}" data-f="${f}" ${close ? 'data-close="1"' : ''} aria-pressed="${cur === f}"><b>${n}</b><span class="num">${kc(x.kcal * f)} kcal</span></button>`).join('')}</div>`;
+}
+function qStep(u, q) { return u === 'ks' ? (q < 1 ? 0.25 : q < 4 ? 0.5 : 1) : q < 30 ? 5 : q < 120 ? 10 : q < 400 ? 25 : 50; }
+function qFmt(q) { return fmtNum(Math.round(q * 100) / 100, Math.round(q * 100) % 100 ? (Math.round(q * 100) % 10 ? 2 : 1) : 0); }
+function ingSec(x, m, pl, pStep) { // suroviny jídla v plánu: množství jde přepsat, kalorie se přepočítají hned
+  const P = UI.portions || 1, base = Object.fromEntries(x.baseIng), notes = Object.fromEntries(m.ing.map(([k, , n]) => [k, n]));
+  const rows = x.ing.map(([k, q]) => {
+    const g = ING[k], b0 = base[k] || 0, chg = Math.abs(q - b0) > 0.01, dk = ingStats([[k, q]]).kcal - ingStats([[k, b0]]).kcal;
+    const sub = chg ? `${b0 ? `v receptu ${fmtAmt(b0 * P, g.u)}` : 'přidáno'} · <b class="${dk >= 0 ? 'plus' : 'minus'}">${dk >= 0 ? '+' : '−'}${kc(Math.abs(dk))} kcal</b>` : notes[k] && P === 1 ? esc(notes[k]) : `${kc(ingStats([[k, q]]).kcal)} kcal`;
+    return `<div class="row ingr${chg ? ' chg' : ''}"><span class="row-text"><span class="row-title">${esc(g.n)}</span><span class="row-sub">${sub}</span></span>
+      <span class="stepper qty"><button data-act="ingd" data-slot="${x.slot.k}" data-i="${k}" data-d="-1" aria-label="Méně: ${esc(g.n)}">−</button><input class="qin num" data-slot="${x.slot.k}" data-ing="${k}" value="${qFmt(q * P)}" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="${esc(g.n)} v ${g.u === 'ks' ? 'kusech' : g.u}"><span class="qu">${g.u}</span><button data-act="ingd" data-slot="${x.slot.k}" data-i="${k}" data-d="1" aria-label="Víc: ${esc(g.n)}">+</button></span></div>`;
+  }).join('');
+  const have = new Set(x.ing.map(([k]) => k)), add = Object.keys(ING).filter(k => !have.has(k) && ING[k].kcal > 0).sort((a, b) => ING[a].n.localeCompare(ING[b].n, 'cs'));
+  const addRow = `<form class="row" data-form="ingadd" data-slot="${x.slot.k}" style="gap:8px;padding-block:10px"><select class="sel" id="ing-add" aria-label="Přidat surovinu" style="flex:1;min-width:0"><option value="">+ Přidat surovinu…</option>${add.map(k => `<option value="${k}">${esc(ING[k].n)} (${ING[k].u})</option>`).join('')}</select><input class="cust-in num" id="ing-add-q" inputmode="decimal" placeholder="kolik" aria-label="Množství" style="width:76px;flex:none"><button class="btn pri sm" type="submit">Přidat</button></form>`;
+  const diff = x.kcal - (x.boost ? ingStats(x.boost).kcal : 0) - ingStats(x.baseIng).kcal, day = x.ingTag === 'day' || x.ingTag === 'lo';
+  const acts = day ? `<button class="row has-tile" data-act="ingsave" data-slot="${x.slot.k}">${tile('check', 'green')}<span class="row-text"><span class="row-title tint">Vařím to tak vždycky</span><span class="row-sub">Upravený recept platí i pro další dny a nákup</span></span></button><button class="row has-tile" data-act="ingreset" data-slot="${x.slot.k}">${tile('close', 'gray')}<span class="row-text"><span class="row-title tint">Vrátit podle receptu</span></span></button>`
+    : x.ingTag === 'own' ? `<button class="row has-tile" data-act="recreset" data-meal="${x.meal}" data-slot="${x.slot.k}">${tile('close', 'gray')}<span class="row-text"><span class="row-title tint">Vrátit původní recept</span><span class="row-sub">Tohle jídlo vaříš podle svého receptu</span></span></button>` : '';
+  const foot = x.ingTag === 'lo' ? 'Zbytek ze včerejší večeře, množství jsou podle toho, jak jsi ji vařil.' : day ? `Upraveno jen pro tohle jídlo: ${diff >= 0 ? '+' : '−'}${kc(Math.abs(diff))} kcal proti receptu.` : x.ingTag === 'own' ? 'Vaříš podle svého receptu. Přepsat množství jde i tady, platí jen pro tohle jídlo.' : `Dal jsi něčeho víc nebo míň? Přepiš množství${P > 1 ? ' (celé, za ' + P + ' porce)' : ''}, kalorie se přepočítají.`;
+  return sec('Suroviny', rows + addRow + acts, foot, pStep);
+}
+function ingChange(slotK, k, qPortion) { // qPortion = množství za všechny zobrazené porce
+  const P = UI.portions || 1, res = setIngAmount(UI.date, slotK, k, qPortion / P); if (!res) return;
+  const sh = document.getElementById('sheet'), sc = sh.scrollTop; mealSheet(UI.recipe, true); sh.scrollTop = sc; render();
+  const d = Math.round(res.after - res.before); if (d) toast(`${ING[k].n.split(' (')[0]} ${fmtAmt(qPortion, ING[k].u)} · ${d > 0 ? '+' : '−'}${kc(Math.abs(d))} kcal`);
 }
 function partSheet(s) {
   const k = UI.date, x = planFor(k).find(y => y.slot.k === s); if (!x) return;
@@ -2387,8 +2465,8 @@ function partSheet(s) {
 }
 function swapSheet(slotK) {
   const k = UI.date, x = planFor(k).find(y => y.slot.k === slotK); if (!x) return;
-  const cat = MEALS[x.planned].cat, base = mealStats(x.meal).kcal;
-  const opts = Object.keys(MEALS).filter(id => MEALS[id].cat === cat).map(id => ({ id, ...mealStats(id) })).sort((a, b) => Math.abs(a.kcal - base) - Math.abs(b.kcal - base));
+  const cat = MEALS[x.planned].cat, base = recStats(x.meal, 1, k).kcal;
+  const opts = Object.keys(MEALS).filter(id => MEALS[id].cat === cat).map(id => ({ id, ...recStats(id, 1, k) })).sort((a, b) => Math.abs(a.kcal - base) - Math.abs(b.kcal - base));
   const h = [`<h2 class="t-title2">Vyměnit jídlo</h2>`];
   if (x.meal !== x.planned) h.push(`<button class="btn block" data-act="doswap" data-slot="${slotK}" data-meal="">Vrátit podle plánu: ${esc(MEALS[x.planned].n)}</button>`);
   h.push(sec(`${x.slot.n} · ${DAYS[dowOf(k)]} ${shortDate(k)}`, opts.map(o => { const d = o.kcal - base, cur = o.id === x.meal, r = rating(o.id); return `<button class="row" data-act="doswap" data-slot="${slotK}" data-meal="${o.id}" ${cur ? 'aria-current="true"' : ''}><span class="row-text"><span class="row-title">${esc(MEALS[o.id].n)}${r === 1 ? ' ·  oblíbené' : r === -1 ? ' · nechceš' : ''}</span><span class="row-sub">${kc(o.kcal)} kcal · ${kc(o.b)} g B · ${MEALS[o.id].min} min</span></span><span class="row-trail">${cur ? `<span class="tint" style="width:22px;height:22px">${ICO.check}</span>` : `<span class="num" style="color:${d >= 0 ? 'var(--green-text)' : 'var(--red-text)'};font-weight:600">${d >= 0 ? '+' : '−'}${kc(Math.abs(d))}</span>`}</span></button>`; }).join(''), 'Nahoře jsou jídla s nejpodobnějšími kaloriemi. Nákupní seznam se přepočítá.'));
@@ -2794,7 +2872,7 @@ function extrasSheet() {
 function foodRow(o, fx) {
   if (o.p) { const p = (S.prefs.products || {})[o.p] || (UI.offRes || []).find(x => x.code === o.p); if (!p) return ''; const g = p.pk || p.sv || 100; return `<button class="row" data-act="prod" data-code="${esc(p.code || o.p)}"><span class="row-text"><span class="row-title">${esc(p.n)}</span><span class="row-sub">${p.pk ? `balení ${fmtNum(p.pk)} ${p.u || 'g'}` : `${fmtNum(g)} ${p.u || 'g'}`} · ${kc(p.b * g / 100)} g bílkovin</span></span><span class="row-trail"><span class="num" style="color:var(--green-text)">+${kc(p.k * g / 100)}</span>${ICO.chevron}</span></button>`; }
   if (o.f) { const f = FOOD[o.f]; return `<button class="row" data-act="fadd" data-f="${f.id}"><span class="row-text"><span class="row-title">${esc(f.n)}</span><span class="row-sub">${fx !== 1 ? fracLabel(fx) + '× ' : ''}${esc(f.p)} · ${kc(f.b * fx)} g bílkovin</span></span><span class="row-trail"><span class="num" style="color:var(--green-text)">+${kc(f.kcal * fx)}</span></span></button>`; }
-  const m = MEALS[o.m], x = (o.x || 1) * fx, st = mealStats(o.m, x);
+  const m = MEALS[o.m], x = (o.x || 1) * fx, st = recStats(o.m, x, UI.date);
   return `<button class="row" data-act="xadd" data-m="${o.m}" data-x="${x}"><span class="row-text"><span class="row-title">${esc(m.n)}${x !== 1 ? ` (${fracLabel(x)})` : ''}</span><span class="row-sub">${m.cat === 'E' ? 'rychlý doplněk' : 'recept z appky'} · ${kc(st.b)} g bílkovin</span></span><span class="row-trail"><span class="num" style="color:var(--green-text)">+${kc(st.kcal)}</span></span></button>`;
 }
 function foodList() {
@@ -2809,7 +2887,7 @@ function foodList() {
   const out = [], gap = UI.fgap || 0;
   const recent = ((S.prefs && S.prefs.foods) || []).map(id => id.startsWith('m:') ? (MEALS[id.slice(2)] ? { m: id.slice(2) } : null) : id.startsWith('p:') ? ((S.prefs.products || {})[id.slice(2)] ? { p: id.slice(2) } : null) : (FOOD[id] ? { f: id } : null)).filter(Boolean).slice(0, 8);
   if (recent.length) out.push(sec('Naposledy', recent.map(o => foodRow(o, fx)).join('')));
-  const quick = EXTRAS.map(([m, x]) => ({ m, x, kcal: mealStats(m, x).kcal }));
+  const quick = EXTRAS.map(([m, x]) => ({ m, x, kcal: recStats(m, x, UI.date).kcal }));
   if (gap > 0) quick.sort((a, b) => Math.abs(a.kcal - gap) - Math.abs(b.kcal - gap));
   out.push(sec('Rychlé doplňky', quick.map(o => foodRow(o, fx)).join(''), gap > 0 ? `Podle času ti teď chybí ${kc(gap)} kcal. Nejbližší dorovnání je nahoře.` : 'Jsi v plánu. Každá kalorie navíc tě posune rychleji.'));
   return out.join('');
@@ -3022,7 +3100,7 @@ document.addEventListener('click', e => {
   }
   else if (a === 'fill') {
     const k = UI.date, r = dayRec(k), tm = k === todayKey() ? minLabel(nowMin()) : ''; let sum = 0;
-    for (const it of b.dataset.items.split(',')) { const [m, xs] = it.split(':'), x = Number(xs); if (!MEALS[m]) continue; const kcal = Math.round(mealStats(m, x).kcal); r.extras.push({ m, x, kcal, t: tm }); sum += kcal; if (pantryActive()) adjStock(mealDelta(m, x, -1)); }
+    for (const it of b.dataset.items.split(',')) { const [m, xs] = it.split(':'), x = Number(xs); if (!MEALS[m]) continue; const kcal = Math.round(recStats(m, x, UI.date).kcal); r.extras.push({ m, x, kcal, t: tm }); sum += kcal; if (pantryActive()) adjStock(mealDelta(m, x, -1)); }
     saveDay(k, r); render(); toast(`Zapsáno +${kc(sum)} kcal`);
   }
   else if (a === 'fadd') {
@@ -3048,6 +3126,10 @@ document.addEventListener('click', e => {
   else if (a === 'manual') { if (b.dataset.lkdel) { const k = UI.date, r = dayRec(k), x = r.extras[UI.lkI]; if (x && x.lk) { r.extras.splice(UI.lkI, 1); saveDay(k, r); } } UI.fq = b.dataset.n || ''; extrasSheet(); setTimeout(() => { const n = document.getElementById('cx-n'); if (n) { n.value = b.dataset.n || ''; n.scrollIntoView({ block: 'center' }); } }, 350); }
   else if (a === 'fcat') { UI.fcat = UI.fcat === b.dataset.c ? '' : b.dataset.c; UI.fq = ''; const i = document.getElementById('f-q'); if (i) i.value = ''; document.querySelectorAll('[data-act=fcat]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.c === UI.fcat))); const l = document.getElementById('flist'); if (l) l.innerHTML = foodList(); }
   else if (a === 'fx') { UI.fx = Number(b.dataset.f); document.querySelectorAll('[data-act=fx]').forEach(x => x.setAttribute('aria-pressed', String(Number(x.dataset.f) === UI.fx))); const l = document.getElementById('flist'); if (l) l.innerHTML = foodList(); }
+  else if (a === 'ingd') { const x = planFor(UI.date).find(y => y.slot.k === b.dataset.slot); if (!x) return; const k = b.dataset.i, P = UI.portions || 1, cur = ((x.ing.find(e => e[0] === k) || [])[1] || 0) * P, st = qStep(ING[k].u, cur + (Number(b.dataset.d) < 0 ? -0.001 : 0)); ingChange(x.slot.k, k, Math.max(0, Math.round((cur + Number(b.dataset.d) * st) / st) * st)); }
+  else if (a === 'ingreset') { resetIng(UI.date, b.dataset.slot); const sh = document.getElementById('sheet'), sc = sh.scrollTop; mealSheet(UI.recipe, true); sh.scrollTop = sc; render(); toast('Podle receptu'); }
+  else if (a === 'ingsave') { saveOwnRecipe(UI.date, b.dataset.slot); const sh = document.getElementById('sheet'), sc = sh.scrollTop; mealSheet(UI.recipe, true); sh.scrollTop = sc; render(); toast('Uloženo jako tvůj recept'); }
+  else if (a === 'recreset') { const k = UI.date, x0 = b.dataset.slot ? planFor(k).find(y => y.slot.k === b.dataset.slot) : null; dropOwnRecipe(b.dataset.meal); if (x0) syncEaten(k, x0.slot.k, x0); const sh = document.getElementById('sheet'), sc = sh.scrollTop; mealSheet(UI.recipe, true); sh.scrollTop = sc; render(); toast('Původní recept'); }
   else if (a === 'closeday') {
     const k = b.dataset.k, how = b.dataset.how, n = closeMeals(k, (b.dataset.s || '').split(',').filter(Boolean), how);
     render(); if (n) toast(how === 'all' ? `Zapsáno ${n} ${plural(n, 'jídlo', 'jídla', 'jídel')}` : k === todayKey() ? 'Vynecháno, dožeň to extra jídlem' : 'Zapsáno jako vynechané');
@@ -3061,7 +3143,7 @@ document.addEventListener('click', e => {
   else if (a === 'swap') swapSheet(b.dataset.slot);
   else if (a === 'doswap') { const k = UI.date, r = dayRec(k), s = b.dataset.slot, m = b.dataset.meal, x = planFor(k).find(y => y.slot.k === s); if (!m || (x && m === x.planned)) delete r.swap[s]; else r.swap[s] = m; saveDay(k, r); closeSheet(); render(); toast('Vyměněno, nákup přepočítán'); }
   else if (a === 'extras') extrasSheet();
-  else if (a === 'xadd') { const k = UI.date, r = dayRec(k), m = b.dataset.m, x = Number(b.dataset.x); r.extras.push({ m, x, kcal: Math.round(mealStats(m, x).kcal), t: k === todayKey() ? minLabel(nowMin()) : '' }); saveDay(k, r); if (pantryActive()) adjStock(mealDelta(m, x, -1)); if (MEALS[m].cat !== 'E') rememberFood('m:' + m); UI.fq = ''; UI.fcat = ''; UI.fx = 1; closeSheet(); render(); toast(`Přidáno +${kc(mealStats(m, x).kcal)} kcal`); }
+  else if (a === 'xadd') { const k = UI.date, r = dayRec(k), m = b.dataset.m, x = Number(b.dataset.x); r.extras.push({ m, x, kcal: Math.round(recStats(m, x, k).kcal), t: k === todayKey() ? minLabel(nowMin()) : '' }); saveDay(k, r); if (pantryActive()) adjStock(mealDelta(m, x, -1)); if (MEALS[m].cat !== 'E') rememberFood('m:' + m); UI.fq = ''; UI.fcat = ''; UI.fx = 1; closeSheet(); render(); toast(`Přidáno +${kc(mealStats(m, x).kcal)} kcal`); }
   else if (a === 'xdel') { const k = UI.date, r = dayRec(k), it = r.extras[Number(b.dataset.i)]; r.extras.splice(Number(b.dataset.i), 1); saveDay(k, r); if (it && it.m && pantryActive()) adjStock(mealDelta(it.m, it.x, 1)); render(); }
   else if (a === 'close') closeSheet();
   else if (a === 'settings') settingsSheet();
@@ -3143,6 +3225,7 @@ document.addEventListener('submit', e => {
   } else if (f.matches('[data-form="ean"]')) { const v = (document.getElementById('ean-in').value || '').replace(/\D/g, ''); if (v.length < 8) { toast('Opiš celé číslo pod kódem (8 nebo 13 číslic)'); return; } document.activeElement && document.activeElement.blur(); gotCode(v); }
   else if (f.matches('[data-form="pgram"]')) { const g = num(document.getElementById('pg-in').value); if (!(g > 0 && g < 5000)) { toast('Zadej gramy, třeba 45'); return; } document.activeElement && document.activeElement.blur(); addProduct(UI.prod, g); }
   else if (f.matches('[data-form="lktoken"]')) lkSaveToken();
+  else if (f.matches('[data-form="ingadd"]')) { const k = (document.getElementById('ing-add') || {}).value, q = num((document.getElementById('ing-add-q') || {}).value); if (!k) { toast('Vyber surovinu'); return; } if (!(q > 0 && q < 5000)) { toast(`Zadej množství v ${ING[k].u}`); return; } document.activeElement && document.activeElement.blur(); ingChange(f.dataset.slot, k, q); }
   else if (f.matches('[data-form="lkg"]')) { const g = num(document.getElementById('lk-g').value); if (!(g > 0 && g < 5000)) { toast('Zadej množství, třeba 250'); return; } document.activeElement && document.activeElement.blur(); lkSetAmount(0, g); }
   else if (f.matches('[data-form="lkre"]')) { const v = (document.getElementById('lk-re').value || '').trim(); if (!v) return; const k = UI.date, r = dayRec(k); if (r.extras[UI.lkI] && r.extras[UI.lkI].lk) { r.extras.splice(UI.lkI, 1); saveDay(k, r); } document.activeElement && document.activeElement.blur(); lkStart(v); }
   else if (f.matches('[data-form="clbox"]')) { const v = (document.getElementById('cl-box') || {}).value || ''; document.activeElement && document.activeElement.blur(); clUse(v); }
@@ -3156,6 +3239,11 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', async e => {
   const id = e.target.id, val = e.target.value;
+  if (e.target.classList && e.target.classList.contains('qin')) { // přepsané množství suroviny
+    const q = num(val), slot = e.target.dataset.slot, k = e.target.dataset.ing;
+    if (q == null || q < 0 || q > 5000) { toast(`Zadej množství v ${ING[k].u}`); const sh = document.getElementById('sheet'), sc = sh.scrollTop; mealSheet(UI.recipe, true); sh.scrollTop = sc; return; }
+    ingChange(slot, k, q); return;
+  }
   if (id === 's-start' && val) { const k = addDays(val, -dowOf(val)); e.target.value = k; saveSettings({ start: k }); }
   else if (id === 's-wake') saveSettings({ wake: val });
   else if (id === 's-gym') saveSettings({ gym: Number(val) });
@@ -3186,7 +3274,7 @@ document.addEventListener('change', async e => {
   }
 });
 document.addEventListener('focusout', () => { setTimeout(() => { if (pendingRender) flushRender(); }, 0); });
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'f-q') { e.preventDefault(); const q = e.target.value.trim(); e.target.blur(); if (q.length >= 2) lkStart(q); return; } UI.kbd = e.key === 'Tab' || UI.kbd; if (e.key === 'Escape' && !document.getElementById('sheet').hidden) closeSheet(); });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('qin')) { e.preventDefault(); e.target.blur(); return; } if (e.key === 'Enter' && e.target.id === 'f-q') { e.preventDefault(); const q = e.target.value.trim(); e.target.blur(); if (q.length >= 2) lkStart(q); return; } UI.kbd = e.key === 'Tab' || UI.kbd; if (e.key === 'Escape' && !document.getElementById('sheet').hidden) closeSheet(); });
 document.addEventListener('pointerdown', () => { UI.kbd = false; }, { passive: true, capture: true });
 let tx = null, ty = null, tt = 0;
 for (const id of ['view', 'head']) { // tah prstem do strany přepne den (v hlavičce týden); jen jasně vodorovný a rychlý, ať se nesplete s rolováním

@@ -181,6 +181,14 @@ button.row:active, .row-main:active { background: var(--press); }
 .pbtn[aria-pressed="true"] { background: var(--tint); color: var(--on-tint); }
 .pbtn[aria-pressed="true"] span { color: inherit; opacity: .9; }
 .pbtn:active { transform: scale(.96); }
+.row.dlog { flex-direction: column; align-items: stretch; gap: 10px; padding-block: 12px; }
+.row.dlog .row-text { width: 100%; }
+.dseg button { padding: 0 2px; min-width: 0; font-variant-numeric: tabular-nums; }
+.dseg button[aria-pressed="true"][data-f="0"] { color: var(--red-text); }
+.row.dlog.focus { animation: dlflash 2.2s ease-out 1; }
+@keyframes dlflash { 0%, 35% { background: rgba(255,149,0,.16); } 100% { background: transparent; } }
+.card.dsum { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-block: 14px; }
+.dsum .sum-k b { font-size: 1.9rem; }
 .capbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .capbtn { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; border-radius: 20px; background: var(--card); font-weight: 600; font-size: .941rem; color: var(--tint-text); }
 .capbtn svg { width: 22px; height: 22px; flex: none; }
@@ -1089,7 +1097,7 @@ const FOODS = [
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish, FOODS, FOOD_CATS };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Verze 2: ťuknutím na widget zapíšeš jídlo rovnou tady, bez otevírání Safari.\n// Vzhled a nabídky si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(maxAgeH) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (age > maxAgeH * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\nasync function run(ctx, maxAgeH) {\n  const code = await core(maxAgeH);\n  if (!code) return { ok: false };\n  try {\n    const fn = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n    return { ok: true, res: await fn({ KEY, ANON, loader: 2, script: Script.name(), ...ctx }) };\n  } catch (e) { console.error(e); return { ok: false }; }\n}\nfunction fallback() {\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\nasync function preview() {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript. Ťuknutím na widget pak zapíšeš jídlo.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i < 0) return;\n  const fam = sizes[i][1], r = await run({ family: fam }, 0), w = r.ok && r.res ? r.res : fallback();\n  if (fam === 'small') await w.presentSmall();\n  else if (fam === 'large') await w.presentLarge();\n  else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n  else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n  else await w.presentMedium();\n}\n\nif (config.runsInWidget || config.runsInAccessoryWidget) {\n  const r = await run({ family: config.widgetFamily || 'medium' }, 6);\n  Script.setWidget(r.ok && r.res ? r.res : fallback());\n} else {\n  const params = (typeof args !== 'undefined' && args.queryParameters) || {};\n  const fromWidget = Object.keys(params).length > 0;\n  const r = await run({ mode: 'app', params }, fromWidget ? 6 : 0); // ruční spuštění si vždy stáhne nejnovější verzi\n  if (!r.ok) { const a = new Alert(); a.title = 'Plán 70 kg'; a.message = 'Nepodařilo se načíst. Spusť skript jednou s internetem.'; a.addAction('OK'); await a.presentAlert(); }\n  else if (r.res === 'preview') await preview();\n}\nScript.complete();\n";
-const APP_VERSION = '128c3b9b', APP_BUILT = '2026-10-06T18:40:44Z';
+const APP_VERSION = '3ecc5fd2', APP_BUILT = '2026-10-06T19:34:56Z';
 
 </script>
 <script>
@@ -2021,6 +2029,8 @@ function renderToday(head, v) {
     if (gi >= 2) h.push(noticeCard('warn', 'tint', `<b>Trávení zlobí ${gi}× za 4 dny.</b> Rozděl shake na dvě půlky a pij mezi jídly, ne k nim. ${giIssues(k, 7) >= 4 ? 'Trvá to přes týden, ukaž se praktikovi.' : ''}`, S.settings.add > 0 ? `<button class="btn sm" data-act="slower" style="margin-top:10px">Ubrat doplněk o ¼ shaku</button>` : ''));
   }
 
+  if (isToday) { const pn = pushNudge(); if (pn) h.push(pn); }
+
   // 3) Plán dne: časová osa, další jídlo je rozbalené
   const qchip = !isPast ? `<button class="hchip" data-act="quickday" aria-pressed="${rec.quick}">${ICO.bolt}<span>Rychlý den</span></button>` : '';
   h.push(sec('Plán dne', timeline(k, items, ex, rec, { isToday, nx, nm, i }), rec.quick && !isPast ? 'Rychlý den: jen jídla do 15 minut, kalorie zůstávají stejné.' : '', qchip));
@@ -2062,7 +2072,7 @@ function openCard(k, items, other) {
   const day = rel === 1 ? 'Včera' : `${capFirst(DAYS_FULL[dowOf(k)])} ${shortDate(k)}`;
   const txt = today ? `<b>Nemáš odškrtnuté: ${esc(names)}.</b> Snědl jsi to? Ať appka ví, kolik ti dnes chybí.`
     : `<b>${other ? day + ' zůstalo' : 'Zůstalo'} neodškrtnuté: ${esc(names)}.</b> Bez odpovědi appka neví, kolik jsi opravdu snědl, a tempo by přepočítala špatně.`;
-  return noticeCard('warn', 'tint', txt, `<div class="btns" style="margin-top:10px"><button class="btn sm pri" data-act="closeday" data-k="${k}" data-how="all" data-s="${slots}">${items.length > 1 ? 'Snědl jsem všechno' : 'Snědl jsem to'} · ${kc(kcal)} kcal</button><button class="btn sm" data-act="closeday" data-k="${k}" data-how="none" data-s="${slots}">${items.length > 1 ? 'Nic z toho' : 'Nesnědl'}</button>${other ? `<button class="btn sm" data-act="pick" data-k="${k}">Po jednom</button>` : ''}</div>`);
+  return noticeCard('warn', 'tint', txt, `<div class="btns" style="margin-top:10px"><button class="btn sm pri" data-act="closeday" data-k="${k}" data-how="all" data-s="${slots}">${items.length > 1 ? 'Snědl jsem všechno' : 'Snědl jsem to'} · ${kc(kcal)} kcal</button><button class="btn sm" data-act="closeday" data-k="${k}" data-how="none" data-s="${slots}">${items.length > 1 ? 'Nic z toho' : 'Nesnědl'}</button><button class="btn sm" data-act="daylog" data-k="${k}">${items.length > 1 ? 'Po jednom' : 'Jen část'}</button></div>`);
 }
 function summaryCard(k, items, ex, t, o) {
   const exK = ex.reduce((a, x) => a + x.kcal, 0);
@@ -2462,6 +2472,59 @@ function ingChange(slotK, k, qPortion) { // qPortion = množství za všechny zo
 function partSheet(s) {
   const k = UI.date, x = planFor(k).find(y => y.slot.k === s); if (!x) return;
   openSheet(`${x.slot.n} · ${x.time}`, `<div><h2 class="t-title2">Kolik jsi snědl?</h2><p class="t-sub l2" style="margin:4px 0 0">${esc(MEALS[x.meal].n)}</p></div>${portionGrid(x, k, true)}<p class="sec-f">Co chybí do celé porce, ti appka hned nabídne dorovnat něčím rychlým.</p>`);
+}
+// ---------- Zápis dne: všechna jídla na jednom místě ----------
+// Sem vede ťuknutí na notifikaci i „Po jednom“ u neodškrtnutého dne. U každého jídla jedna řada voleb
+// (celé, ¾, ½, ¼, nic), ukládá se hned. Tempo počítá jen uzavřené dny, takže tohle je nejkratší cesta,
+// jak den uzavřít bez hádání.
+const DLOG_F = [[1, 'Celé', 'celé'], [0.75, '¾', 'tři čtvrtiny'], [0.5, '½', 'polovinu'], [0.25, '¼', 'čtvrtinu'], [0, 'Nic', 'nic, vynechal jsem']];
+function dayLogItems(k) { // dnes jen jídla, jejichž čas už přišel (a co je zapsané), minulé dny celé
+  const all = planFor(k); if (k !== todayKey()) return all;
+  const nm = nowMin(), its = all.filter(x => x.done || x.skip || x.m <= nm + 30);
+  return its.length ? its : all;
+}
+function dayLogSheet(k, focus) {
+  if (idxOf(k) < 0 || k > todayKey()) return;
+  UI.dlog = { k };
+  const t0 = todayKey(), isT = k === t0, rel = dayDiff(k, t0), items = dayLogItems(k), all = planFor(k), t = dayTotals(k), ex = extrasFor(k);
+  const answered = items.filter(x => x.done || x.skip).length, closed = isClosed(k), restLater = all.length - items.length;
+  const rows = items.map(x => {
+    const cur = x.done ? partOf(k, x.slot.k) : x.skip ? 0 : null;
+    const st = cur == null ? '<b class="tint">neodškrtnuté</b>' : cur === 0 ? 'vynecháno' : cur < 1 ? `${kc(x.kcal * cur)} z ${kc(x.kcal)} kcal` : `${kc(x.kcal)} kcal`;
+    return `<div class="row dlog${cur == null ? ' open' : ''}${x.slot.k === focus ? ' focus' : ''}" id="dl-${x.slot.k}"><span class="row-text"><span class="row-title">${esc(MEALS[x.meal].n)}${x.mult !== 1 ? ` (${fracLabel(x.mult)})` : ''}</span><span class="row-sub">${x.slot.n} · ${x.time} · ${st}</span></span>
+      <div class="seg dseg" role="group" aria-label="${x.slot.n}: kolik jsi snědl">${DLOG_F.map(([f, n, al]) => `<button data-act="dlog" data-k="${k}" data-slot="${x.slot.k}" data-f="${f}" aria-pressed="${cur === f}" aria-label="${x.slot.n}: ${al}">${n}</button>`).join('')}</div></div>`;
+  }).join('');
+  const h = [`<div><h2 class="t-title2">${isT ? 'Co jsi dnes snědl?' : rel === 1 ? 'Co jsi včera snědl?' : 'Co jsi ten den snědl?'}</h2><p class="t-sub l2" style="margin:4px 0 0">Ťukni, kolik z každého jídla. Ukládá se hned.</p></div>`];
+  h.push(`<div class="card dsum"><div class="sum-k"><b class="num">${kc(t.dk)}</b><span>/ ${kc(t.kcal)} kcal</span></div><span class="tag ${answered === items.length ? 'ok' : 'next'}">Zapsáno ${answered} z ${items.length}</span></div>`);
+  h.push(sec('Jídla podle plánu', rows, restLater > 0 ? `${restLater === 1 ? 'Další jídlo je' : 'Další jídla jsou'} až později, zapíšeš ${restLater === 1 ? 'ho' : 'je'} v plánu dne.` : ''));
+  h.push(sec('Navíc', ex.map(x => `<div class="row"><span class="row-text"><span class="row-title">${esc(x.name)}</span>${x.time ? `<span class="row-sub">${esc(x.time)}</span>` : ''}</span><span class="row-trail num">${x.st === 'wait' ? 'hledám…' : x.st ? 'doplnit' : `+${kc(x.kcal)} kcal`}</span></div>`).join('')
+    + `<button class="row has-tile" data-act="dlogx" data-k="${k}">${tile('plus', 'blue')}<span class="row-text"><span class="row-title tint">Přidat, co jsi snědl navíc</span></span>${ICO.chevron}</button>`));
+  const done = answered === items.length;
+  h.push(`<button class="btn ${done ? 'pri' : ''} block" data-act="close">${done ? 'Hotovo' : 'Zbytek doplním později'}</button>`);
+  h.push(`<p class="sec-f" style="text-align:center">${closed ? (isT ? 'Celý den je zapsaný.' : 'Den je uzavřený, tempo ho započítá.') : done && isT ? 'Zatím máš zapsané všechno, co už mělo být.' : 'Tempo se počítá jen z uzavřených dní, kde má každé jídlo odpověď.'}</p>`);
+  openSheet(`${DAYS[dowOf(k)]} ${shortDate(k)}`, h.join(''));
+  if (focus) setTimeout(() => { const el = document.getElementById('dl-' + focus); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 120);
+}
+function dayLogSet(k, s, f) {
+  const wasClosed = isClosed(k), x = planFor(k).find(y => y.slot.k === s); if (!x) return;
+  const cur = x.done ? partOf(k, s) : x.skip ? 0 : null; if (cur === f) return;
+  if (f > 0) setEaten(k, s, f);
+  else { setEaten(k, s, 0); const r = dayRec(k); r.skip[s] = true; saveDay(k, r); }
+  const sh = document.getElementById('sheet'), sc = sh.scrollTop; dayLogSheet(k); sh.scrollTop = sc; render();
+  if (!wasClosed && isClosed(k)) { const tt = dayTotals(k); if (tt.pct >= 0.9 && k === todayKey()) { const sk = streak(); toast(sk >= 2 ? `Den splněn · ${sk} ${plural(sk, 'den', 'dny', 'dní')} v řadě` : 'Den splněn'); } else toast(k === todayKey() ? 'Den zapsaný' : 'Den uzavřený'); }
+}
+function deepLink(hash) { // z notifikace: #zapis=2026-10-06 nebo #zapis=2026-10-06.obed
+  const m = /^#?zapis=(\d{4}-\d{2}-\d{2})(?:\.([a-z0-9_]{2,20}))?$/.exec(hash || ''); if (!m) return false;
+  try { history.replaceState(null, '', location.pathname + location.search + '#dnes'); } catch (e) { }
+  const k = m[1], t0 = todayKey(), ok = idxOf(k) >= 0 && k <= t0;
+  UI.tab = 'dnes'; UI.date = ok ? k : t0; render(); window.scrollTo(0, 0);
+  if (ok && planFor(k).length) dayLogSheet(k, m[2] || null);
+  return true;
+}
+function pushNudge() { // notifikace jsou nejsilnější páka na zapisování; nabídne je, dokud je člověk nezapne nebo neodmítne
+  if (!pushSupported() || !isStandalone() || !SY.key || pushOnHere()) return '';
+  try { if (Notification.permission === 'denied' || Number(localStorage.getItem(LS_KEY + '.pushnudge') || 0) > Date.now()) return ''; } catch (e) { return ''; }
+  return noticeCard('bell', 'red', '<b>Zapni si připomínky jídel.</b> Ozvu se, když je čas jíst, a večer, když něco zůstane neodškrtnuté. Ťukneš na notifikaci a jídlo rovnou zapíšeš.', `<div class="btns" style="margin-top:10px"><button class="btn sm pri" data-act="pushon">Zapnout</button><button class="btn sm" data-act="pushlater">Teď ne</button></div>`);
 }
 function swapSheet(slotK) {
   const k = UI.date, x = planFor(k).find(y => y.slot.k === slotK); if (!x) return;
@@ -2958,7 +3021,7 @@ async function enablePush() {
     await pushCall('test');
     toast('Hotovo, poslal jsem zkušební notifikaci');
   } catch (e) { console.warn('push', e); toast('Notifikace se nepodařilo zapnout'); }
-  if (!document.getElementById('sheet').hidden) settingsSheet();
+  if (!document.getElementById('sheet').hidden) settingsSheet(); else render();
 }
 async function disablePush() {
   try {
@@ -2976,7 +3039,7 @@ function notifySec() {
       <label class="row"><span class="row-text"><span class="row-title">Připomenout jídlo v jeho čase</span></span><input type="checkbox" class="sw" id="n-meals" ${n.meals ? 'checked' : ''}></label>
       <label class="row"><span class="row-text"><span class="row-title">Ozvat se, když jídlo hodinu chybí</span></span><input type="checkbox" class="sw" id="n-late" ${n.late ? 'checked' : ''}></label>
       <div class="row" style="gap:8px;padding-block:12px"><button class="btn sm" data-act="pushtest">Poslat zkušební</button><button class="btn sm" data-act="pushoff" style="color:var(--red-text)">Vypnout</button></div>`;
-    foot = 'Časy se řídí plánem a budíkem. Odškrtnuté jídlo se už nepřipomíná.';
+    foot = 'Časy se řídí plánem a budíkem. Odškrtnuté jídlo se už nepřipomíná. Když večer chybí víc jídel, přijde jedna souhrnná; ťukneš na ni a zapíšeš je najednou.';
   } else if (!pushSupported() || !isStandalone()) {
     rows = `<div class="row has-tile">${tile('bell', 'gray')}<span class="row-text"><span class="row-title">Jen v appce na ploše</span><span class="row-sub">Otevři appku z ikony na ploše (iOS 16.4 a novější)</span></span></div>`;
     foot = 'iPhone posílá notifikace jen webovým appkám přidaným na plochu.';
@@ -3130,6 +3193,10 @@ document.addEventListener('click', e => {
   else if (a === 'ingreset') { resetIng(UI.date, b.dataset.slot); const sh = document.getElementById('sheet'), sc = sh.scrollTop; mealSheet(UI.recipe, true); sh.scrollTop = sc; render(); toast('Podle receptu'); }
   else if (a === 'ingsave') { saveOwnRecipe(UI.date, b.dataset.slot); const sh = document.getElementById('sheet'), sc = sh.scrollTop; mealSheet(UI.recipe, true); sh.scrollTop = sc; render(); toast('Uloženo jako tvůj recept'); }
   else if (a === 'recreset') { const k = UI.date, x0 = b.dataset.slot ? planFor(k).find(y => y.slot.k === b.dataset.slot) : null; dropOwnRecipe(b.dataset.meal); if (x0) syncEaten(k, x0.slot.k, x0); const sh = document.getElementById('sheet'), sc = sh.scrollTop; mealSheet(UI.recipe, true); sh.scrollTop = sc; render(); toast('Původní recept'); }
+  else if (a === 'daylog') dayLogSheet(b.dataset.k);
+  else if (a === 'dlog') dayLogSet(b.dataset.k, b.dataset.slot, Number(b.dataset.f));
+  else if (a === 'dlogx') { const k = b.dataset.k; if (UI.date !== k) { UI.date = k; render(); } extrasSheet(); }
+  else if (a === 'pushlater') { try { localStorage.setItem(LS_KEY + '.pushnudge', String(Date.now() + 7 * 864e5)); } catch (er) { } render(); toast('Dobře, zapneš je kdykoli v Nastavení'); }
   else if (a === 'closeday') {
     const k = b.dataset.k, how = b.dataset.how, n = closeMeals(k, (b.dataset.s || '').split(',').filter(Boolean), how);
     render(); if (n) toast(how === 'all' ? `Zapsáno ${n} ${plural(n, 'jídlo', 'jídla', 'jídel')}` : k === todayKey() ? 'Vynecháno, dožeň to extra jídlem' : 'Zapsáno jako vynechané');
@@ -3401,6 +3468,9 @@ setInterval(() => { if (UPD.pending && safeToReload()) { UPD.pending = false; ap
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { if (UPD.reg) UPD.reg.update().catch(() => { }); checkVersion(false); } });
 
 loadLocal(); UI.lastToday = todayKey(); render(); connect();
+setTimeout(() => deepLink(location.hash), 250);
+window.addEventListener('hashchange', () => deepLink(location.hash));
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { const d = e.data; if (d && d.type === 'nav' && typeof d.url === 'string') { try { deepLink(new URL(d.url).hash); } catch (er) { } } });
 try { if (sessionStorage.getItem(LS_KEY + '.updated')) { sessionStorage.removeItem(LS_KEY + '.updated'); setTimeout(() => toast('Appka je aktualizovaná'), 600); } } catch (e) { }
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   UPD.hadCtl = !!navigator.serviceWorker.controller;

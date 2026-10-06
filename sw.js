@@ -1,5 +1,5 @@
 // Plán 70 kg: offline režim. Appka se načítá z mezipaměti a na pozadí si stahuje novou verzi.
-const V = 'plan70-34ebad070d';
+const V = 'plan70-42bf168a1b';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
@@ -16,10 +16,16 @@ self.addEventListener('push', e => {
 });
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  const url = (e.notification.data && e.notification.data.url) || './';
-  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
-    for (const c of cs) if ('focus' in c) return c.focus();
-    return self.clients.openWindow(url);
+  const url = new URL((e.notification.data && e.notification.data.url) || './', self.registration.scope).href;
+  // appka už běží: přenést ji dopředu a předat odkaz (otevře zápis jídla); jinak ji otevřít rovnou na odkazu
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async cs => {
+    for (const c of cs) {
+      if (!('focus' in c)) continue;
+      try { await c.focus(); } catch (_) { }
+      c.postMessage({ type: 'nav', url });
+      return;
+    }
+    if (self.clients.openWindow) return self.clients.openWindow(url);
   }));
 });
 self.addEventListener('message', e => { if (e.data === 'skipWaiting') self.skipWaiting(); });

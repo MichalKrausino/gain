@@ -22,7 +22,7 @@
   /* iOS system colors (light). Secondary label darkened from .60 to .74 alpha to reach WCAG 4.5:1. */
   --bg: #F2F2F7; --card: #FFFFFF; --card-2: #F2F2F7; --label: #000000; --label-2: rgba(60,60,67,.74); --label-3: rgba(60,60,67,.42);
   --sep: rgba(60,60,67,.29); --fill: rgba(120,120,128,.20); --fill-2: rgba(120,120,128,.16); --fill-3: rgba(118,118,128,.12); --press: #D1D1D6;
-  --tint: #FF9500; --tint-text: #C93400; --on-tint: #000000;
+  --tint: #FF9500; --tint-text: #B52E00; /* #C93400 mělo na šedé výplni tlačítek jen 4,1 : 1 */ --on-tint: #000000;
   --green: #34C759; --green-ui: #248A3D; --green-text: #1F7A35; --red: #FF3B30; --red-text: #D70015;
   --blue: #007AFF; --indigo: #5856D6; --purple: #AF52DE; --pink: #FF2D55; --teal: #30B0C7; --yellow: #FFCC00; --brown: #A2845E; --gray: #8E8E93;
   --glass: rgba(255,255,255,.74); --glass-edge: rgba(255,255,255,.75); --glass-line: rgba(0,0,0,.06);
@@ -31,6 +31,8 @@
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-num: ui-rounded, 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --r-group: 26px; --r-card: 26px; --gutter: 16px;
+  --label-2f: rgba(60,60,67,.84); /* šedý text na šedé výplni (čipy): .74 tam má jen 4,4 : 1 */
+  --seg-on: #FFFFFF; /* vybraný díl přepínače: v tmavém musí být SVĚTLEJŠÍ než kolej (iOS #636366), jinak vypadá zamáčknutý */
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #000000; --card: #1C1C1E; --card-2: #2C2C2E; --label: #FFFFFF; --label-2: rgba(235,235,245,.62); --label-3: rgba(235,235,245,.34);
@@ -40,7 +42,7 @@
   --blue: #0A84FF; --indigo: #5E5CE6; --purple: #BF5AF2; --pink: #FF375F; --teal: #40C8E0; --yellow: #FFD60A; --brown: #AC8E68; --gray: #8E8E93;
   --glass: rgba(37,37,40,.74); --glass-edge: rgba(255,255,255,.14); --glass-line: rgba(255,255,255,.06);
   --glass-shadow: 0 10px 30px rgba(0,0,0,.5);
-  --edge-fade: rgba(0,0,0,.9); color-scheme: dark; } }
+  --edge-fade: rgba(0,0,0,.9); --seg-on: #636366; --seg-nic: #4A2523; --label-2f: rgba(235,235,245,.70); color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #000000; --card: #1C1C1E; --card-2: #2C2C2E; --label: #FFFFFF; --label-2: rgba(235,235,245,.62); --label-3: rgba(235,235,245,.34);
   --sep: rgba(84,84,88,.65); --fill: rgba(120,120,128,.36); --fill-2: rgba(120,120,128,.32); --fill-3: rgba(118,118,128,.24); --press: #3A3A3C;
@@ -49,7 +51,7 @@
   --blue: #0A84FF; --indigo: #5E5CE6; --purple: #BF5AF2; --pink: #FF375F; --teal: #40C8E0; --yellow: #FFD60A; --brown: #AC8E68; --gray: #8E8E93;
   --glass: rgba(37,37,40,.74); --glass-edge: rgba(255,255,255,.14); --glass-line: rgba(255,255,255,.06);
   --glass-shadow: 0 10px 30px rgba(0,0,0,.5);
-  --edge-fade: rgba(0,0,0,.9); color-scheme: dark; }
+  --edge-fade: rgba(0,0,0,.9); --seg-on: #636366; --seg-nic: #4A2523; --label-2f: rgba(235,235,245,.70); color-scheme: dark; }
 @media (prefers-contrast: more) { :root { --label-2: var(--label); --sep: rgba(60,60,67,.6); --glass: var(--card); } }
 
 /* Dynamic Type: on iPhone -apple-system-body follows the user's text size setting (17px at default). Everything below scales in rem. */
@@ -184,7 +186,7 @@ button.row:active, .row-main:active { background: var(--press); }
 .row.dlog { flex-direction: column; align-items: stretch; gap: 10px; padding-block: 12px; }
 .row.dlog .row-text { width: 100%; }
 .dseg button { padding: 0 2px; min-width: 0; font-variant-numeric: tabular-nums; }
-.dseg button[aria-pressed="true"][data-f="0"] { color: var(--red-text); }
+.dseg button[aria-pressed="true"][data-f="0"] { color: var(--red-text); background: var(--seg-nic, var(--seg-on)); } /* červené písmo na šedém dílu by mělo v tmavém 2,5 : 1 */
 .dl-alt { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; margin: -4px 0 -6px; color: var(--tint-text); font-size: .882rem; font-weight: 600; }
 .dl-alt svg { width: 15px; height: 15px; }
 .row.dlog.focus { animation: dlflash 2.2s ease-out 1; }
@@ -253,7 +255,7 @@ button.row:active, .row-main:active { background: var(--press); }
 /* Segmented control (capsule, iOS 26) */
 .seg { display: flex; background: var(--fill-3); border-radius: 99px; padding: 3px; gap: 2px; }
 .seg button { flex: 1; min-height: 44px; padding: 0 8px; border-radius: 99px; font-size: .882rem; font-weight: 500; white-space: nowrap; text-align: center; }
-.seg button[aria-pressed="true"] { background: var(--card); font-weight: 600; box-shadow: 0 3px 8px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04); }
+.seg button[aria-pressed="true"] { background: var(--seg-on); font-weight: 600; box-shadow: 0 3px 8px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04); }
 
 /* Switch (UISwitch 51×31) */
 .sw { appearance: none; -webkit-appearance: none; width: 51px; height: 31px; border-radius: 16px; background: var(--fill); position: relative; transition: background .2s; flex: none; margin: 0; cursor: pointer; }
@@ -310,6 +312,8 @@ button.row:active, .row-main:active { background: var(--press); }
 /* Plovoucí skleněný dok: 21 pt od boků i od spodní hrany DISPLEJE (ne od bezpečné zóny), takže je soustředný s rohy iPhonu (55 − 21 = 34). Domovský indikátor leží pod ním. */
 :root { --dock-bottom: max(21px, calc(env(safe-area-inset-bottom, 0px) - 13px)); }
 .tabbar { position: fixed; left: 21px; right: 21px; bottom: var(--dock-bottom); z-index: 40; max-width: 520px; margin: 0 auto; border-radius: 34px; padding: 5px; display: grid; grid-template-columns: repeat(5, 1fr); }
+.tabbar { transition: opacity .25s, transform .3s cubic-bezier(.2,.9,.25,1), visibility 0s; }
+body.sheet-on .tabbar, body.kb-on .tabbar { opacity: 0; transform: translateY(18px); visibility: hidden; pointer-events: none; transition: opacity .18s, transform .2s, visibility 0s linear .2s; }
 .tabbar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 56px; border-radius: 28px; font-size: .647rem; font-weight: 500; color: var(--label); letter-spacing: 0; }
 .tabbar button svg { width: 25px; height: 25px; }
 .tabbar button[aria-current="page"] { background: var(--fill-3); color: var(--tint-text); font-weight: 600; }
@@ -318,6 +322,12 @@ button.row:active, .row-main:active { background: var(--press); }
 /* Sheet: inset with concentric corners while partial, grabber, glass close button */
 .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.32); z-index: 60; opacity: 0; transition: opacity .25s; touch-action: none; }
 .scrim.open { opacity: 1; }
+/* tmavý panel o stupeň světlejší než stránka (iOS „elevated"): na černém papíře by černý panel splynul a nebylo by poznat, kde končí */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .sheet { --bg: #1C1C1E; --card: #2C2C2E; --card-2: #3A3A3C; --press: #48484A; --edge-fade: rgba(28,28,30,.9); } }
+:root[data-theme="dark"] .sheet { --bg: #1C1C1E; --card: #2C2C2E; --card-2: #3A3A3C; --press: #48484A; --edge-fade: rgba(28,28,30,.9); }
+/* vysoký panel zakryje velký titulek stránky až na cíp v zaobleném rohu – ten by vypadal jako kaz, tak titulek zmizí celý */
+#head .t-large { transition: opacity .2s; }
+body.sheet-tall #head .t-large { opacity: 0; }
 .sheet { position: fixed; left: 8px; right: 8px; bottom: calc(8px + max(env(safe-area-inset-bottom, 0px), var(--kb, 0px))); z-index: 61; max-height: calc(min(92vh, var(--vvh, 100vh) - 16px) - env(safe-area-inset-top, 0px)); overflow-y: auto; overscroll-behavior: none; background: var(--bg); border-radius: 36px; padding: 8px 16px 24px; transform: translateY(110%); transition: transform .34s cubic-bezier(.2,.9,.25,1); max-width: 584px; margin: 0 auto; box-shadow: 0 -2px 30px rgba(0,0,0,.18); -webkit-overflow-scrolling: touch; }
 .sheet.open { transform: none; }
 .sheet .grab { width: 36px; height: 5px; border-radius: 3px; background: var(--label-3); margin: 0 auto 6px; }
@@ -395,7 +405,7 @@ textarea::placeholder { color: var(--label-3); }
 .sum-meta b { color: var(--label); font-weight: 600; }
 
 /* Přepínač v hlavičce sekce */
-.hchip { margin: -10px 0 -10px auto; display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 13px; border-radius: 99px; background: var(--fill-3); color: var(--label-2); font-size: .824rem; font-weight: 600; }
+.hchip { margin: -10px 0 -10px auto; display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 13px; border-radius: 99px; background: var(--fill-3); color: var(--label-2f, var(--label-2)); font-size: .824rem; font-weight: 600; }
 .hchip svg { width: 15px; height: 15px; }
 .hchip + .hchip { margin-left: 6px; }
 .wgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
@@ -495,7 +505,7 @@ button.tl-row { width: 100%; text-align: left; }
 .wbig span { font-size: 1.35rem; font-weight: 600; color: var(--label-2); }
 .wbig:focus-within { box-shadow: 0 0 0 2px var(--tint); }
 
-.foot-sync { text-align: center; margin-top: -6px; color: var(--label-3); }
+.foot-sync { text-align: center; margin-top: -6px; color: var(--label-2); }
 @media (max-width: 370px) { .tl-row { grid-template-columns: 40px 30px minmax(0, 1fr) auto; column-gap: 8px; background-position: 76px 0, 76px 43px; } .tl-row.next { background-position: 76px 0, 76px 47px; } .tl-row + .tl-row::after { left: 100px; } .qa-tx small { display: none; } }
 </style>
 
@@ -1118,7 +1128,7 @@ const FOODS = [
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish, FOODS, FOOD_CATS };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Verze 2: ťuknutím na widget zapíšeš jídlo rovnou tady, bez otevírání Safari.\n// Vzhled a nabídky si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(maxAgeH) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (age > maxAgeH * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\nasync function run(ctx, maxAgeH) {\n  const code = await core(maxAgeH);\n  if (!code) return { ok: false };\n  try {\n    const fn = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n    return { ok: true, res: await fn({ KEY, ANON, loader: 2, script: Script.name(), ...ctx }) };\n  } catch (e) { console.error(e); return { ok: false }; }\n}\nfunction fallback() {\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\nasync function preview() {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript. Ťuknutím na widget pak zapíšeš jídlo.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i < 0) return;\n  const fam = sizes[i][1], r = await run({ family: fam }, 0), w = r.ok && r.res ? r.res : fallback();\n  if (fam === 'small') await w.presentSmall();\n  else if (fam === 'large') await w.presentLarge();\n  else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n  else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n  else await w.presentMedium();\n}\n\nif (config.runsInWidget || config.runsInAccessoryWidget) {\n  const r = await run({ family: config.widgetFamily || 'medium' }, 6);\n  Script.setWidget(r.ok && r.res ? r.res : fallback());\n} else {\n  const params = (typeof args !== 'undefined' && args.queryParameters) || {};\n  const fromWidget = Object.keys(params).length > 0;\n  const r = await run({ mode: 'app', params }, fromWidget ? 6 : 0); // ruční spuštění si vždy stáhne nejnovější verzi\n  if (!r.ok) { const a = new Alert(); a.title = 'Plán 70 kg'; a.message = 'Nepodařilo se načíst. Spusť skript jednou s internetem.'; a.addAction('OK'); await a.presentAlert(); }\n  else if (r.res === 'preview') await preview();\n}\nScript.complete();\n";
-const APP_VERSION = '435d43f3', APP_BUILT = '2026-10-07T03:56:34Z';
+const APP_VERSION = '2b6bc068', APP_BUILT = '2026-10-07T12:34:32Z';
 
 </script>
 <script>
@@ -2474,6 +2484,8 @@ function sheetOpen() { return !document.getElementById('sheet').hidden; }
 function openSheet(title, html) {
   const sh = document.getElementById('sheet'), sc = document.getElementById('scrim');
   clearTimeout(sheetT); SG = null;
+  const fa = document.activeElement; if (fa && fa !== document.body && !sh.contains(fa) && fa.blur) fa.blur(); // klávesnice od pole na stránce pod panelem
+  document.body.classList.add('sheet-on'); // dok se schová, jinak prosvítá u spodní hrany panelu
   const shown = !sh.hidden && sh.classList.contains('open');
   sh.innerHTML = `<div class="grab" aria-hidden="true"></div><div class="shead"><span style="width:44px"></span><span class="stitle">${esc(title || '')}</span><button class="gbtn glass" data-act="close" aria-label="Zavřít">${ICO.close}</button></div><div class="view">${html}</div>`;
   sh.style.transition = ''; sh.style.transform = ''; sc.style.transition = ''; sc.style.opacity = '';
@@ -2489,14 +2501,14 @@ function closeSheet() {
   if (document.getElementById('clwait') && CL.at) { CL.at = 0; clSave(); } // zavřel čekání na Clauda: nic se nevkládá
   SG = null; sh.style.transition = ''; sc.style.transition = ''; void sh.offsetHeight;
   sh.style.transform = ''; sc.style.opacity = '';
-  sh.classList.remove('open'); sc.classList.remove('open');
+  sh.classList.remove('open'); sc.classList.remove('open'); document.body.classList.remove('sheet-on', 'sheet-tall');
   if (document.activeElement && sh.contains(document.activeElement)) document.activeElement.blur();
   clearTimeout(sheetT);
   sheetT = setTimeout(() => { sh.hidden = true; sc.hidden = true; sheetGestures(false); if (pendingRender) render(); }, 340);
 }
 function mealTags(m) {
   const t = [];
-  if (m.cold) t.push('bez vaření'); else if (m.min <= 15) t.push('do 15 min');
+  if (m.cold) t.push('bez vaření');
   if (m.prep) t.push('dá se dopředu');
   if (m.p && P_NAME[m.p]) t.push(P_NAME[m.p]);
   return t;
@@ -3196,7 +3208,7 @@ function trainSheet() {
   const k = UI.date, log = trainLog(k);
   openSheet(DAYS[dowOf(k)] + ' ' + shortDate(k), `<h2 class="t-title2">Zápis tréninku</h2><form data-form="train" class="view">${TRAINING.gym.map((ex, i) => {
     const sg = suggestion(i, k), sets = log[i] || [];
-    return sec(esc(ex.n), [...Array(ex.sets)].map((_, j) => { const s0 = sets[j] || {}; return `<div class="row"><span class="row-text"><span class="row-title">Série ${j + 1}</span></span><label class="tin"><input class="num" name="kg-${i}-${j}" inputmode="decimal" value="${s0.kg != null ? kg1(s0.kg) : ''}" placeholder="${sg.kg != null ? kg1(sg.kg) : 'kg'}" aria-label="${esc(ex.n)} série ${j + 1} kg"><span>kg</span></label><label class="tin"><input class="num" name="r-${i}-${j}" inputmode="numeric" value="${s0.r != null ? s0.r : ''}" placeholder="${ex.lo}–${ex.hi}" aria-label="${esc(ex.n)} série ${j + 1} opakování" style="width:3.2em"><span>×</span></label></div>`; }).join(''), `${sg.up ? '<b class="tint">Přidej váhu.</b> ' : ''}${esc(sg.txt)}${ex.note ? ' · ' + ex.note : ''}`);
+    return sec(esc(ex.n), [...Array(ex.sets)].map((_, j) => { const s0 = sets[j] || {}; return `<div class="row"><span class="row-text"><span class="row-title">Série ${j + 1}</span></span><label class="tin"><input class="num" name="kg-${i}-${j}" inputmode="decimal" value="${s0.kg != null ? kg1(s0.kg) : ''}" placeholder="${sg.kg != null ? kg1(sg.kg) : '–'}" aria-label="${esc(ex.n)} série ${j + 1} kg"><span>kg</span></label><label class="tin"><input class="num" name="r-${i}-${j}" inputmode="numeric" value="${s0.r != null ? s0.r : ''}" placeholder="${ex.lo}–${ex.hi}" aria-label="${esc(ex.n)} série ${j + 1} opakování" style="width:3.2em"><span>×</span></label></div>`; }).join(''), `${sg.up ? '<b class="tint">Přidej váhu.</b> ' : ''}${esc(sg.txt)}${ex.note ? ' · ' + ex.note : ''}`);
   }).join('')}<button class="btn pri block" type="submit">Uložit trénink</button></form>`);
 }
 function pantrySheet(i) {
@@ -3537,7 +3549,10 @@ function fitSheet() { // klávesnice: panel stojí nad ní a vejde se do toho, c
   const vv = window.visualViewport, root = document.documentElement.style; if (!vv) return;
   const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
   root.setProperty('--kb', kb + 'px'); root.setProperty('--vvh', Math.round(vv.height) + 'px');
+  document.body.classList.toggle('kb-on', kb > 80); // nad klávesnicí by dok zakrýval obsah
   const a = document.activeElement, [sh] = sheetEls();
+  const ht = document.querySelector('#head .t-large'); // offsetTop nebere transform, takže platí i během výjezdu
+  document.body.classList.toggle('sheet-tall', !!(ht && !sh.hidden && document.body.classList.contains('sheet-on') && sh.offsetTop < ht.getBoundingClientRect().bottom - 2));
   if (kb > 80 && a && sh.contains(a) && ['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName)) requestAnimationFrame(() => {
     const r = a.getBoundingClientRect(), s = sh.getBoundingClientRect();
     if (r.bottom > s.bottom - 16) sh.scrollTop += r.bottom - s.bottom + 16; else if (r.top < s.top + 56) sh.scrollTop -= s.top + 56 - r.top;

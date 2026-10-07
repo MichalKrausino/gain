@@ -328,13 +328,19 @@ body.sheet-on .tabbar, body.kb-on .tabbar { opacity: 0; transform: translateY(18
 /* vysoký panel zakryje velký titulek stránky až na cíp v zaobleném rohu – ten by vypadal jako kaz, tak titulek zmizí celý */
 #head .t-large { transition: opacity .2s; }
 body.sheet-tall #head .t-large { opacity: 0; }
-.sheet { position: fixed; left: 8px; right: 8px; bottom: calc(8px + max(env(safe-area-inset-bottom, 0px), var(--kb, 0px))); z-index: 61; max-height: calc(min(92vh, var(--vvh, 100vh) - 16px) - env(safe-area-inset-top, 0px)); overflow-y: auto; overscroll-behavior: none; background: var(--bg); border-radius: 36px; padding: 8px 16px 24px; transform: translateY(110%); transition: transform .34s cubic-bezier(.2,.9,.25,1); max-width: 584px; margin: 0 auto; box-shadow: 0 -2px 30px rgba(0,0,0,.18); -webkit-overflow-scrolling: touch; }
+.sheet { position: fixed; left: 8px; right: 8px; bottom: var(--sheet-b, calc(8px + env(safe-area-inset-bottom, 0px))); z-index: 61; max-height: var(--sheet-max, calc(92vh - env(safe-area-inset-top, 0px))); overflow-y: auto; overscroll-behavior: none; background: var(--bg); border-radius: 36px; padding: 8px 16px 24px; transform: translateY(110%); transition: transform .34s cubic-bezier(.2,.9,.25,1); max-width: 584px; margin: 0 auto; box-shadow: 0 -2px 30px rgba(0,0,0,.18); -webkit-overflow-scrolling: touch; }
 .sheet.open { transform: none; }
+.sheet .stop { position: sticky; top: -8px; z-index: 3; margin: -8px -16px 0; padding: 8px 16px 0; background: var(--bg); } /* hlavička stojí: odrolovaný obsah mizí pod ní, ne pod hranou panelu */
+.sheet .stop::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 14px; background: linear-gradient(var(--bg), transparent); opacity: 0; transition: opacity .2s; pointer-events: none; }
+.sheet.scrolled .stop::after { opacity: 1; }
 .sheet .grab { width: 36px; height: 5px; border-radius: 3px; background: var(--label-3); margin: 0 auto 6px; }
 .sheet .shead { display: flex; align-items: center; gap: 10px; min-height: 48px; margin-bottom: 6px; }
 .sheet .shead .gbtn { width: 44px; padding: 0; }
 .sheet .shead .gbtn svg { width: 16px; height: 16px; }
-.sheet .stitle { flex: 1; text-align: center; font-weight: 600; font-size: 1rem; }
+.sheet .stitle { flex: 1; min-width: 0; display: grid; text-align: center; font-weight: 600; font-size: 1rem; }
+.sheet .stitle > span { grid-area: 1 / 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: opacity .18s; }
+.sheet .st-b, .sheet.titled .st-a { opacity: 0; }
+.sheet.titled .st-b { opacity: 1; }
 .sheet h2 { margin: 2px 4px 10px; }
 .sheet .view { gap: 18px; }
 
@@ -1128,7 +1134,7 @@ const FOODS = [
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish, FOODS, FOOD_CATS };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Verze 2: ťuknutím na widget zapíšeš jídlo rovnou tady, bez otevírání Safari.\n// Vzhled a nabídky si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(maxAgeH) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (age > maxAgeH * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\nasync function run(ctx, maxAgeH) {\n  const code = await core(maxAgeH);\n  if (!code) return { ok: false };\n  try {\n    const fn = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n    return { ok: true, res: await fn({ KEY, ANON, loader: 2, script: Script.name(), ...ctx }) };\n  } catch (e) { console.error(e); return { ok: false }; }\n}\nfunction fallback() {\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\nasync function preview() {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript. Ťuknutím na widget pak zapíšeš jídlo.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i < 0) return;\n  const fam = sizes[i][1], r = await run({ family: fam }, 0), w = r.ok && r.res ? r.res : fallback();\n  if (fam === 'small') await w.presentSmall();\n  else if (fam === 'large') await w.presentLarge();\n  else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n  else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n  else await w.presentMedium();\n}\n\nif (config.runsInWidget || config.runsInAccessoryWidget) {\n  const r = await run({ family: config.widgetFamily || 'medium' }, 6);\n  Script.setWidget(r.ok && r.res ? r.res : fallback());\n} else {\n  const params = (typeof args !== 'undefined' && args.queryParameters) || {};\n  const fromWidget = Object.keys(params).length > 0;\n  const r = await run({ mode: 'app', params }, fromWidget ? 6 : 0); // ruční spuštění si vždy stáhne nejnovější verzi\n  if (!r.ok) { const a = new Alert(); a.title = 'Plán 70 kg'; a.message = 'Nepodařilo se načíst. Spusť skript jednou s internetem.'; a.addAction('OK'); await a.presentAlert(); }\n  else if (r.res === 'preview') await preview();\n}\nScript.complete();\n";
-const APP_VERSION = '2b6bc068', APP_BUILT = '2026-10-07T12:34:32Z';
+const APP_VERSION = '0aa4fecd', APP_BUILT = '2026-10-07T14:16:17Z';
 
 </script>
 <script>
@@ -2487,7 +2493,9 @@ function openSheet(title, html) {
   const fa = document.activeElement; if (fa && fa !== document.body && !sh.contains(fa) && fa.blur) fa.blur(); // klávesnice od pole na stránce pod panelem
   document.body.classList.add('sheet-on'); // dok se schová, jinak prosvítá u spodní hrany panelu
   const shown = !sh.hidden && sh.classList.contains('open');
-  sh.innerHTML = `<div class="grab" aria-hidden="true"></div><div class="shead"><span style="width:44px"></span><span class="stitle">${esc(title || '')}</span><button class="gbtn glass" data-act="close" aria-label="Zavřít">${ICO.close}</button></div><div class="view">${html}</div>`;
+  sh.innerHTML = `<div class="stop"><div class="grab" aria-hidden="true"></div><div class="shead"><span style="width:44px"></span><span class="stitle"><span class="st-a">${esc(title || '')}</span><span class="st-b" aria-hidden="true"></span></span><button class="gbtn glass" data-act="close" aria-label="Zavřít">${ICO.close}</button></div></div><div class="view">${html}</div>`;
+  sh.classList.remove('scrolled', 'titled');
+  if (!sh.dataset.sc) { sh.dataset.sc = '1'; sh.addEventListener('scroll', sheetScroll, { passive: true }); }
   sh.style.transition = ''; sh.style.transform = ''; sc.style.transition = ''; sc.style.opacity = '';
   if (!shown) { sh.hidden = false; sc.hidden = false; void sh.offsetHeight; sh.classList.add('open'); sc.classList.add('open'); sheetGestures(true); }
   sh.scrollTop = 0; fitSheet();
@@ -3509,7 +3517,7 @@ function sheetEls() { return [document.getElementById('sheet'), document.getElem
 function sgStart(e) {
   if (!sheetOpen() || e.touches.length !== 1) { SG = null; return; }
   const t = e.touches[0], [sh] = sheetEls();
-  SG = { x: t.clientX, y: t.clientY, inSheet: sh.contains(e.target), field: !!e.target.closest('input,textarea,select'), hs: e.target.closest('.fchips'), decided: false, block: false, drag: false, dy: 0, v: 0, t: e.timeStamp };
+  SG = { x: t.clientX, y: t.clientY, inSheet: sh.contains(e.target), field: !!e.target.closest('input,textarea,select'), head: !!e.target.closest('.stop'), hs: e.target.closest('.fchips'), decided: false, block: false, drag: false, dy: 0, v: 0, t: e.timeStamp };
 }
 function sgMove(e) {
   if (!SG || !sheetOpen()) return;
@@ -3520,7 +3528,7 @@ function sgMove(e) {
     const top = sh.scrollTop <= 0, bottom = sh.scrollTop + sh.clientHeight >= sh.scrollHeight - 1;
     if (!SG.inSheet) SG.block = true; // šero kolem panelu: stránka pod ním se nehne
     else if (Math.abs(dx) > Math.abs(dy)) SG.block = !SG.hs; // do strany smí jen vodorovná řada filtrů
-    else if (dy > 0 && top) { SG.block = true; SG.drag = !SG.field; } // nahoře táhne dolů: panel jede s prstem
+    else if (dy > 0 && (top || SG.head)) { SG.block = true; SG.drag = !SG.field; } // za hlavičku i odrolovaný (jako v iOS) // nahoře táhne dolů: panel jede s prstem
     else if (dy < 0 && bottom) SG.block = true; // na konci obsahu: dál už nic, ani stránka pod panelem
     if (SG.drag) { sh.style.transition = 'none'; sc.style.transition = 'none'; }
   }
@@ -3545,20 +3553,64 @@ function sheetGestures(on) { // posluchače dotyku visí jen s otevřeným panel
   document[f]('touchend', sgEnd, { passive: true });
   document[f]('touchcancel', sgEnd, { passive: true });
 }
-function fitSheet() { // klávesnice: panel stojí nad ní a vejde se do toho, co z obrazovky zbylo
-  const vv = window.visualViewport, root = document.documentElement.style; if (!vv) return;
-  const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-  root.setProperty('--kb', kb + 'px'); root.setProperty('--vvh', Math.round(vv.height) + 'px');
-  document.body.classList.toggle('kb-on', kb > 80); // nad klávesnicí by dok zakrýval obsah
-  const a = document.activeElement, [sh] = sheetEls();
+function sheetScroll() { // hlavička panelu stojí; když nadpis odroluje pod ni, převezme ho (jako velký titulek v iOS)
+  const sh = document.getElementById('sheet'), top = sh.querySelector('.stop'), b = sh.querySelector('.st-b'); if (!top || !b) return;
+  sh.classList.toggle('scrolled', sh.scrollTop > 2);
+  const h = sh.querySelector('.view .t-title2'), past = !!h && h.getBoundingClientRect().bottom <= top.getBoundingClientRect().bottom;
+  if (past && b.textContent !== h.textContent) b.textContent = h.textContent;
+  sh.classList.toggle('titled', past);
+}
+let VP = null, fullH = 0;
+function vpProbe() { // neviditelný fixed prvek přes celou výšku: kde opravdu je horní a spodní hrana pro position:fixed a jak velké jsou bezpečné zóny
+  if (!VP) {
+    VP = document.createElement('div'); VP.setAttribute('aria-hidden', 'true');
+    VP.style.cssText = 'position:fixed;top:0;bottom:0;left:0;width:0;visibility:hidden;pointer-events:none;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)';
+    document.body.appendChild(VP);
+  }
+  const r = VP.getBoundingClientRect(), cs = getComputedStyle(VP);
+  return { top: r.top, bottom: r.bottom, st: parseFloat(cs.paddingTop) || 0, sb: parseFloat(cs.paddingBottom) || 0 };
+}
+function isTyping(a) { return !!a && (a.isContentEditable || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || (a.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|reset|range|color|file|image|hidden)$/i.test(a.type))); }
+function fitSheet() { // panel se musí vejít mezi stavový řádek a spodní hranu (klávesnici nebo domovskou lištu)
+  const vv = window.visualViewport, root = document.documentElement.style, [sh] = sheetEls(); if (!vv || !sh) return;
+  const p = vpProbe(), a = document.activeElement, typing = isTyping(a);
+  if (!typing) fullH = Math.max(vv.height, window.innerHeight); // výška bez klávesnice
+  // Klávesnice se počítá JEN při psaní. iOS 26 po jejím zavření nechává visualViewport viset (výška i posun),
+  // a ze starých čísel se panel vystrčil nahoru pod stavový řádek: horní kraj byl useknutý.
+  // Kolik místo zabírá, se měří proti tomu, kam OPRAVDU dosedne fixed prvek (sonda), ne proti innerHeight:
+  // iOS jednou drží fixed u spodku okna (pod klávesnicí), jindy u spodku viditelné plochy (nad ní).
+  const visTop = vv.offsetTop, visBot = vv.offsetTop + vv.height;
+  const kb = typing ? Math.max(0, Math.round(p.bottom - visBot)) : 0;
+  const kbOpen = typing && (kb > 80 || fullH - vv.height > 120);
+  const bottom = 8 + (kbOpen ? kb : p.sb); // nad klávesnicí domovská lišta není
+  const topEdge = (kbOpen ? Math.max(p.top, visTop) : p.top) + p.st + 8; // pod stavovým řádkem
+  let maxH = (p.bottom - bottom) - topEdge;
+  if (!kbOpen) maxH = Math.min(maxH, (p.bottom - p.top) * 0.92 - p.st); // bez klávesnice nechat nahoře kus stránky, ať je vidět, že je to panel
+  root.setProperty('--sheet-b', Math.round(bottom) + 'px'); root.setProperty('--sheet-max', Math.max(200, Math.floor(maxH)) + 'px');
+  document.body.classList.toggle('kb-on', kbOpen); // nad klávesnicí by dok zakrýval obsah
   const ht = document.querySelector('#head .t-large'); // offsetTop nebere transform, takže platí i během výjezdu
   document.body.classList.toggle('sheet-tall', !!(ht && !sh.hidden && document.body.classList.contains('sheet-on') && sh.offsetTop < ht.getBoundingClientRect().bottom - 2));
-  if (kb > 80 && a && sh.contains(a) && ['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName)) requestAnimationFrame(() => {
-    const r = a.getBoundingClientRect(), s = sh.getBoundingClientRect();
-    if (r.bottom > s.bottom - 16) sh.scrollTop += r.bottom - s.bottom + 16; else if (r.top < s.top + 56) sh.scrollTop -= s.top + 56 - r.top;
+  if (kbOpen && sh.contains(a)) requestAnimationFrame(() => {
+    const r = a.getBoundingClientRect(), s = sh.getBoundingClientRect(), hb = (sh.querySelector('.stop') || sh).getBoundingClientRect().bottom;
+    if (r.bottom > s.bottom - 16) sh.scrollTop += r.bottom - s.bottom + 16; else if (r.top < hb + 8) sh.scrollTop -= hb + 8 - r.top;
   });
 }
+// iOS 26, appka na ploše: po zavření klávesnice zůstane okno nižší (innerHeight i fixed prvky o kus výš, dole černý pruh).
+// Vynucené přeměření těla to srovná; jen když je okno opravdu nižší než dřív a nic se nepíše.
+let maxIH = 0, lastIW = 0;
+function healViewport() {
+  if (innerWidth !== lastIW) { lastIW = innerWidth; maxIH = innerHeight; } // otočení: nová míra
+  if (isTyping(document.activeElement) || maxIH - innerHeight <= 4) { maxIH = Math.max(maxIH, innerHeight); return; }
+  const b = document.body, y = scrollY;
+  b.style.display = 'none'; void b.offsetHeight; b.style.display = ''; void b.offsetHeight; // synchronně, mezi tím se nekreslí
+  if (scrollY !== y) scrollTo(0, y);
+  fitSheet();
+}
 if (window.visualViewport) { visualViewport.addEventListener('resize', fitSheet); visualViewport.addEventListener('scroll', fitSheet); }
+addEventListener('resize', () => { if (innerWidth !== lastIW) { lastIW = innerWidth; maxIH = innerHeight; } else maxIH = Math.max(maxIH, innerHeight); fitSheet(); });
+document.addEventListener('focusin', () => fitSheet());
+document.addEventListener('focusout', () => { setTimeout(fitSheet, 0); if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) setTimeout(healViewport, 140); });
+lastIW = innerWidth; maxIH = innerHeight;
 
 // ---------- Aktualizace appky ----------
 // Při každém otevření (i návratu do appky) se porovná verze se serverem; je-li novější, appka se sama přenačte.

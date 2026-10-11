@@ -1192,7 +1192,7 @@ const BUY = {
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish, FOODS, FOOD_CATS, BUY };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Verze 2: ťuknutím na widget zapíšeš jídlo rovnou tady, bez otevírání Safari.\n// Vzhled a nabídky si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(maxAgeH) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (age > maxAgeH * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\nasync function run(ctx, maxAgeH) {\n  const code = await core(maxAgeH);\n  if (!code) return { ok: false };\n  try {\n    const fn = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n    return { ok: true, res: await fn({ KEY, ANON, loader: 2, script: Script.name(), ...ctx }) };\n  } catch (e) { console.error(e); return { ok: false }; }\n}\nfunction fallback() {\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\nasync function preview() {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript. Ťuknutím na widget pak zapíšeš jídlo.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i < 0) return;\n  const fam = sizes[i][1], r = await run({ family: fam }, 0), w = r.ok && r.res ? r.res : fallback();\n  if (fam === 'small') await w.presentSmall();\n  else if (fam === 'large') await w.presentLarge();\n  else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n  else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n  else await w.presentMedium();\n}\n\nif (config.runsInWidget || config.runsInAccessoryWidget) {\n  const r = await run({ family: config.widgetFamily || 'medium' }, 6);\n  Script.setWidget(r.ok && r.res ? r.res : fallback());\n} else {\n  const params = (typeof args !== 'undefined' && args.queryParameters) || {};\n  const fromWidget = Object.keys(params).length > 0;\n  const r = await run({ mode: 'app', params }, fromWidget ? 6 : 0); // ruční spuštění si vždy stáhne nejnovější verzi\n  if (!r.ok) { const a = new Alert(); a.title = 'Plán 70 kg'; a.message = 'Nepodařilo se načíst. Spusť skript jednou s internetem.'; a.addAction('OK'); await a.presentAlert(); }\n  else if (r.res === 'preview') await preview();\n}\nScript.complete();\n";
-const APP_VERSION = 'bf56a34a', APP_BUILT = '2026-10-11T21:46:53Z';
+const APP_VERSION = '49e93857', APP_BUILT = '2026-10-11T22:05:01Z';
 
 </script>
 <script>
@@ -1225,7 +1225,7 @@ function num(v) { const x = parseFloat(String(v).replace(',', '.')); return isFi
 
 // ===== Stav =====
 const LS_KEY = 'plan70.v1';
-const DEF = { v: 3, start: '2026-10-05', wake: '08:30', gym: 5, add: 400, addHist: {}, auto: true, startKg: 51.5, goalKg: 70, goalDate: '2027-01-03', autoWeek: 0, autoMsg: null };
+const DEF = { v: 3, start: '2026-10-05', wake: '08:30', gym: 5, add: 400, addHist: {}, auto: true, startKg: 51.5, goalKg: 70, goalDate: '2027-01-03', minRate: 1, autoWeek: 0, autoMsg: null };
 function migrateSettings(o) {
   const s = { ...DEF, ...(o || {}) };
   if (o && o.add == null && o.turbo != null) s.add = Number(o.turbo) * 400;
@@ -1580,7 +1580,7 @@ function bombMode() { return S.settings.bomb || 'auto'; }
 function bombFor(w) {
   const cw = curWeek(), h = S.settings.bombHist || {};
   if (w < cw) { const ks = Object.keys(h).map(Number).filter(x => x <= w).sort((a, b) => a - b); return ks.length ? !!h[ks[ks.length - 1]] : false; }
-  const m = bombMode(); return m === 'on' ? true : m === 'off' ? false : (w >= 3 && !!S.settings.bombNow);
+  const m = bombMode(); return m === 'on' ? true : m === 'off' ? false : fastMode(S.settings) ? (w >= 2 && S.settings.bombNow !== false) : (w >= 3 && !!S.settings.bombNow);
 }
 function bombSnack(k, meal, i) { // kaloričtější svačina, ale pořád pestrá
   if (mealStats(meal).kcal >= 520) return null;
@@ -1600,7 +1600,12 @@ function dayIng(rec, slotK, meal) { const o = rec && rec.ing && rec.ing[slotK]; 
 function sameIng(a, b) { const A = Object.fromEntries(a.filter(([, q]) => q > 0)), B = Object.fromEntries(b.filter(([, q]) => q > 0)); const ks = new Set([...Object.keys(A), ...Object.keys(B)]); for (const i of ks) if (Math.abs((A[i] || 0) - (B[i] || 0)) > 0.01) return false; return true; }
 function itemIng(x) { const a = (x.ing || MEALS[x.meal].ing.map(([i, q]) => [i, q * x.mult])).map(([i, q]) => [i, q]); return x.boost ? a.concat(x.boost) : a; }
 function itemDelta(x, sign) { const d = {}; for (const [i, q] of itemIng(x)) d[i] = (d[i] || 0) + sign * q; return d; }
-function bombEffective(st) { const m = st.bomb || 'auto'; return m === 'on' || (m === 'auto' && !!st.bombNow && curWeek() >= 3); }
+// Minimální tempo (kg týdně): motor nikdy nemíří níž, ani když jsi před cílem. Od 1 kg týdně je bomba v automatu zapnutá
+// pořád (od 2. týdne), protože je to nejlevnější cesta k přebytku: +500 kcal bez většího objemu jídla. Vypne ji jen růst nad 2,5 kg týdně.
+function minRateOf(st) { const v = Number((st || S.settings).minRate); return v >= 0 ? clamp(v, 0, 2) : DEF.minRate; }
+function fastMode(st) { return minRateOf(st) >= 1; }
+function kgMin(v) { return String(Math.round(v * 100) / 100).replace('.', ','); } // 1 → „1“, 0.75 → „0,75“ (kg1 by dal „1,0“ a „0,8“)
+function bombEffective(st) { const m = st.bomb || 'auto'; return m === 'on' || (m === 'auto' && (fastMode(st) ? curWeek() >= 2 && st.bombNow !== false : !!st.bombNow && curWeek() >= 3)); }
 function rating(id) { return (S.prefs.rating || {})[id] || 0; }
 // Den venku: celý den mimo domov a bez možnosti ohřát si jídlo, často bez předchozí přípravy. Plán dne je prázdný,
 // zapisuje se jen to, co se opravdu snědlo (napsat, vyfotit, kód, běžná jídla). Cíl kalorií dne zůstává (dayTarget),
@@ -1882,14 +1887,15 @@ function engine() {
   const slopeRef = conf ? conf * tr.slope + (1 - conf) * predSlope : predSlope;
   const tdee = clamp(Iref - slopeRef * E_KG / STORE, 1800, 5000); // přebytek se ukládá jen z 63 %, stejně jako v predSlope
   const daysLeft = Math.max(7, dayDiff(t0, s.goalDate)), need = Math.max(0, s.goalKg - curKg);
-  const cap = 2 / 7, rateRaw = need / daysLeft, rateNeed = Math.min(rateRaw, cap);
+  const cap = 2 / 7, rateRaw = need / daysLeft, minR = need > 0 ? minRateOf(s) / 7 : 0, rateNeed = Math.min(Math.max(rateRaw, minR), cap), floor = minR > rateRaw && rateNeed > rateRaw;
   const Istar = Iref + (rateNeed - slopeRef) * E_KG / STORE;
   const addRec = clamp(Math.round((Istar - baseAvg) / 50) * 50, 0, 1600);
   const planLogged = logged.length ? mean(logged.map(k => dayTotals(k).kcal)) : null;
   const adherence = avgIn != null && planLogged ? avgIn / planLogged : null; // plnění jen ze stejných (uzavřených) dnů
   const fast = tr && idxOf(t0) >= 14 && tr.perWeek > 2.5;
   const eta = (() => { if (curKg >= s.goalKg) return null; const r = conf ? tr.slope : predSlope; if (!(r > 0.01)) return null; const d = Math.ceil((s.goalKg - curKg) / r); return d < 400 ? addDays(t0, d) : null; })();
-  return { tdee, conf, logged: logged.length, win: win.length, curKg, maint, baseAvg, planAvg, avgIn, adherence, slopeRef, rateNeed, rateRaw, capped: rateRaw > cap, Istar, addRec, need, daysLeft, fast, eta, tr };
+  const below = !!(tr && conf >= 0.3 && minR > 0 && tr.slope < minR * 0.9); // skutečný trend pod minimem
+  return { tdee, conf, logged: logged.length, win: win.length, curKg, maint, baseAvg, planAvg, avgIn, adherence, slopeRef, rateNeed, rateRaw, capped: rateRaw > cap, floor, below, Istar, addRec, need, daysLeft, fast, eta, tr };
 }
 function etaInfo() {
   const e = engine(), s = S.settings;
@@ -1899,14 +1905,18 @@ function etaInfo() {
   return hit ? { k: addDays(s.start, hit[0]), src: 'plánu' } : { k: null, end: p[p.length - 1][1] };
 }
 function autoCheck() {
+  const cw = curWeek();
+  if (idxOf(todayKey()) >= 0 && (S.settings.bombHist || {})[cw] === undefined) { // co platilo tenhle týden, ať se jeho dny později nepřepočítají
+    S.settings = { ...S.settings, bombHist: { ...(S.settings.bombHist || {}), [cw]: bombEffective(S.settings) } }; persist(SETTINGS_DOC, S.settings);
+  }
   const st = S.settings; if (!st.auto) return;
-  const cw = curWeek(); if (idxOf(todayKey()) < 14 || st.autoWeek >= cw) return;
+  if (idxOf(todayKey()) < 14 || st.autoWeek >= cw) return;
   const wasBomb = bombEffective(st);
   let bombNow = !!st.bombNow;
   if ((st.bomb || 'auto') === 'auto') {
     S.settings = { ...st, bombNow: false };
     const e0 = engine();
-    bombNow = !e0.fast && (e0.addRec >= 600 || (e0.conf >= 0.3 && e0.tr && e0.tr.slope < e0.rateNeed * 0.85) || (e0.adherence != null && e0.adherence < 0.85));
+    bombNow = !e0.fast && (fastMode(st) || e0.addRec >= 600 || (e0.conf >= 0.3 && e0.tr && e0.tr.slope < e0.rateNeed * 0.85) || (e0.adherence != null && e0.adherence < 0.85));
   }
   S.settings = { ...st, bombNow };
   const isBomb = bombEffective(S.settings);
@@ -1919,9 +1929,10 @@ function autoCheck() {
     const hold = e.adherence != null && e.adherence < 0.85 && to > prevAdd, step = !hold && to > prevAdd + ADD_STEP;
     if (hold) to = prevAdd; else if (step) to = prevAdd + ADD_STEP;
     const dateTxt = shortDate(st.goalDate);
-    txt = e.conf > 0
-      ? `Tvůj výdej vychází ~${kc(e.tdee)} kcal (z ${e.logged} zapsaných dní). Na ${st.goalKg} kg do ${dateTxt} potřebuješ ~${kg1(e.rateNeed * 7)} kg týdně, tedy ~${kc(e.Istar)} kcal denně. Večerní doplněk proto ${addName(to).replace(' večer', '')}.`
-      : `Zatím málo dat ze 3. týdne, počítám podle modelu: ~${kc(e.Istar)} kcal denně, večerní doplněk ${addName(to).replace(' večer', '')}.`;
+    const goalTxt = e.floor ? `Držím tvoje minimum ${kgMin(minRateOf(st))} kg týdně` : `Na ${st.goalKg} kg do ${dateTxt} potřebuješ ~${kg1(e.rateNeed * 7)} kg týdně`;
+    txt = (e.below ? `Poslední 2 týdny rosteš ${kg1(e.tr.perWeek)} kg týdně, pod tvým minimem ${kgMin(minRateOf(st))} kg. ` : '') + (e.conf > 0
+      ? `Tvůj výdej vychází ~${kc(e.tdee)} kcal (z ${e.logged} zapsaných dní). ${goalTxt}, tedy ~${kc(e.Istar)} kcal denně. Večerní doplněk proto ${addName(to).replace(' večer', '')}.`
+      : `Zatím málo dat ze 3. týdne, počítám podle modelu. ${goalTxt}: ~${kc(e.Istar)} kcal denně, večerní doplněk ${addName(to).replace(' večer', '')}.`);
     if (hold) txt += ` Plán ale plníš jen na ${Math.round(e.adherence * 100)} %, proto doplněk nezvyšuju: víc pomůže dojídat to, co v plánu už je. Kaloričtější jídla zajistí bomba.`;
     else if (e.adherence != null && e.adherence < 0.9) txt += ` Plán plníš na ${Math.round(e.adherence * 100)} %, víc pomůže dojídat ho.`;
     if (step) txt += ` Přidávám postupně, nejvýš o ${ADD_STEP} kcal za týden, ať si žaludek zvykne.`;
@@ -2612,29 +2623,29 @@ function pantryView() {
 
 // ---------- Pokrok ----------
 function renderProgress(head, v) {
-  const e = engine(), ent = weightEntries(), s = S.settings, cur = e.curKg, t = todayKey(), et = etaInfo();
+  const e = engine(), ent = weightEntries(), s = S.settings, cur = e.curKg, t = todayKey(), et = etaInfo(), mr = e.need > 0 ? minRateOf(s) : 0, nW = ent.filter(([k]) => dayDiff(k, t) >= 0 && dayDiff(k, t) <= 13).length;
   head.innerHTML = `<h1 class="t-large">Pokrok</h1><div class="t-sub l2">Cíl ${s.goalKg} kg do ${shortDate(s.goalDate)}</div>`;
   const h = [], p = clamp((cur - s.startKg) / (s.goalKg - s.startKg), 0, 1);
   const etaTxt = et.done ? 'Cíl splněn. Teď ubírej po 300 kcal každé 2 týdny, ať váha drží.' : et.k ? `${s.goalKg} kg kolem <b>${shortDate(et.k)}${parseKey(et.k).getFullYear() !== 2026 ? ' ' + parseKey(et.k).getFullYear() : ''}</b> podle ${et.src}.` : `Podle plánu ~${kg1(et.end)} kg za 13 týdnů.`;
   h.push(`<div class="card"><div class="t-foot l2">${e.tr ? 'Trend z posledních 14 dní' : ent.length ? 'Poslední váha' : 'Startovní váha'}</div>
     <div style="display:flex;align-items:flex-end;gap:12px;margin-top:6px"><div class="bignum" style="flex:1">${kg1(cur)} <span style="font-size:1.1rem;color:var(--label-2)">kg</span></div><div style="text-align:right"><div class="num" style="font-weight:700;font-size:1.15rem;color:var(--green-text)">${cur - s.startKg >= 0 ? '+' : '−'}${kg1(Math.abs(cur - s.startKg))} kg</div><div class="t-foot l2">od startu</div></div></div>
     <div class="gtrack"><i style="width:${p * 100}%"></i></div><div class="gends"><span>${kg1(s.startKg)}</span><span>zbývá ${kg1(Math.max(0, s.goalKg - cur))} kg</span><span>${s.goalKg}</span></div>
-    <p class="t-sub" style="margin:12px 0 0">${etaTxt}${e.tr ? ` Teď rosteš <b>${e.tr.perWeek >= 0 ? '+' : '−'}${kg1(Math.abs(e.tr.perWeek))} kg týdně</b>.` : ''}</p></div>`);
+    <p class="t-sub" style="margin:12px 0 0">${etaTxt}${e.tr ? ` Teď rosteš <b>${e.tr.perWeek >= 0 ? '+' : '−'}${kg1(Math.abs(e.tr.perWeek))} kg týdně</b>${mr ? (e.tr.perWeek >= mr * 0.9 ? `, minimum ${kgMin(mr)} kg držíš.` : `, <b class="red">pod minimem ${kgMin(mr)} kg</b>.`) : '.'}` : mr ? ` <b>Zvaž se každé ráno:</b> ze 4 vážení za 2 týdny appka pozná, jestli držíš minimum ${kgMin(mr)} kg týdně (zatím ${nW}).` : ''}</p></div>`);
   if (S.weights[t] == null) h.push(weighSec());
   else h.push(sec('Ranní vážení', `<div class="row"><span class="row-text"><span class="row-title">Dnes</span></span><span class="row-trail"><span class="num">${kg1(S.weights[t])} kg</span></span><button class="gbtn tint" data-act="wedit">Upravit</button></div>`));
   const am = s.autoMsg;
   h.push(sec('Kalorický motor', `<div class="row has-tile">${tile('bolt', 'purple')}<span class="row-text"><span class="row-title">Tvůj skutečný výdej</span><span class="row-sub">${e.conf > 0 ? `Z ${e.logged} zapsaných dní, jistota ${Math.round(e.conf * 100)} %` : 'Zatím odhad z modelu, data sbírám od 3. týdne'}</span></span><span class="row-trail"><span class="num">~${kc(e.tdee)}</span> kcal</span></div>
-    <div class="row has-tile">${tile('trophy', 'tint')}<span class="row-text"><span class="row-title">Potřebné tempo</span><span class="row-sub">${kg1(e.need)} kg za ${e.daysLeft} dní${e.capped ? ' · omezeno na bezpečné 2 kg/týden' : ''}</span></span><span class="row-trail"><span class="num">${kg1(e.rateNeed * 7)}</span> kg/týd.</span></div>
+    <div class="row has-tile">${tile('trophy', 'tint')}<span class="row-text"><span class="row-title">Potřebné tempo</span><span class="row-sub">${e.floor ? `Tvoje minimum · na cíl k datu by stačilo ${kg1(e.rateRaw * 7)} kg` : `${kg1(e.need)} kg za ${e.daysLeft} dní${mr ? ` · minimum ${kgMin(mr)} kg` : ''}`}${e.capped ? ' · omezeno na bezpečné 2 kg/týden' : ''}</span></span><span class="row-trail"><span class="num">${kg1(e.rateNeed * 7)}</span> kg/týd.</span></div>
     <div class="row has-tile">${tile('plate', 'green')}<span class="row-text"><span class="row-title">Na cíl potřebuješ</span><span class="row-sub">${(() => { const pn = Math.round(dayTotals(t).kcal); return e.Istar <= pn + 100 ? `Plán (${kc(pn)} kcal) teď stačí` : `V plánu je teď ${kc(pn)} kcal, přidává se postupně, nejvýš o ${ADD_STEP} kcal za týden`; })()}${e.adherence != null ? ` · plníš ${Math.round(e.adherence * 100)} %` : ''}</span></span><span class="row-trail"><span class="num">~${kc(e.Istar)}</span> kcal</span></div>
     <div class="row has-tile">${tile('cup', 'brown')}<span class="row-text"><span class="row-title">Večerní doplněk</span><span class="row-sub">Motor teď doporučuje ${addName(e.addRec)}</span></span><span class="row-trail">${addName(s.add).replace(' večer', '')}</span></div>
-    <div class="row has-tile">${tile('flame', 'red')}<span class="row-text"><span class="row-title">Kalorická bomba</span><span class="row-sub">${bombMode() === 'auto' ? 'Automaticky, když tempo zaostává' : bombMode() === 'on' ? 'Zapnutá ručně' : 'Vypnutá ručně'}</span></span><span class="row-trail">${bombEffective(s) ? 'zapnutá' : 'vypnutá'}</span></div>
+    <div class="row has-tile">${tile('flame', 'red')}<span class="row-text"><span class="row-title">Kalorická bomba</span><span class="row-sub">${bombMode() === 'auto' ? (fastMode(s) ? 'Automaticky: při minimu od 1 kg týdně pořád' : 'Automaticky, když tempo zaostává') : bombMode() === 'on' ? 'Zapnutá ručně' : 'Vypnutá ručně'}</span></span><span class="row-trail">${bombEffective(s) ? 'zapnutá' : 'vypnutá'}</span></div>
     <label class="row has-tile">${tile('gear', 'gray')}<span class="row-text"><span class="row-title">Upravovat automaticky každé pondělí</span></span><input type="checkbox" class="sw" id="autot" ${s.auto ? 'checked' : ''}></label>
     ${e.addRec !== Number(s.add) && idxOf(t) >= 14 ? `<button class="row has-tile" data-act="applyengine">${tile('check', 'green')}<span class="row-text"><span class="row-title tint">Použít doporučení hned</span></span></button>` : ''}`,
     `Výdej = co skutečně sníš minus změna váhy × 7 700 kcal/kg, z posledních 14 dní. Navíc se počítá s tím, že se uloží jen ~63 % přebytku. ${am ? `Týden ${am.w}: ${esc(am.txt)}${am.undone ? ' (vráceno)' : ''}` : ''}`));
   h.push(`<div class="card chart"><div class="t-title3">Trasa</div><div class="t-foot l2" style="margin-bottom:6px">${shortDate(s.start)}–${shortDate(addDays(s.start, 91))}</div>${chartSvg(ent)}
     <div class="legend"><span><svg viewBox="0 0 18 8"><line x1="0" y1="4" x2="18" y2="4" stroke="var(--label-2)" stroke-width="2" stroke-dasharray="4 3"/></svg>plán (${addName(s.add)})</span><span><svg viewBox="0 0 18 8"><line x1="0" y1="4" x2="18" y2="4" stroke="var(--tint)" stroke-width="3"/></svg>tvůj průměr 7 dní</span></div></div>`);
   const gains = []; for (let w = 2; w <= curWeek(); w++) { const a = weekAvg(w), b = weekAvg(w - 1); if (a != null && b != null) gains.push([w, a - b]); }
-  if (gains.length) h.push(`<div class="card chart"><div class="t-title3">Přírůstek po týdnech</div><div class="t-foot l2" style="margin-bottom:6px">čárkovaně 1,5 kg</div>${gainBars(gains)}</div>`);
+  if (gains.length) h.push(`<div class="card chart"><div class="t-title3">Přírůstek po týdnech</div><div class="t-foot l2" style="margin-bottom:6px">čárkovaně ${mr ? `tvoje minimum ${kgMin(mr)} kg` : `potřebné tempo ${kg1(e.rateNeed * 7)} kg`}</div>${gainBars(gains, mr || e.rateNeed * 7)}</div>`);
   const rep = latestReport(); if (rep) h.push(reportCard(rep));
   const we = waistEntries();
   h.push(sec('Obvod pasu', `<form class="row" data-form="waist" style="padding-block:12px"><div class="wbox" style="width:100%"><label class="inp"><input class="wwaist" inputmode="decimal" autocomplete="off" placeholder="${we.length ? kg1(we[we.length - 1][1]) : '70,0'}" aria-label="Obvod pasu v cm"><span>cm</span></label><button class="btn pri sm" type="submit">Uložit</button></div></form>${we.slice().reverse().slice(0, 6).map(([d, c], j, arr) => `<div class="row"><span class="row-text"><span class="row-title">${DAYS_FULL[dowOf(d)]} ${shortDate(d)}</span></span><span class="row-trail"><span class="num">${kg1(c)} cm</span>${j < arr.length - 1 ? `<span class="t-foot">${c - arr[j + 1][1] >= 0 ? '+' : '−'}${kg1(Math.abs(c - arr[j + 1][1]))}</span>` : ''}</span></div>`).join('')}`,
@@ -2675,12 +2686,12 @@ function chartSvg(ent0) {
   const end = proj[proj.length - 1]; g.push(`<text x="${X(end[0])}" y="${Y(end[1]) + 15}" text-anchor="end" font-size="11" fill="var(--label-2)">~${kg1(end[1])} kg</text>`);
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Graf váhy proti plánu">${g.join('')}</svg>`;
 }
-function gainBars(gains) {
+function gainBars(gains, line = 1.5) {
   const W = 320, H = 130, T = 16, B = 22, hi = Math.max(2, ...gains.map(g => g[1])), lo = Math.min(-0.4, ...gains.map(g => g[1]));
   const n = Math.max(gains.length, 6), bw = Math.min(30, (W - 20) / n - 8), gap = (W - n * bw) / n, Y = v => T + (hi - v) / (hi - lo) * (H - T - B), zero = Y(0);
-  const g = [`<line x1="0" x2="${W}" y1="${zero}" y2="${zero}" stroke="var(--sep)"/>`, `<line x1="0" x2="${W}" y1="${Y(1.5)}" y2="${Y(1.5)}" stroke="var(--green)" stroke-dasharray="2 3"/>`];
+  const g = [`<line x1="0" x2="${W}" y1="${zero}" y2="${zero}" stroke="var(--sep)"/>`, `<line x1="0" x2="${W}" y1="${Y(line)}" y2="${Y(line)}" stroke="var(--green)" stroke-dasharray="2 3"/>`];
   gains.forEach(([w, d], i) => { const x = gap / 2 + i * (bw + gap), y = Math.min(Y(d), zero), hh = Math.abs(Y(d) - zero);
-    g.push(`<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(2, hh)}" rx="7" fill="${d >= 1.5 ? 'var(--green)' : d >= 0 ? 'var(--tint)' : 'var(--red)'}"/><text x="${x + bw / 2}" y="${d >= 0 ? y - 4 : y + hh + 11}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--label)">${d >= 0 ? '+' : '−'}${kg1(Math.abs(d))}</text><text x="${x + bw / 2}" y="${H - 5}" text-anchor="middle" font-size="11" fill="var(--label-2)">T${w}</text>`); });
+    g.push(`<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(2, hh)}" rx="7" fill="${d >= line ? 'var(--green)' : d >= 0 ? 'var(--tint)' : 'var(--red)'}"/><text x="${x + bw / 2}" y="${d >= 0 ? y - 4 : y + hh + 11}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--label)">${d >= 0 ? '+' : '−'}${kg1(Math.abs(d))}</text><text x="${x + bw / 2}" y="${H - 5}" text-anchor="middle" font-size="11" fill="var(--label-2)">T${w}</text>`); });
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Přírůstek váhy po týdnech">${g.join('')}</svg>`;
 }
 
@@ -3469,10 +3480,12 @@ function settingsSheet() {
       <label class="row has-tile">${tile('cup', 'blue')}<span class="row-text"><span class="row-title">Mám mixér</span><span class="row-sub">${S.prefs && S.prefs.noBlender ? 'Shake se protřepe v lahvi' : 'Shake se mixuje'}</span></span><input type="checkbox" class="sw" id="s-blender" ${S.prefs && S.prefs.noBlender ? '' : 'checked'}></label>`, 'Snídaně je 30 minut po vstání, další jídla zhruba po 3 hodinách. Když vstaneš jindy, posuneš jen ten den: na Dnes ťukni na čas vedle Plánu dne. Domácí trénink je v úterý a ve čtvrtek.')}
     ${sec('Tempo', `<label class="row has-tile">${tile('bolt', 'purple')}<span class="row-text"><span class="row-title">Večerní doplněk</span></span><select class="sel" id="s-add">${adds.map(a => `<option value="${a}" ${a === curAdd ? 'selected' : ''}>${a ? addName(a).replace(' večer', '') : 'Žádný'}</option>`).join('')}</select>${ICO.chevron}</label>
       <label class="row has-tile">${tile('gear', 'gray')}<span class="row-text"><span class="row-title">Upravovat automaticky</span></span><input type="checkbox" class="sw" id="s-auto" ${s.auto ? 'checked' : ''}></label>
-      <label class="row has-tile">${tile('flame', 'red')}<span class="row-text"><span class="row-title">Kalorická bomba</span><span class="row-sub">${bombEffective(s) ? 'Teď zapnutá' : 'Teď vypnutá'}</span></span><select class="sel" id="s-bomb">${[['auto', 'Automaticky'], ['on', 'Zapnutá'], ['off', 'Vypnutá']].map(([v, n]) => `<option value="${v}" ${v === bombMode() ? 'selected' : ''}>${n}</option>`).join('')}</select>${ICO.chevron}</label>`, 'Doplněk platí od 3. týdne a každé pondělí se přepočítá podle tvého výdeje. Bomba přidá k jídlům olej, arašídové máslo a vločky (+500 kcal bez většího objemu); automaticky se zapne, když tempo zaostává.')}
+      <label class="row has-tile">${tile('flame', 'red')}<span class="row-text"><span class="row-title">Kalorická bomba</span><span class="row-sub">${bombEffective(s) ? 'Teď zapnutá' : 'Teď vypnutá'}</span></span><select class="sel" id="s-bomb">${[['auto', 'Automaticky'], ['on', 'Zapnutá'], ['off', 'Vypnutá']].map(([v, n]) => `<option value="${v}" ${v === bombMode() ? 'selected' : ''}>${n}</option>`).join('')}</select>${ICO.chevron}</label>`, `Doplněk platí od 3. týdne a každé pondělí se přepočítá podle tvého výdeje. Bomba přidá k jídlům olej, arašídové máslo a vločky (+500 kcal bez většího objemu); automaticky se zapne, když tempo zaostává${fastMode(s) ? ', a při minimu od 1 kg týdně platí pořád' : ''}.`)}
     ${menuSec()}
     ${sec('Cíl', `<label class="row"><span class="row-text"><span class="row-title">Cílová váha</span></span><input class="field-in num" id="s-goal" inputmode="decimal" value="${kg1(s.goalKg)}" style="max-width:80px"><span class="l2">kg</span></label>
-      <label class="row"><span class="row-text"><span class="row-title">Do kdy</span></span><input type="date" class="field-in" id="s-gdate" value="${s.goalDate}"></label>`)}
+      <label class="row"><span class="row-text"><span class="row-title">Do kdy</span></span><input type="date" class="field-in" id="s-gdate" value="${s.goalDate}"></label>
+      <label class="row"><span class="row-text"><span class="row-title">Nejmíň za týden</span></span><select class="sel num" id="s-minrate">${[0, 0.5, 0.75, 1, 1.25, 1.5].map(v => `<option value="${v}" ${v === minRateOf(s) ? 'selected' : ''}>${v ? kgMin(v) + ' kg' : 'bez minima'}</option>`).join('')}</select>${ICO.chevron}</label>`,
+      `Plán míří na cíl k datu, ale nikdy pod minimum za týden, ani když jsi napřed. ${fastMode(s) ? 'Od 1 kg týdně je kalorická bomba v automatu zapnutá pořád.' : ''} Bezpečné maximum je 2 kg týdně.`)}
     ${sec('Plán', `<label class="row"><span class="row-text"><span class="row-title">Začátek</span></span><input type="date" class="field-in" id="s-start" value="${s.start}"></label>
       <label class="row"><span class="row-text"><span class="row-title">Startovní váha</span></span><input class="field-in num" id="s-kg" inputmode="decimal" value="${kg1(s.startKg)}" style="max-width:80px"><span class="l2">kg</span></label>`, 'Začátek je vždy pondělí.')}
     ${notifySec()}
@@ -3851,6 +3864,7 @@ document.addEventListener('change', async e => {
   else if (id === 's-kg') { const x = num(val); if (x > 30 && x < 200) saveSettings({ startKg: Math.round(x * 10) / 10 }); }
   else if (id === 's-goal') { const x = num(val); if (x > 40 && x < 150) saveSettings({ goalKg: Math.round(x * 10) / 10 }); }
   else if (id === 's-gdate' && val) saveSettings({ goalDate: val });
+  else if (id === 's-minrate') { const v = Number(val), st = { ...S.settings, minRate: v }; saveSettings({ minRate: v, bombHist: { ...(S.settings.bombHist || {}), [curWeek()]: bombEffective(st) } }); const sh = document.getElementById('sheet'), sc = sh.scrollTop; settingsSheet(); sh.scrollTop = sc; toast(v ? `Minimum ${kgMin(v)} kg týdně${bombEffective(st) ? ' · bomba zapnutá' : ''}` : 'Bez minima, jen cíl k datu'); }
   else if (id === 'hideb') { UI.hideBought = e.target.checked; try { localStorage.setItem(LS_KEY + '.hide', UI.hideBought ? '1' : '0'); } catch (er) { } render(); }
   else if (id === 'quick') { const k = UI.date, r = dayRec(k); r.quick = e.target.checked; saveDay(k, r); e.target.blur(); render(); toast(r.quick ? 'Rychlý den zapnut' : 'Rychlý den vypnut'); }
   else if (id === 'bloodsw') { S.body = { ...S.body, blood: e.target.checked ? { done: true, date: todayKey() } : null }; persist('app/body', S.body); e.target.blur(); render(); }

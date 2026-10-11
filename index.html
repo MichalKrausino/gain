@@ -1134,7 +1134,7 @@ const FOODS = [
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish, FOODS, FOOD_CATS };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Verze 2: ťuknutím na widget zapíšeš jídlo rovnou tady, bez otevírání Safari.\n// Vzhled a nabídky si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(maxAgeH) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (age > maxAgeH * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\nasync function run(ctx, maxAgeH) {\n  const code = await core(maxAgeH);\n  if (!code) return { ok: false };\n  try {\n    const fn = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n    return { ok: true, res: await fn({ KEY, ANON, loader: 2, script: Script.name(), ...ctx }) };\n  } catch (e) { console.error(e); return { ok: false }; }\n}\nfunction fallback() {\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\nasync function preview() {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript. Ťuknutím na widget pak zapíšeš jídlo.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i < 0) return;\n  const fam = sizes[i][1], r = await run({ family: fam }, 0), w = r.ok && r.res ? r.res : fallback();\n  if (fam === 'small') await w.presentSmall();\n  else if (fam === 'large') await w.presentLarge();\n  else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n  else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n  else await w.presentMedium();\n}\n\nif (config.runsInWidget || config.runsInAccessoryWidget) {\n  const r = await run({ family: config.widgetFamily || 'medium' }, 6);\n  Script.setWidget(r.ok && r.res ? r.res : fallback());\n} else {\n  const params = (typeof args !== 'undefined' && args.queryParameters) || {};\n  const fromWidget = Object.keys(params).length > 0;\n  const r = await run({ mode: 'app', params }, fromWidget ? 6 : 0); // ruční spuštění si vždy stáhne nejnovější verzi\n  if (!r.ok) { const a = new Alert(); a.title = 'Plán 70 kg'; a.message = 'Nepodařilo se načíst. Spusť skript jednou s internetem.'; a.addAction('OK'); await a.presentAlert(); }\n  else if (r.res === 'preview') await preview();\n}\nScript.complete();\n";
-const APP_VERSION = '0aa4fecd', APP_BUILT = '2026-10-07T14:16:17Z';
+const APP_VERSION = 'cd688115', APP_BUILT = '2026-10-11T18:10:52Z';
 
 </script>
 <script>
@@ -1442,6 +1442,7 @@ function lkEntries(id, v, base) {
     if (it.zdroj) e.z = String(it.zdroj).slice(0, 60);
     if (/^https:\/\//.test(it.url || '')) e.u = it.url;
     if (base.q) e.q = base.q;
+    if (base.ph) e.ph = 1;
     if (v.pozn) e.pz = String(v.pozn).slice(0, 240);
     return e;
   });
@@ -1464,7 +1465,7 @@ function resolveLookups() { // vrací true, když se nějaký den změnil
 }
 function pendingLookups() { // čekající záznamy za poslední 3 dny
   const out = [];
-  for (let d = 0; d < 3; d++) { const k = addDays(todayKey(), -d), r = S.days[k]; for (const x of ((r && r.extras) || [])) if (x.lk && x.st === 'wait') out.push({ k, id: x.lk, q: x.q || (x.c && x.c.n) || '' }); }
+  for (let d = 0; d < 3; d++) { const k = addDays(todayKey(), -d), r = S.days[k]; for (const x of ((r && r.extras) || [])) if (x.lk && x.st === 'wait') out.push({ k, id: x.lk, q: x.q || (x.ph ? '' : (x.c && x.c.n) || ''), ph: !!x.ph, up: !!x.up, at: x.at || 0, dv: x.dv || '' }); }
   return out;
 }
 // Vstávání: výchozí z nastavení, pro jednotlivý den jde posunout (days/<k>.wake) – jídla, notifikace i widget se posunou s ním
@@ -1557,7 +1558,7 @@ function planFor(k, opts = {}) {
 }
 function extrasFor(k) {
   return dayRec(k).extras.map((x, i) => {
-    if (x.c) return { i, custom: true, name: x.c.n, mult: 1, time: x.t, kcal: Number(x.c.kcal) || 0, b: Number(x.c.b) || 0, lk: x.lk || '', st: x.st || '', src: x.z || '', k1: x.k1 || 0 };
+    if (x.c) return { i, custom: true, name: x.c.n, mult: 1, time: x.t, kcal: Number(x.c.kcal) || 0, b: Number(x.c.b) || 0, lk: x.lk || '', st: x.st || '', src: x.z || '', k1: x.k1 || 0, ph: !!x.ph };
     const st = recStats(x.m, x.x, k); return { i, meal: x.m, name: MEALS[x.m].n + (x.x !== 1 ? ` (${fracLabel(x.x)})` : ''), mult: x.x, time: x.t, kcal: st.kcal, b: st.b };
   });
 }
@@ -2249,7 +2250,7 @@ function creatineRow(rec, i, loadDay) {
 }
 function extraRow(x) {
   if (x.lk) { // napsané jídlo s přesnými hodnotami od Clauda
-    const sub = x.st === 'wait' ? 'Hledám přesné hodnoty…' : x.st === 'none' ? '<b class="red">Nenašel jsem přesné hodnoty</b> · ťukni' : x.st === 'amount' ? `<b class="red">Kolik jsi snědl?</b> · ${kc(x.k1)} kcal na 100 g` : `Navíc · +${kc(x.kcal)} kcal${x.src ? ' · ' + esc(x.src) : ''}`;
+    const sub = x.st === 'wait' ? (x.ph ? 'Claude si prohlíží fotku…' : 'Hledám přesné hodnoty…') : x.st === 'none' ? '<b class="red">Nenašel jsem přesné hodnoty</b> · ťukni' : x.st === 'amount' ? `<b class="red">Kolik jsi snědl?</b> · ${kc(x.k1)} kcal na 100 g` : `Navíc · +${kc(x.kcal)} kcal${x.src ? ' · ' + esc(x.src) : ''}`;
     return `<div class="tl-row done extra${x.st ? ' lkwait' : ''}"><span class="tl-time num">${x.time ? esc(x.time) : ''}</span><span class="tl-node"><span class="tl-dot">${x.st === 'wait' ? '<span class="spin" aria-hidden="true"></span>' : ICO[x.st === 'none' || x.st === 'amount' ? 'warn' : 'spark']}</span></span><button class="tl-main" data-act="lkinfo" data-i="${x.i}"><span class="tl-t">${esc(x.name)}</span><span class="tl-s">${sub}</span></button><button class="tl-x" data-act="xdel" data-i="${x.i}" aria-label="Odebrat ${esc(x.name)}">${ICO.close}</button></div>`;
   }
   return `<div class="tl-row done extra"><span class="tl-time num">${x.time ? esc(x.time) : ''}</span><span class="tl-node"><span class="tl-dot">${ICO[x.custom ? 'spark' : 'plus']}</span></span><div class="tl-main static"><span class="tl-t">${esc(x.name)}</span><span class="tl-s">Navíc · +${kc(x.kcal)} kcal</span></div><button class="tl-x" data-act="xdel" data-i="${x.i}" aria-label="Odebrat ${esc(x.name)}">${ICO.close}</button></div>`;
@@ -2858,10 +2859,62 @@ async function clPhoto(file, tryCode) {
   clPhotoSheet();
 }
 function clPhotoSheet() {
+  const direct = !!SY.key && LK.ready !== false; // fotka jde rovnou rutině a výsledek se doplní sám; bez ní přes aplikaci Claude
   openSheet('Fotka jídla', `${UI.aiThumb ? `<img class="aithumb" src="${UI.aiThumb}" alt="Vyfocené jídlo">` : ''}
-    ${noticeCard('spark', 'purple', 'Kalorie z fotky spočítá <b>Claude</b> ve své aplikaci, v rámci tvého předplatného. Pošleš mu fotku a jeho odpověď pak vložíš sem.')}
-    <button class="btn pri block" data-act="clsend" data-k="photo">Poslat Claudovi</button>
+    ${direct ? sec('', `<form class="row" data-form="ph" style="padding-block:10px"><input class="cust-in" id="ph-note" autocomplete="off" enterkeyhint="send" placeholder="Upřesnění (nepovinné)" aria-label="Upřesnění k fotce" style="flex:1"></form>`, 'Claude na fotce pozná, co jíš, dohledá hodnoty na webu a do pár minut je sám doplní. Množství odhadne z fotky; připíšeš-li značku nebo velikost porce, bude přesnější.')
+      : noticeCard('spark', 'purple', 'Kalorie z fotky spočítá <b>Claude</b> ve své aplikaci, v rámci tvého předplatného. Pošleš mu fotku a jeho odpověď pak vložíš sem.')}
+    <button class="btn pri block" data-act="${direct ? 'phsend' : 'clsend'}" data-k="photo">Poslat Claudovi</button>
     ${sec('', `<button class="row has-tile" data-act="vhint">${tile('doc', 'green')}<span class="row-text"><span class="row-title tint">Radši napíšu, co to je</span><span class="row-sub">Appka to spočítá sama, i bez internetu</span></span>${ICO.chevron}</button>`)}`);
+}
+// Fotka rovnou rutině: záznam se hned zapíše jako „Claude si prohlíží fotku…“, fotka odejde na edge funkci
+// (soukromý bucket, rutina dostane podepsanou adresu) a výsledek se doplní sám jako u napsaného jídla.
+// Dokud fotka neodejde, leží v IndexedDB tohohle zařízení (klíč fq:<id>), takže ji výpadek sítě ani restart appky
+// neztratí. Rozhoduje o ní jen zařízení, které ji vyfotilo (dv): druhé zařízení ji nemá, tak na ni jen čeká.
+const FQ = {}, FQT = {};
+const DEV = (() => { try { let d = localStorage.getItem(LS_KEY + '.dev'); if (!d) { d = Math.random().toString(36).slice(2, 10); localStorage.setItem(LS_KEY + '.dev', d); } return d; } catch (e) { return 'x'; } })();
+function blobB64(bl) { return new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1] || ''); fr.onerror = () => no(fr.error); fr.readAsDataURL(bl); }); }
+function phSend() {
+  const file = UI.clFile; if (!file) { toast('Fotka se ztratila, vyfoť to znovu'); return; }
+  const inp = document.getElementById('ph-note'), note = String(inp ? inp.value : '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const k = UI.date, r = dayRec(k), id = lkId();
+  r.extras.push({ c: { n: note ? note.slice(0, 80) : 'Jídlo z fotky', kcal: 0, b: 0 }, lk: id, st: 'wait', q: note, ph: 1, at: Date.now(), dv: DEV, t: k === todayKey() ? minLabel(nowMin()) : '' });
+  saveDay(k, r);
+  FQ[id] = { file, k, note }; try { FQT[id] = URL.createObjectURL(file); } catch (e) { }
+  PH.put('fq:' + id, file).catch(() => { });
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  closeSheet(); render(); toast('Posílám fotku Claudovi…');
+  phUpload(id);
+}
+function phMark(k, id, patch) {
+  const r = dayRec(k), x = r.extras.find(e => e.lk === id && e.st === 'wait'); if (!x) return;
+  Object.assign(x, patch); saveDay(k, r); render();
+}
+function phDone(id) { delete FQ[id]; PH.del('fq:' + id).catch(() => { }); }
+async function phRetry(x) { // vlastní fotka, která ještě není na serveru
+  if (!FQ[x.id]) {
+    let blob = null; try { blob = await PH.get('fq:' + x.id); } catch (e) { }
+    if (!blob) { if (Date.now() - (x.at || 0) > 3 * 60e3) phMark(x.k, x.id, { st: 'none', pozn: 'Fotka se neodeslala. Vyfoť to prosím znovu, nebo napiš, co to bylo.' }); return; }
+    FQ[x.id] = { file: blob, k: x.k, note: x.q || '' };
+  }
+  if (Date.now() - (LK.sent[x.id] || 0) > 30000) phUpload(x.id);
+}
+async function phUpload(id) {
+  const p = FQ[id]; if (!p || p.busy || !SY.key || navigator.onLine === false) return;
+  p.busy = true; LK.sent[id] = Date.now();
+  try {
+    const img = await blobB64(await shrinkImage(p.file, 1280));
+    const r = await lkFetch({ op: 'foto', id, img, q: p.note, day: p.k }, 45000);
+    if (r.j && r.j.stored) {
+      phDone(id); phMark(p.k, id, { up: 1 });
+      if (r.j.setup) { LK.setup = true; LK.ready = false; lkSave(); } else if (r.j.fired) { LK.setup = false; LK.ready = true; lkSave(); }
+      toast('Claude si prohlíží fotku…'); scheduleSync(4000); return;
+    }
+    if (r.status === 401 || (r.j && (r.j.err === 'limit' || r.j.err === 'foto'))) {
+      const msg = r.status === 401 ? 'Záloha není propojená.' : r.j.msg || 'Fotka se neodeslala.';
+      phDone(id); phMark(p.k, id, { st: 'none', pozn: msg }); toast(msg); return;
+    }
+  } catch (e) { }
+  if (FQ[id]) { FQ[id].busy = false; toast('Fotka se zatím neodeslala, zkusím to znovu'); }
 }
 async function clSend(kind, text) {
   const file = kind === 'photo' ? UI.clFile : null, prompt = clPrompt(kind, text || '');
@@ -2931,8 +2984,8 @@ const LK = { ready: null, at: 0, sent: {}, setup: false };
 try { Object.assign(LK, JSON.parse(localStorage.getItem(LK_LS) || '{}'), { sent: {} }); } catch (e) { }
 function lkSave() { try { localStorage.setItem(LK_LS, JSON.stringify({ ready: LK.ready, at: LK.at })); } catch (e) { } }
 function lkId() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10); }
-async function lkFetch(body) {
-  const r = await fetchT(JIDLO_FN, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-plan70-key': SY.key }, body: JSON.stringify(body) }, 15000);
+async function lkFetch(body, ms = 15000) {
+  const r = await fetchT(JIDLO_FN, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-plan70-key': SY.key }, body: JSON.stringify(body) }, ms);
   const j = await r.json().catch(() => ({})); return { ok: r.ok, status: r.status, j };
 }
 async function lkStav() {
@@ -2964,7 +3017,14 @@ async function lkPing(id, q, day, first) {
 function lkTick() { // dokud něco čeká: stahuj výsledky a čas od času rutinu připomeň
   if (document.hidden || !SY.key) return;
   const p = pendingLookups(); if (!p.length) return;
-  for (const x of p) { const v = S.lk[x.id]; if ((!v || v.st === 'wait' || v.st === 'work') && Date.now() - (LK.sent[x.id] || 0) > 70000) lkPing(x.id, x.q, x.k, false); }
+  for (const x of p) {
+    const v = S.lk[x.id];
+    if (x.ph && !x.up && !v) { // fotka ještě není na serveru: textový dotaz by z ní udělal nesmysl
+      if (x.dv === DEV) phRetry(x); // jiné zařízení fotku nemá, jen počká na výsledek
+      continue;
+    }
+    if ((!v || v.st === 'wait' || v.st === 'work') && Date.now() - (LK.sent[x.id] || 0) > 70000) lkPing(x.id, x.q || 'jídlo z fotky', x.k, false);
+  }
   scheduleSync(0);
 }
 setInterval(lkTick, 15000);
@@ -2977,16 +3037,19 @@ function lkRow(q) {
 function lkInfoSheet(i) {
   const k = UI.date, r = dayRec(k), x = r.extras[i]; if (!x || !x.lk) return;
   UI.lkI = i;
+  const thumb = x.ph && FQT[x.lk] ? `<img class="aithumb" src="${FQT[x.lk]}" alt="Vyfocené jídlo">` : '';
+  const head = x.ph ? `<div><h2 class="t-title2">Jídlo z fotky</h2>${x.q ? `<p class="t-sub l2" style="margin:4px 4px 0">„${esc(x.q)}“</p>` : ''}</div>` : `<div><h2 class="t-title2">„${esc(x.q || x.c.n)}“</h2></div>`;
   if (x.st === 'wait') {
-    const v = S.lk[x.lk], st = LK.setup ? 'Rutina zatím nemá spouštěcí token, nastav ho níž. Požadavek počká.' : v && v.st === 'work' ? 'Claude teď hledá na webu. Obvykle to trvá 1–3 minuty.' : 'Čeká na Clauda. Rutina se spouští, obvykle do minuty začne hledat.';
-    openSheet('Přesné hodnoty', `<div><h2 class="t-title2">„${esc(x.q || x.c.n)}“</h2></div>${spinner(st)}
+    const v = S.lk[x.lk], pend = x.ph && !x.up && !v;
+    const st = LK.setup ? 'Rutina zatím nemá spouštěcí token, nastav ho níž. Požadavek počká.' : pend ? (x.dv === DEV ? 'Fotka se odesílá, jakmile bude internet.' : 'Fotka se odesílá z druhého zařízení.') : v && v.st === 'work' ? (x.ph ? 'Claude si prohlíží fotku a hledá hodnoty na webu. Obvykle to trvá 2–4 minuty.' : 'Claude teď hledá na webu. Obvykle to trvá 1–3 minuty.') : 'Čeká na Clauda. Rutina se spouští, obvykle do minuty začne hledat.';
+    openSheet('Přesné hodnoty', `${thumb}${head}${spinner(st)}
       ${LK.setup ? lkSetupSec() : ''}
       ${sec('', `<button class="row has-tile" data-act="manual" data-lkdel="1" data-n="${esc(x.q || x.c.n)}">${tile('plus', 'gray')}<span class="row-text"><span class="row-title tint">Zapsat ručně místo toho</span><span class="row-sub">Když znáš kalorie z obalu</span></span></button><button class="row has-tile" data-act="lkdel">${tile('close', 'red')}<span class="row-text"><span class="row-title" style="color:var(--red-text)">Zrušit a smazat záznam</span></span></button>`, 'Appku můžeš zavřít, hodnoty se doplní samy.')}`);
     return;
   }
   if (x.st === 'none') {
-    openSheet('Přesné hodnoty', `<div><h2 class="t-title2">„${esc(x.q || x.c.n)}“</h2></div>${noticeCard('warn', 'tint', `Přesné hodnoty jsem nenašel.${x.pozn ? ' ' + esc(x.pozn) : ''}`)}
-      ${sec('Zkusit jinak', `<form class="row" data-form="lkre" style="gap:8px;padding-block:12px"><input class="cust-in" id="lk-re" value="${esc(x.q || x.c.n)}" aria-label="Co jsi snědl" style="flex:1"><button class="btn pri sm" type="submit">Hledat</button></form>`, 'Pomůže značka, podnik nebo přesnější název, třeba „svíčková na smetaně s houskovým knedlíkem“.')}
+    openSheet('Přesné hodnoty', `${thumb}${head}${noticeCard('warn', 'tint', `${x.ph ? 'Z fotky jsem hodnoty nezjistil.' : 'Přesné hodnoty jsem nenašel.'}${x.pozn ? ' ' + esc(x.pozn) : ''}`)}
+      ${sec(x.ph ? 'Napsat, co to bylo' : 'Zkusit jinak', `<form class="row" data-form="lkre" style="gap:8px;padding-block:12px"><input class="cust-in" id="lk-re" value="${esc(x.ph ? (x.q || '') : (x.q || x.c.n))}" placeholder="Třeba „granola s mlékem a banánem“" aria-label="Co jsi snědl" style="flex:1"><button class="btn pri sm" type="submit">Hledat</button></form>`, 'Pomůže značka, podnik nebo přesnější název, třeba „svíčková na smetaně s houskovým knedlíkem“.')}
       ${sec('', `<button class="row has-tile" data-act="manual" data-lkdel="1" data-n="${esc(x.q || x.c.n)}">${tile('plus', 'gray')}<span class="row-text"><span class="row-title tint">Zapsat ručně</span></span></button><button class="row has-tile" data-act="lkdel">${tile('close', 'red')}<span class="row-text"><span class="row-title" style="color:var(--red-text)">Smazat záznam</span></span></button>`)}`);
     return;
   }
@@ -3002,7 +3065,7 @@ function lkInfoSheet(i) {
   }
   const mult = x.bk ? Math.round((x.c.kcal / x.bk) * 4) / 4 : 1;
   openSheet('Přesné hodnoty', `<div><h2 class="t-title2">${esc(x.c.n)}</h2><p class="t-sub l2" style="margin:4px 4px 0">${x.g && x.g !== x.bg ? `${fmtNum(Math.round(x.g))} ${unit}${x.p ? ` · zdroj uvádí ${esc(x.p)}` : ''}` : esc(x.p || (x.g ? `${fmtNum(Math.round(x.g))} ${unit}` : ''))}</p></div>
-    ${sec('', `<div class="row"><span class="row-text"><span class="row-title">Zapsáno</span></span><span class="row-trail"><span class="num" style="color:var(--green-text);font-weight:600">${kc(x.c.kcal)} kcal · ${kc(x.c.b)} g B</span></span></div>${x.k1 ? `<div class="row"><span class="row-text"><span class="row-title">Na 100 ${unit}</span></span><span class="row-trail num">${kc(x.k1)} kcal · ${fmtNum(x.b1 || 0, (x.b1 || 0) % 1 ? 1 : 0)} g B</span></div>` : ''}${x.u ? `<a class="row has-tile" href="${esc(x.u)}" target="_blank" rel="noopener">${tile('doc', 'blue')}<span class="row-text"><span class="row-title tint">Zdroj: ${esc(x.z || 'web')}</span><span class="row-sub">${esc(x.u.replace(/^https:\/\/(www\.)?/, '').slice(0, 60))}</span></span>${ICO.chevron}</a>` : ''}`, (x.q ? `Napsal jsi „${esc(x.q)}“. Hodnoty dohledal Claude na webu.` : '') + (x.pz ? ' ' + esc(x.pz) : ''))}
+    ${sec('', `<div class="row"><span class="row-text"><span class="row-title">Zapsáno</span></span><span class="row-trail"><span class="num" style="color:var(--green-text);font-weight:600">${kc(x.c.kcal)} kcal · ${kc(x.c.b)} g B</span></span></div>${x.k1 ? `<div class="row"><span class="row-text"><span class="row-title">Na 100 ${unit}</span></span><span class="row-trail num">${kc(x.k1)} kcal · ${fmtNum(x.b1 || 0, (x.b1 || 0) % 1 ? 1 : 0)} g B</span></div>` : ''}${x.u ? `<a class="row has-tile" href="${esc(x.u)}" target="_blank" rel="noopener">${tile('doc', 'blue')}<span class="row-text"><span class="row-title tint">Zdroj: ${esc(x.z || 'web')}</span><span class="row-sub">${esc(x.u.replace(/^https:\/\/(www\.)?/, '').slice(0, 60))}</span></span>${ICO.chevron}</a>` : ''}`, (x.ph ? `Z fotky${x.q ? `, s poznámkou „${esc(x.q)}“` : ''}. Co na ní je a kolik, odhadl Claude, hodnoty dohledal na webu.` : x.q ? `Napsal jsi „${esc(x.q)}“. Hodnoty dohledal Claude na webu.` : '') + (x.pz ? ' ' + esc(x.pz) : ''))}
     ${x.bk ? `<div class="row" style="padding:0;min-height:0;gap:10px"><span class="t-sub l2" style="flex:none">Snědl jsem</span><div class="seg" role="group" aria-label="Kolik" style="flex:1">${[[0.5, '½'], [1, '1'], [1.5, '1½'], [2, '2×']].map(([f, n]) => `<button data-act="lkx" data-f="${f}" aria-pressed="${Math.abs(mult - f) < 0.01}">${n}</button>`).join('')}</div></div>` : ''}
     ${x.k1 ? sec('', `<form class="row" data-form="lkg" style="gap:8px;padding-block:12px"><input class="cust-in num" id="lk-g" inputmode="decimal" placeholder="Přesně v ${unit === 'ml' ? 'ml' : 'gramech'}" aria-label="Množství" style="flex:1"><span class="l2">${unit}</span><button class="btn pri sm" type="submit">Uložit</button></form>`) : ''}
     ${sec('', `<button class="row has-tile" data-act="lkdel">${tile('close', 'red')}<span class="row-text"><span class="row-title" style="color:var(--red-text)">Smazat záznam</span></span></button>`)}`);
@@ -3305,6 +3368,7 @@ document.addEventListener('click', e => {
   else if (a === 'lkgq') lkSetAmount(0, Number(b.dataset.g));
   else if (a === 'lkdel') { const k = UI.date, r = dayRec(k), x = r.extras[UI.lkI]; if (x && x.lk) { r.extras.splice(UI.lkI, 1); saveDay(k, r); } closeSheet(); render(); toast('Smazáno'); }
   else if (a === 'clsend') clSend(b.dataset.k, b.dataset.t || '');
+  else if (a === 'phsend') phSend();
   else if (a === 'clpaste') clPaste();
   else if (a === 'aitog') { const i = Number(b.dataset.i), off = UI.aiOff || (UI.aiOff = new Set()); if (off.has(i)) off.delete(i); else off.add(i); const sh = document.getElementById('sheet'), sc = sh.scrollTop; aiResultSheet(UI.aiRes); sh.scrollTop = sc; }
   else if (a === 'vhint') { extrasSheet(); setTimeout(() => { const i = document.getElementById('f-q'); if (i) i.focus(); }, 380); }
@@ -3424,6 +3488,7 @@ document.addEventListener('submit', e => {
   else if (f.matches('[data-form="lktoken"]')) lkSaveToken();
   else if (f.matches('[data-form="ingadd"]')) { const k = (document.getElementById('ing-add') || {}).value, q = num((document.getElementById('ing-add-q') || {}).value); if (!k) { toast('Vyber surovinu'); return; } if (!(q > 0 && q < 5000)) { toast(`Zadej množství v ${ING[k].u}`); return; } document.activeElement && document.activeElement.blur(); ingChange(f.dataset.slot, k, q); }
   else if (f.matches('[data-form="lkg"]')) { const g = num(document.getElementById('lk-g').value); if (!(g > 0 && g < 5000)) { toast('Zadej množství, třeba 250'); return; } document.activeElement && document.activeElement.blur(); lkSetAmount(0, g); }
+  else if (f.matches('[data-form="ph"]')) phSend();
   else if (f.matches('[data-form="lkre"]')) { const v = (document.getElementById('lk-re').value || '').trim(); if (!v) return; const k = UI.date, r = dayRec(k); if (r.extras[UI.lkI] && r.extras[UI.lkI].lk) { r.extras.splice(UI.lkI, 1); saveDay(k, r); } document.activeElement && document.activeElement.blur(); lkStart(v); }
   else if (f.matches('[data-form="clbox"]')) { const v = (document.getElementById('cl-box') || {}).value || ''; document.activeElement && document.activeElement.blur(); clUse(v); }
   else if (f.matches('[data-form="ask"]')) runAsk();

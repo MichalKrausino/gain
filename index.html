@@ -457,6 +457,17 @@ textarea::placeholder { color: var(--label-3); }
 .dtype[aria-checked="true"] .row-title { font-weight: 600; }
 /* den pryč: jídla s sebou s časem vlevo */
 .row.pk { gap: 14px; }
+/* den venku: místo plánu to, co je zapsané, a velké Zapsat jídlo */
+.out-box .tl { margin-bottom: 2px; }
+.out-empty { display: flex; gap: 14px; align-items: flex-start; padding: 16px 16px 6px; }
+.out-empty p { margin: 0; display: flex; flex-direction: column; gap: 3px; }
+.out-empty p span { font-size: .882rem; line-height: 1.35; color: var(--label-2); }
+.out-ic { width: 40px; height: 40px; flex: none; border-radius: 12px; display: grid; place-items: center; color: var(--teal); background: color-mix(in srgb, var(--teal) 18%, transparent); }
+.out-ic svg { width: 22px; height: 22px; }
+.out-acts { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; padding: 12px 16px 16px; }
+.out-acts .btn { min-height: 48px; min-width: 0; padding: 0 10px; gap: 6px; font-size: .941rem; }
+@media (max-width: 374px) { .out-acts { grid-template-columns: 1fr 1fr; } .out-acts .btn.pri { grid-column: 1 / -1; } }
+.out-acts .btn svg { width: 18px; height: 18px; flex: none; }
 .pk-t { min-width: 40px; font-size: .88rem; font-weight: 600; color: var(--label-2); }
 .tl-dot svg { width: 14px; height: 14px; }
 a.row { text-decoration: none; color: inherit; }
@@ -1173,7 +1184,7 @@ const BUY = {
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish, FOODS, FOOD_CATS, BUY };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Verze 2: ťuknutím na widget zapíšeš jídlo rovnou tady, bez otevírání Safari.\n// Vzhled a nabídky si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(maxAgeH) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (age > maxAgeH * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\nasync function run(ctx, maxAgeH) {\n  const code = await core(maxAgeH);\n  if (!code) return { ok: false };\n  try {\n    const fn = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n    return { ok: true, res: await fn({ KEY, ANON, loader: 2, script: Script.name(), ...ctx }) };\n  } catch (e) { console.error(e); return { ok: false }; }\n}\nfunction fallback() {\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\nasync function preview() {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript. Ťuknutím na widget pak zapíšeš jídlo.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i < 0) return;\n  const fam = sizes[i][1], r = await run({ family: fam }, 0), w = r.ok && r.res ? r.res : fallback();\n  if (fam === 'small') await w.presentSmall();\n  else if (fam === 'large') await w.presentLarge();\n  else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n  else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n  else await w.presentMedium();\n}\n\nif (config.runsInWidget || config.runsInAccessoryWidget) {\n  const r = await run({ family: config.widgetFamily || 'medium' }, 6);\n  Script.setWidget(r.ok && r.res ? r.res : fallback());\n} else {\n  const params = (typeof args !== 'undefined' && args.queryParameters) || {};\n  const fromWidget = Object.keys(params).length > 0;\n  const r = await run({ mode: 'app', params }, fromWidget ? 6 : 0); // ruční spuštění si vždy stáhne nejnovější verzi\n  if (!r.ok) { const a = new Alert(); a.title = 'Plán 70 kg'; a.message = 'Nepodařilo se načíst. Spusť skript jednou s internetem.'; a.addAction('OK'); await a.presentAlert(); }\n  else if (r.res === 'preview') await preview();\n}\nScript.complete();\n";
-const APP_VERSION = 'ebb0d951', APP_BUILT = '2026-10-11T20:45:03Z';
+const APP_VERSION = '0464d608', APP_BUILT = '2026-10-11T21:18:56Z';
 
 </script>
 <script>
@@ -1463,12 +1474,12 @@ function menuPatch(patch) { // změna platí od zítřka (před startem od start
 function leftoverOk(id) { return !!id && MEALS[id] && MEALS[id].cat === 'H' && !MEALS[id].fresh; }
 function effDinner(j) { // co se večer j opravdu vařilo (po náhradách a výměnách)
   const kj = addDays(S.settings.start, j), r = dayRec(kj);
-  if (r.skip.vecere && !r.done.vecere) return null;
-  let m = menuDay(j).vecere; const sub = subFor(m, 'vecere', kj, r.quick || !!r.away, j); if (sub) m = sub.id;
+  if ((r.skip.vecere && !r.done.vecere) || r.away) return null; // vynechaná večeře nebo den venku: nic na zítřejší oběd
+  let m = menuDay(j).vecere; const sub = subFor(m, 'vecere', kj, r.quick, j); if (sub) m = sub.id;
   if (r.swap.vecere && MEALS[r.swap.vecere]) m = r.swap.vecere;
   return m;
 }
-function dayRec(k) { const r = S.days[k] || {}; return { done: { ...(r.done || {}) }, part: { ...(r.part || {}) }, swap: { ...(r.swap || {}) }, skip: { ...(r.skip || {}) }, extras: (r.extras || []).map(x => ({ ...x })), quick: !!r.quick, ...(r.away ? { away: 1 } : {}), gi: r.gi || null, ing: JSON.parse(JSON.stringify(r.ing || {})), wake: r.wake || null, ...(r.unk ? { unk: 1 } : {}) }; }
+function dayRec(k) { const r = S.days[k] || {}; return { done: { ...(r.done || {}) }, part: { ...(r.part || {}) }, swap: { ...(r.swap || {}) }, skip: { ...(r.skip || {}) }, extras: (r.extras || []).map(x => ({ ...x })), quick: !!r.quick, ...(r.away ? { away: 1 } : {}), ...(r.outDone ? { outDone: 1 } : {}), gi: r.gi || null, ing: JSON.parse(JSON.stringify(r.ing || {})), wake: r.wake || null, ...(r.unk ? { unk: 1 } : {}) }; }
 // Jídlo z plánu nahrazené něčím jiným (typicky fotkou): plánované je „vynechané“ a položky navíc nesou for = slot.
 // Čísla tím sedí sama (snědeno = co bylo na fotce), appka jen ví, ke kterému jídlu to patří, a neptá se na něj znovu.
 const SLOT_GEN = { snidane: 'snídaně', shake: 'shaku', obed: 'oběda', svacina: 'svačiny', turbo: 'shaku navíc', vecere: 'večeře' };
@@ -1583,18 +1594,11 @@ function itemIng(x) { const a = (x.ing || MEALS[x.meal].ing.map(([i, q]) => [i, 
 function itemDelta(x, sign) { const d = {}; for (const [i, q] of itemIng(x)) d[i] = (d[i] || 0) + sign * q; return d; }
 function bombEffective(st) { const m = st.bomb || 'auto'; return m === 'on' || (m === 'auto' && !!st.bombNow && curWeek() >= 3); }
 function rating(id) { return (S.prefs.rating || {})[id] || 0; }
-// Den pryč: snídaně doma (rychlá), shake do lahve, oběd a svačina s sebou (bez lednice a mikrovlnky), večeře doma do 15 minut.
-// Kalorie zůstávají podobné; vybírá se jídlo s nejbližšími kaloriemi, pro každý den stejně (na všech zařízeních).
-function awayFor(meal, slotK, k) {
-  const M = MEALS[meal], base = mealStats(meal).kcal;
-  const near = pool => { const c = pool.filter(id => id !== meal && rating(id) !== -1).map(id => ({ id, s: Math.abs(mealStats(id).kcal - base) / 100 + hash01(k + '|away|' + slotK + '|' + id) * 0.8 - (rating(id) === 1 ? 1.5 : 0) })).sort((a, b) => a.s - b.s)[0]; return c ? { id: c.id, reason: 'away' } : null; };
-  if (slotK === 'shake' || slotK === 'turbo') return M.go ? null : { id: 'shake_lahev', reason: 'away' };
-  if (slotK === 'obed') return M.go ? null : near(Object.keys(MEALS).filter(id => MEALS[id].away && MEALS[id].cat === 'H'));
-  if (slotK === 'svacina') return M.go ? null : near(poolOf('V').filter(id => MEALS[id].go));
-  if (slotK === 'snidane') return M.min <= 10 || M.prep ? null : near(poolOf('S').filter(id => MEALS[id].min <= 10));
-  return null; // večeře doma: stačí pravidla rychlého dne
-}
+// Den venku: celý den mimo domov a bez možnosti ohřát si jídlo, často bez předchozí přípravy. Plán dne je prázdný,
+// zapisuje se jen to, co se opravdu snědlo (napsat, vyfotit, kód, běžná jídla). Cíl kalorií dne zůstává (dayTarget),
+// den se uzavře „To je vše“ (outDone) a teprve pak se počítá do tempa. Ve stavu dne je to klíč away (kvůli kompatibilitě).
 function isAway(k) { return !!(S.days[k] && S.days[k].away); }
+function dayTarget(k) { const its = planFor(k, { full: true }); return { kcal: its.reduce((a, x) => a + x.kcal, 0), b: its.reduce((a, x) => a + x.b, 0), end: its.length ? its[its.length - 1].time : '' }; }
 function subFor(meal, slotK, k, quick, i) { // náhrada za jídlo s palcem dolů nebo za pomalé jídlo v rychlém dni
   const cat = MEALS[meal].cat, bad = id => rating(id) === -1, main = slotK === 'obed' || slotK === 'vecere';
   const slow = id => quick && main && MEALS[id].min > 15 && !MEALS[id].prep;
@@ -1609,18 +1613,19 @@ function planFor(k, opts = {}) {
   const i = idxOf(k); if (i < 0) return [];
   const w = weekOfIdx(i), day = menuDay(i), next = menuDay(i + 1);
   const raw = opts.base || opts.plan, rec = raw ? { done: {}, swap: {}, skip: {}, quick: false } : dayRec(k);
-  const add = opts.base ? 0 : addFor(w), bomb = !opts.nobomb && bombFor(w), out = [], away = !raw && !!rec.away;
+  if (!raw && rec.away && !opts.full) return []; // den venku: žádná jídla z plánu, jen to, co se zapíše
+  const add = opts.base ? 0 : addFor(w), bomb = !opts.nobomb && bombFor(w), out = [];
   for (const s of SLOTS) {
     if (w < s.from) continue;
     let meal = day[s.k], mult = 1, auto = '', lo = false;
     if (s.k === 'turbo') { if (add <= 0) continue; mult = addMult(add); }
-    if (s.k === 'obed' && day.lo && !away) { // zbytek ze včerejší večeře, pokud se opravdu vařila (v den pryč se bere balíček)
+    if (s.k === 'obed' && day.lo) { // zbytek ze včerejší večeře, pokud se opravdu vařila
       const pd = opts.base ? day.obed : effDinner(i - 1);
       if (leftoverOk(pd)) { meal = pd; lo = true; } else meal = day.obedAlt;
     }
     let planned = meal;
-    if (!opts.base && !lo) { const sub = (away && !rec.done[s.k] && !rec.skip[s.k] && awayFor(meal, s.k, k)) || subFor(meal, s.k, k, rec.quick || away, i); if (sub) { meal = sub.id; planned = sub.id; auto = sub.reason; } }
-    if (bomb && s.k === 'svacina' && !rec.swap[s.k] && !away) { const dense = bombSnack(k, meal, i); if (dense) { meal = dense; planned = dense; auto = auto || 'bomb'; } }
+    if (!opts.base && !lo) { const sub = subFor(meal, s.k, k, rec.quick, i); if (sub) { meal = sub.id; planned = sub.id; auto = sub.reason; } }
+    if (bomb && s.k === 'svacina' && !rec.swap[s.k]) { const dense = bombSnack(k, meal, i); if (dense) { meal = dense; planned = dense; auto = auto || 'bomb'; } }
     if (rec.swap[s.k] && MEALS[rec.swap[s.k]]) { meal = rec.swap[s.k]; if (meal !== planned) lo = false; }
     let ing = raw ? null : dayIng(rec, s.k, meal), ingTag = ing ? 'day' : '';
     if (!ing && lo && !raw) { ing = dayIng(dayRec(addDays(k, -1)), 'vecere', meal); if (ing) ingTag = 'lo'; } // zbytek = stejné množství jako včerejší večeře
@@ -1644,6 +1649,7 @@ function extrasFor(k) {
 }
 function dayTotals(k) {
   const items = planFor(k), ex = extrasFor(k), t = { kcal: 0, b: 0, cost: 0, dk: 0, db: 0, n: items.length, nd: 0, ek: 0 };
+  if (isAway(k) && idxOf(k) >= 0) { const g = dayTarget(k); t.kcal = g.kcal; t.b = g.b; t.out = true; } // den venku: cíl jako běžný den
   const rec = S.days[k] || {}, dn = rec.done || {};
   for (const x of items) { t.kcal += x.kcal; t.b += x.b; t.cost += x.cost; if (x.done) { const ek = typeof dn[x.slot.k] === 'number' ? dn[x.slot.k] : x.kcal; t.dk += ek; t.db += x.kcal ? x.b * ek / x.kcal : x.b; t.nd++; } }
   for (const x of ex) { t.dk += x.kcal; t.db += x.b; t.ek += x.kcal; }
@@ -1723,7 +1729,7 @@ function foodSearch(q, cat) { // potraviny i recepty z appky; bez diakritiky, v�
   return out;
 }
 function fold(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
-function isClosed(k) { const its = planFor(k); return its.length > 0 && its.every(x => x.done || x.skip); }
+function isClosed(k) { if (isAway(k)) return !!(S.days[k] && S.days[k].outDone); const its = planFor(k); return its.length > 0 && its.every(x => x.done || x.skip); }
 function openMeals(k, nm) { // co zůstalo neodškrtnuté: celý minulý den, dnes jen jídla zpožděná o víc než 90 minut
   const t0 = todayKey(); if (idxOf(k) < 0 || k > t0) return [];
   return planFor(k).filter(x => !x.done && !x.skip && (k < t0 || x.m < nm - 90));
@@ -1920,7 +1926,7 @@ function autoCheck() {
 function streak() {
   let k = todayKey(), n = 0;
   if (dayTotals(k).pct < 0.9) k = addDays(k, -1);
-  while (idxOf(k) >= 0) { const t = dayTotals(k); if (t.n && t.pct >= 0.9) { n++; k = addDays(k, -1); } else break; }
+  while (idxOf(k) >= 0) { const t = dayTotals(k); if ((t.n || t.out) && t.pct >= 0.9) { n++; k = addDays(k, -1); } else break; }
   return n;
 }
 
@@ -1957,8 +1963,10 @@ function syncPlan() {
   if (!SY.key) return;
   const t0 = todayKey(), days = {};
   for (let d = -7; d < 21; d++) {
-    const k = addDays(t0, d), items = planFor(k); if (!items.length) continue;
-    days[k] = { kcal: Math.round(items.reduce((a, x) => a + x.kcal, 0)), ...(isAway(k) ? { away: 1 } : {}), slots: items.map(x => ({ k: x.slot.k, slot: x.slot.n, n: MEALS[x.meal].n + (x.mult !== 1 ? ` (${fracLabel(x.mult)} porce)` : '') + (x.lo ? ' (zbytek ze včerejška)' : x.cook2 ? ' (uvař 2 porce)' : ''), t: x.time, kcal: Math.round(x.kcal), ...(x.boost ? { boost: x.boostTxt } : {}), ...(MEALS[x.meal].go && isAway(k) ? { go: 1 } : {}) })) };
+    const k = addDays(t0, d), items = planFor(k);
+    if (isAway(k) && idxOf(k) >= 0) { const g = dayTarget(k); days[k] = { kcal: Math.round(g.kcal), away: 1, end: g.end, slots: [] }; continue; }
+    if (!items.length) continue;
+    days[k] = { kcal: Math.round(items.reduce((a, x) => a + x.kcal, 0)), slots: items.map(x => ({ k: x.slot.k, slot: x.slot.n, n: MEALS[x.meal].n + (x.mult !== 1 ? ` (${fracLabel(x.mult)} porce)` : '') + (x.lo ? ' (zbytek ze včerejška)' : x.cook2 ? ' (uvař 2 porce)' : ''), t: x.time, kcal: Math.round(x.kcal), ...(x.boost ? { boost: x.boostTxt } : {}) })) };
   }
   const e = engine();
   const body = { v: 1, today: t0, tz: 'Europe/Prague', wake: S.settings.wake, add: S.settings.add, goalKg: S.settings.goalKg, goalDate: S.settings.goalDate,
@@ -2146,6 +2154,7 @@ function renderToday(head, v) {
     const waist = dowOf(k) === 6 && nm < 14 * 60 && !waistEntries().some(([d]) => dayDiff(d, k) < 6), gi = !rec.gi && (nm >= 18 * 60 || eveningOf(k, nm));
     h.push(checkinCard(confirmDays(nm), weighDue(nm), wakeHint(nm), { waist, gi }));
   }
+  else if (isPast && rec.away) { if (!isClosed(k) && !isUnk(k)) h.push(checkinCard([{ k, items: [], out: true }], false)); }
   else if (isPast) { const om = openMeals(k); if (om.length) h.push(isUnk(k) ? noticeCard('info', 'gray', '<b>Tenhle den nevíš.</b> Do tempa se nepočítá. Když si vzpomeneš, doplň ho.', `<button class="btn sm" data-act="daylog" data-k="${k}" style="margin-top:10px">Doplnit</button>`) : checkinCard([{ k, items: om }], false)); }
 
   // 2) Souhrn dne
@@ -2157,20 +2166,27 @@ function renderToday(head, v) {
     if (gi >= 2) h.push(noticeCard('warn', 'tint', `<b>Trávení zlobí ${gi}× za 4 dny.</b> Rozděl shake na dvě půlky a pij mezi jídly, ne k nim. ${giIssues(k, 7) >= 4 ? 'Trvá to přes týden, ukaž se praktikovi.' : ''}`, S.settings.add > 0 ? `<button class="btn sm" data-act="slower" style="margin-top:10px">Ubrat doplněk o ¼ shaku</button>` : ''));
   }
 
-  // 3) Plán dne: časová osa, další jídlo je rozbalené; vstávání a typ dne (běžný, rychlý, pryč) jsou dva čipy
+  // 3) Plán dne: časová osa, další jídlo je rozbalené; vstávání a typ dne (běžný, rychlý, venku) jsou jeden čip
   const chips = !isPast ? dayChip(k, rec) : '';
-  const pfoot = isPast ? '' : [rec.wake ? `${isToday ? 'Dnes vstáváš' : 'Vstáváš'} v ${rec.wake.replace(/^0/, '')}, časy jídel jsou posunuté.` : '', rec.away ? 'Den pryč: shake, oběd a svačina s sebou, večeře doma do 15 minut.' : rec.quick ? 'Rychlý den: jen jídla do 15 minut, kalorie zůstávají stejné.' : ''].filter(Boolean).join(' ');
-  h.push(sec('Plán dne', timeline(k, items, ex, rec, { isToday, nx, nm, i }), pfoot, chips));
+  if (rec.away) { // den venku: prázdný plán, jen to, co se zapíše
+    h.push(sec('Snědeno', outSec(k, ex, isPast), isPast ? '' : 'Plán dne je prázdný. Co zapíšeš, to se sečte. Večer den uzavři tlačítkem To je vše.', chips));
+    if (!isPast) h.push(sec('', `<button class="row has-tile" data-act="outbuy" data-k="${k}">${tile('tag', 'teal')}<span class="row-text"><span class="row-title">Kup cestou</span><span class="row-sub">Co koupit v obchodě, ať to vyjde · bez ohřívání</span></span>${ICO.chevron}</button><button class="row has-tile" data-act="ask">${tile('spark', 'purple')}<span class="row-text"><span class="row-title">Jím v restauraci</span><span class="row-sub">Poradí Claude, co si dát</span></span>${ICO.chevron}</button>`));
+    const gap = Math.round(t.kcal - t.dk);
+    if (isToday && (rec.outDone || nm >= 20 * 60) && gap >= 150) h.push(fillSec(gap, rec.outDone ? true : 'out'));
+  } else {
+    const pfoot = isPast ? '' : [rec.wake ? `${isToday ? 'Dnes vstáváš' : 'Vstáváš'} v ${rec.wake.replace(/^0/, '')}, časy jídel jsou posunuté.` : '', rec.quick ? 'Rychlý den: jen jídla do 15 minut, kalorie zůstávají stejné.' : ''].filter(Boolean).join(' ');
+    h.push(sec('Plán dne', timeline(k, items, ex, rec, { isToday, nx, nm, i }), pfoot, chips));
 
-  // 4) Dorovnání: vynechané jídlo, nedojedená porce, nebo večer chybí kalorie
-  if (isToday) {
-    const gap = allClosed && !win ? Math.max(lostKcal(k), Math.round(t.kcal - t.dk)) : lostKcal(k);
-    if (gap >= 150) h.push(fillSec(gap, allClosed));
+    // 4) Dorovnání: vynechané jídlo, nedojedená porce, nebo večer chybí kalorie
+    if (isToday) {
+      const gap = allClosed && !win ? Math.max(lostKcal(k), Math.round(t.kcal - t.dk)) : lostKcal(k);
+      if (gap >= 150) h.push(fillSec(gap, allClosed));
+    }
+
+    // 5) Rychlé akce
+    if (isToday) h.push(`<div class="qa"><button class="qa-b" data-act="extras"><span class="qa-i" style="--c:var(--tint)">${ICO.plus}</span><span class="qa-tx"><b>Něco navíc</b><small>Fotka, kód, rohlík…</small></span></button><button class="qa-b" data-act="ask"><span class="qa-i" style="--c:var(--purple)">${ICO.spark}</span><span class="qa-tx"><b>Jím venku</b><small>Poradí Claude</small></span></button></div>`);
+    else if (isPast) h.push(`<div class="qa one"><button class="qa-b" data-act="extras"><span class="qa-i" style="--c:var(--tint)">${ICO.plus}</span><span class="qa-tx"><b>Zapsat něco navíc</b><small>Co jsi ten den snědl mimo plán</small></span></button></div>`);
   }
-
-  // 5) Rychlé akce
-  if (isToday) h.push(`<div class="qa"><button class="qa-b" data-act="extras"><span class="qa-i" style="--c:var(--tint)">${ICO.plus}</span><span class="qa-tx"><b>Něco navíc</b><small>Fotka, kód, rohlík…</small></span></button><button class="qa-b" data-act="ask"><span class="qa-i" style="--c:var(--purple)">${ICO.spark}</span><span class="qa-tx"><b>Jím venku</b><small>Poradí Claude</small></span></button></div>`);
-  else if (isPast) h.push(`<div class="qa one"><button class="qa-b" data-act="extras"><span class="qa-i" style="--c:var(--tint)">${ICO.plus}</span><span class="qa-tx"><b>Zapsat něco navíc</b><small>Co jsi ten den snědl mimo plán</small></span></button></div>`);
   // jednorázové: zapnout notifikace a jak s appkou pracovat (pod plánem, ať nepřekáží dalšímu jídlu)
   if (isToday) { const pn = pushNudge(); if (pn) h.push(pn); if (!introSeen()) h.push(introCard()); }
 
@@ -2185,11 +2201,11 @@ function renderToday(head, v) {
 // Jedna klidná karta nahoře na Dnes sbírá všechno, co čeká na odpověď: ranní váhu a dny, které ještě nejsou potvrzené
 // (minulé do 3 dnů zpět, dnešek až večer po posledním jídle). Nepotvrzené jídlo není „nesnědené“, ale neznámé:
 // tempo se počítá jen z potvrzených dní.
-// ---------- Typ dne: běžný, rychlý, pryč ----------
-// Den pryč: celý den mimo domov. Snídaně doma (rychlá), shake do lahve s trvanlivým mlékem, oběd a svačina s sebou
-// (bez lednice a mikrovlnky), večeře doma do 15 minut. Když balíček nevyjde, „Kup cestou“ navrhne, co koupit, a zapíše
-// to místo jídla z plánu jedním ťuknutím. Kalorie zůstávají stejné, mění se jen to, co se jí.
-const DAY_T = { '': ['plate', 'green', 'Běžný den', 'Vaříš a jíš podle plánu.'], quick: ['bolt', 'tint', 'Rychlý den', 'Jen jídla do 15 minut, kalorie zůstávají stejné.'], away: ['bag', 'teal', 'Den pryč', 'Nejsi doma: snídaně doma, shake, oběd a svačina s sebou. Bez lednice i mikrovlnky, večeře do 15 minut.'] };
+// ---------- Typ dne: běžný, rychlý, venku ----------
+// Den venku: celý den mimo domov, často bez přípravy a bez možnosti ohřát si jídlo. Plán dne je prázdný a zapisuje se jen
+// to, co se opravdu snědlo (napsat, vyfotit, kód, běžná jídla); kalorie se sečtou a cíl dne zůstává. Večer se den
+// uzavře „To je vše“, teprve pak se počítá do tempa. „Kup cestou“ navrhne, co koupit, aby to vyšlo.
+const DAY_T = { '': ['plate', 'green', 'Běžný den', 'Vaříš a jíš podle plánu.'], quick: ['bolt', 'tint', 'Rychlý den', 'Jen jídla do 15 minut, kalorie zůstávají stejné.'], away: ['bag', 'teal', 'Den venku', 'Nejsi doma: plán zmizí a jen zapisuješ, co sníš. Kalorie se sečtou, cíl dne zůstává.'] };
 function dayType(r) { return r.away ? 'away' : r.quick ? 'quick' : ''; }
 function dayChip(k, rec) { // jeden čip: kdy den začíná a jaký je; obojí se mění v jednom panelu
   const t = dayType(rec), [ic, , n] = DAY_T[t], w = wakeOf(k).replace(/^0/, '');
@@ -2203,34 +2219,32 @@ function daySheet(k) {
     ${sec('', `<button class="row has-tile" data-act="wakesheet" data-k="${k}">${tile('sun', 'yellow')}<span class="row-text"><span class="row-title">Vstávání</span><span class="row-sub">Jídla se posunou s tebou</span></span><span class="row-trail num">${wakeOf(k).replace(/^0/, '')}</span>${ICO.chevron}</button>`)}`);
 }
 function setDayType(k, t) { const r = dayRec(k); r.quick = t === 'quick'; if (t === 'away') r.away = 1; else delete r.away; saveDay(k, r); }
-function packItems(k) { return planFor(k).filter(x => MEALS[x.meal].go); }
-function packSheet(k) {
-  const its = packItems(k), kcal = its.reduce((a, x) => a + x.kcal, 0), isT = k === todayKey();
-  const rows = its.map(x => `<button class="row pk" data-act="recipe" data-meal="${x.meal}"><span class="pk-t num">${x.time}</span><span class="row-text"><span class="row-title">${esc(MEALS[x.meal].n)}</span><span class="row-sub">${x.slot.n} · ${kc(x.kcal)} kcal${x.done ? ' · snědeno' : ''}</span></span>${ICO.chevron}</button>`).join('');
-  const tips = [['Večer nebo ráno', 'si připrav, co je níž. Zabere to asi 10 minut a všechno vydrží bez lednice.'], ['Ráno', 'se doma pořádně nasnídej. Je to jediné velké jídlo dne, které máš jisté.'], ['Přes den', 'jez v časech z plánu, i bez hladu. Upozornění chodí jako jindy.'], ['Nevyšlo to?', 'U jídla ťukni Kup cestou: appka navrhne, co koupit v obchodě, a zapíše to jedním ťuknutím.'], ['Večer', 'doma rychlá večeře do 15 minut. Co chybí, dorovnáš shakem.']];
-  openSheet(isT ? 'Dnes' : dayName(k), `<div><h2 class="t-title2">Den pryč: s sebou</h2><p class="t-sub l2" style="margin:4px 4px 0">${its.length} ${plural(its.length, 'jídlo', 'jídla', 'jídel')} · ${kc(kcal)} kcal · bez lednice a mikrovlnky</p></div>
-    ${sec('Do batohu', rows || '<div class="row"><span class="row-sub">Tenhle den nemá nic s sebou.</span></div>', 'Ťukni na jídlo a uvidíš, jak ho připravit.')}
-    ${sec('Jak na to', `<ol class="steps">${tips.map(([a, b]) => `<li><span><b>${a}</b> ${b}</span></li>`).join('')}</ol>`)}`);
+function outBuyOpts(k) { // Kup cestou: hotové kombinace z obchodu nebo benzinky, nejblíž tomu, co dnes ještě chybí
+  const t = dayTotals(k), left = Math.max(400, Math.min(1100, t.kcal - t.dk)), all = [];
+  for (const cat of ['H', 'X', 'V']) for (const c of BUY[cat]) { const it = c.map(([id, n]) => ({ f: FOOD[id], n })).filter(o => o.f); all.push({ it, kcal: it.reduce((a, o) => a + o.f.kcal * o.n, 0), b: it.reduce((a, o) => a + o.f.b * o.n, 0) }); }
+  return all.sort((a, b) => Math.abs(a.kcal - left) - Math.abs(b.kcal - left)).slice(0, 5);
 }
-function buyOpts(x) {
-  return (BUY[x.slot.cat] || BUY.V).map(c => { const it = c.map(([id, n]) => ({ f: FOOD[id], n })).filter(o => o.f); return { it, kcal: it.reduce((a, o) => a + o.f.kcal * o.n, 0), b: it.reduce((a, o) => a + o.f.b * o.n, 0) }; })
-    .sort((a, b) => Math.abs(a.kcal - x.kcal) - Math.abs(b.kcal - x.kcal));
-}
-function buySheet(slot) {
-  const k = UI.date, x = planFor(k).find(y => y.slot.k === slot); if (!x) return;
-  const opts = buyOpts(x); UI.buy = { k, slot, opts }; UI.exFor = { k, s: slot };
+function outBuySheet(k) {
+  const t = dayTotals(k), opts = outBuyOpts(k); UI.buy = { k, opts };
   const rows = opts.map((o, j) => `<button class="row" data-act="buyadd" data-j="${j}"><span class="row-text"><span class="row-title">${esc(capFirst(andList(o.it.map(e => (e.n > 1 ? e.n + '× ' : '') + e.f.n.toLowerCase()))))}</span><span class="row-sub">${kc(o.b)} g bílkovin</span></span><span class="row-trail"><span class="num" style="color:var(--green-text)">${kc(o.kcal)} kcal</span><span class="addc" aria-hidden="true">${ICO.plus}</span></span></button>`).join('');
-  openSheet(`Místo ${SLOT_GEN[slot] || 'jídla'}`, `<div><h2 class="t-title2">Kup cestou</h2><p class="t-sub l2" style="margin:4px 4px 0">V plánu: ${esc(MEALS[x.meal].n)} · ${kc(x.kcal)} kcal</p></div>
-    ${sec('Z obchodu nebo benzinky', rows, 'Ťukni, co sis koupil, a zapíše se to místo jídla z plánu. Hodnoty jsou průměrné porce; přesné jsou na obalu.')}
-    ${sec('', `<button class="row has-tile" data-act="scan">${tile('grid', 'blue')}<span class="row-text"><span class="row-title tint">Naskenovat kód z obalu</span><span class="row-sub">Zapíše přesné hodnoty</span></span>${ICO.chevron}</button><button class="row has-tile" data-act="extras">${tile('plus', 'gray')}<span class="row-text"><span class="row-title tint">Něco jiného</span><span class="row-sub">Vyfotit, napsat nebo vybrat</span></span>${ICO.chevron}</button>`)}`);
+  openSheet('Den venku', `<div><h2 class="t-title2">Kup cestou</h2><p class="t-sub l2" style="margin:4px 4px 0">Dnes zbývá ${kc(Math.max(0, t.kcal - t.dk))} kcal. Bez vaření a bez ohřívání.</p></div>
+    ${sec('Z obchodu nebo benzinky', rows, 'Ťukni, co sis koupil, a zapíše se to. Hodnoty jsou průměrné porce; přesné jsou na obalu.')}
+    ${sec('', `<button class="row has-tile" data-act="scan">${tile('grid', 'blue')}<span class="row-text"><span class="row-title tint">Naskenovat kód z obalu</span><span class="row-sub">Zapíše přesné hodnoty</span></span>${ICO.chevron}</button>`)}`);
 }
 function buyAdd(j) {
   const b = UI.buy, o = b && b.opts[j]; if (!o) return;
   const r = dayRec(b.k), t = b.k === todayKey() ? minLabel(nowMin()) : '';
-  if (r.done[b.slot]) { toast('Tohle jídlo už máš snědené'); return; }
-  for (const e of o.it) r.extras.push({ c: { n: (e.n > 1 ? e.n + '× ' : '') + e.f.n, kcal: Math.round(e.f.kcal * e.n), b: Math.round(e.f.b * e.n) }, f: e.f.id, t, for: b.slot });
-  delete r.part[b.slot]; r.skip[b.slot] = true; saveDay(b.k, r);
-  closeSheet(); render(); toast(`Zapsáno místo ${SLOT_GEN[b.slot]} · ${kc(o.kcal)} kcal`);
+  for (const e of o.it) r.extras.push({ c: { n: (e.n > 1 ? e.n + '× ' : '') + e.f.n, kcal: Math.round(e.f.kcal * e.n), b: Math.round(e.f.b * e.n) }, f: e.f.id, t });
+  saveDay(b.k, r); closeSheet(); render(); toast(`Zapsáno · +${kc(o.kcal)} kcal`);
+}
+function outDone(k) { const r = dayRec(k); r.outDone = 1; delete r.unk; saveDay(k, r); }
+function outSec(k, ex, isPast) { // den venku: místo plánu to, co je zapsané, a velké „Zapsat jídlo“
+  const grp = {}, rows = [];
+  for (const x of ex) if (x.lk && !x.st) (grp[x.lk] = grp[x.lk] || []).push(x);
+  for (const x of ex) { const g = x.lk && !x.st && grp[x.lk].length > 1 ? grp[x.lk] : null; if (g && g[0] !== x) continue; rows.push(g ? lkGroupRow(g, true) : extraRow(x, true)); }
+  const list = rows.length ? `<div class="tl">${rows.join('')}</div>` : `<div class="out-empty"><span class="out-ic">${ICO.bag}</span><p><b>Zatím nic zapsaného</b><span>Zapiš, co sníš, třeba „bageta s kuřetem a kofola“. Kalorie se sečtou samy.</span></p></div>`;
+  const acts = `<div class="out-acts"><button class="btn pri" data-act="extras">${ICO.plus}Zapsat jídlo</button><label class="btn" style="cursor:pointer">${ICO.camera}Fotka<input type="file" id="cl-photo-out" accept="image/*" capture="environment" hidden></label><button class="btn" data-act="scan" aria-label="Naskenovat čárový kód">${ICO.barcode}Kód</button></div>`;
+  return `<div class="out-box">${list}${acts}</div>`;
 }
 function forTag(k, r, e) { // jídlo navíc zadané „místo“ jídla z plánu (Kup cestou, Něco bylo jinak → Nic): nahradí ho
   const f = UI.exFor; if (!f || f.k !== k || r.done[f.s]) return e;
@@ -2245,7 +2259,6 @@ function trainRow(k, rec) {
 function moreRows(k, rec, i, w, isToday) { // všechno, co se dne týká, ale není to jídlo: jedna tichá řádka na věc
   const out = [], t1 = addDays(k, 1);
   const row = (act, ic, col, title, sub, extra = '') => `<button class="row has-tile" data-act="${act}" ${extra}>${tile(ic, col)}<span class="row-text"><span class="row-title">${title}</span>${sub ? `<span class="row-sub clamp1">${sub}</span>` : ''}</span>${ICO.chevron}</button>`;
-  if (isToday && idxOf(t1) >= 0 && isAway(t1)) out.push(row('pack', 'bag', 'teal', 'Zítra jsi pryč', 'Připrav si večer jídlo s sebou, asi 10 minut', `data-k="${t1}"`));
   const tr = trainRow(k, rec); if (tr) out.push(tr);
   const pp = prepFor(k); if (pp) { const n = Object.values(pp.dishes).reduce((a, b) => a + b, 0); out.push(row('prep', 'pot', 'tint', `Vaření dopředu na ${prepRange(pp)}`, `${n} ${plural(n, 'jídlo', 'jídla', 'jídel')} · ušetří vaření v dalších dnech`, `data-k="${k}"`)); }
   if (!isToday) return out;
@@ -2272,10 +2285,15 @@ function dayName(k) { return `${capFirst(DAYS_FULL[dowOf(k)])} ${shortDate(k)}`;
 function andList(a) { return a.length > 1 ? a.slice(0, -1).join(', ') + ' a ' + a[a.length - 1] : (a[0] || ''); }
 function lastMealMin(k) { const its = planFor(k); return its.length ? Math.max(...its.map(x => x.m)) : null; }
 function eveningOf(k, nm) { const l = lastMealMin(k); return l != null && nm >= l + 30; }
-function confirmDays(nm) { // [{ k, items }], nejnovější první; den označený „Nevím“ se už nenabízí
+function confirmDays(nm) { // [{ k, items, out? }], nejnovější první; den označený „Nevím“ se už nenabízí
   const t0 = todayKey(), out = [];
-  if (idxOf(t0) >= 0 && eveningOf(t0, nm)) { const om = planFor(t0).filter(x => !x.done && !x.skip); if (om.length) out.push({ k: t0, items: om }); }
-  for (let d = 1; d <= 3; d++) { const k = addDays(t0, -d); if (idxOf(k) < 0) break; if (isUnk(k)) continue; const om = openMeals(k); if (om.length) out.push({ k, items: om }); }
+  if (idxOf(t0) >= 0 && isAway(t0)) { const e = toMin(dayTarget(t0).end || '21:00'); if (!isClosed(t0) && nm >= Math.min(e + 30, 22 * 60)) out.push({ k: t0, items: [], out: true }); } // den venku: večer „Je to všechno?“
+  else if (idxOf(t0) >= 0 && eveningOf(t0, nm)) { const om = planFor(t0).filter(x => !x.done && !x.skip); if (om.length) out.push({ k: t0, items: om }); }
+  for (let d = 1; d <= 3; d++) {
+    const k = addDays(t0, -d); if (idxOf(k) < 0) break; if (isUnk(k)) continue;
+    if (isAway(k)) { if (!isClosed(k)) out.push({ k, items: [], out: true }); continue; }
+    const om = openMeals(k); if (om.length) out.push({ k, items: om });
+  }
   return out;
 }
 function weighDue(nm) { const t0 = todayKey(); return idxOf(t0) >= 0 && S.weights[t0] == null && nm < 14 * 60; }
@@ -2306,17 +2324,22 @@ function checkinCard(days, weigh, hint, more = {}) {
   // všechno“ by tam jen svádělo odkliknout 3 500 kcal, které možná nebyly. Motor by pak kalorie zvyšoval ještě víc.
   const y = addDays(t0, -1), fresh = days.filter(d => d.k >= y), old = days.filter(d => d.k < y).reverse(); // starší od nejstaršího
   const unkBtn = (ks, lab) => `<button class="ci-x" data-act="unkday" data-ks="${ks.join(',')}" aria-label="${esc(lab)}: nevím, nepočítat">Nevím</button>`;
-  for (const { k, items } of fresh) {
+  for (const { k, items, out } of fresh) {
+    if (out) { // den venku: zapsáno X z cíle, je to všechno?
+      const tt = dayTotals(k), lab = k === t0 ? 'Dnes' : dayName(k);
+      rows.push(`<div class="ci-row"><div class="ci-top"><span class="ci-l"><b>${lab}</b><small>Den venku · zapsáno ${kc(tt.dk)} z ${kc(tt.kcal)} kcal</small></span>${k === t0 ? '' : unkBtn([k], lab)}</div><div class="btns"><button class="btn sm pri" data-act="outdone" data-k="${k}" aria-label="${lab}: to je všechno, ${kc(tt.dk)} kcal">To je vše</button><button class="btn sm" data-act="daylog" data-k="${k}">Doplnit</button></div></div>`);
+      continue;
+    }
     const all = planFor(k), kcal = items.reduce((a, x) => a + x.kcal, 0), slots = items.map(x => x.slot.k).join(',');
     const what = items.length === all.length ? `Zatím nic nepotvrzeno · ${items.length} ${plural(items.length, 'jídlo', 'jídla', 'jídel')}` : `Nepotvrzeno: ${andList(items.map(x => x.slot.n.toLowerCase()))}`;
     const lab = k === t0 ? 'Dnes' : dayName(k);
     rows.push(`<div class="ci-row"><div class="ci-top"><span class="ci-l"><b>${lab}</b><small>${esc(what)} · ${kc(kcal)} kcal</small></span>${k === t0 ? '' : unkBtn([k], lab)}</div><div class="btns"><button class="btn sm pri" data-act="closeday" data-k="${k}" data-how="all" data-s="${slots}" aria-label="${lab}: snědl jsem ${items.length > 1 ? 'všechno' : 'to'}, ${kc(kcal)} kcal">${items.length > 1 ? 'Snědl jsem všechno' : 'Snědl jsem to'}</button><button class="btn sm" data-act="daylog" data-k="${k}">Něco bylo jinak</button></div></div>`);
   }
   if (old.length) {
-    const ks = old.map(d => d.k), n = old.reduce((a, d) => a + d.items.length, 0), none = old.every(d => d.items.length === planFor(d.k).length);
+    const ks = old.map(d => d.k), n = old.reduce((a, d) => a + d.items.length, 0), none = old.every(d => d.out ? !extrasFor(d.k).length : d.items.length === planFor(d.k).length);
     const a0 = parseKey(ks[0]), a1 = parseKey(ks[ks.length - 1]), span = old.length === 1 ? '' : a0.getMonth() === a1.getMonth() ? `${a0.getDate()}.–${shortDate(ks[ks.length - 1])} · ` : `${shortDate(ks[0])}–${shortDate(ks[ks.length - 1])} · `;
     const lab = old.length === 1 ? dayName(ks[0]) : capFirst(andList(ks.map(k => DAYS_FULL[dowOf(k)])));
-    rows.push(`<div class="ci-row"><div class="ci-top"><span class="ci-l"><b>${esc(lab)}</b><small>${span}${none ? 'Nic nezapsáno' : `Nepotvrzeno ${n} ${plural(n, 'jídlo', 'jídla', 'jídel')}`}</small></span><span class="ci-xs"><button class="ci-x" data-act="daylog" data-k="${ks[0]}" aria-label="Doplnit ${old.length > 1 ? DAYS_ACC[dowOf(ks[0])] + ' ' + shortDate(ks[0]) : dayName(ks[0])}">Doplnit</button>${unkBtn(ks, lab)}</span></div></div>`);
+    rows.push(`<div class="ci-row"><div class="ci-top"><span class="ci-l"><b>${esc(lab)}</b><small>${span}${none ? 'Nic nezapsáno' : n ? `Nepotvrzeno ${n} ${plural(n, 'jídlo', 'jídla', 'jídel')}` : 'Nepotvrzeno'}</small></span><span class="ci-xs"><button class="ci-x" data-act="daylog" data-k="${ks[0]}" aria-label="Doplnit ${old.length > 1 ? DAYS_ACC[dowOf(ks[0])] + ' ' + shortDate(ks[0]) : dayName(ks[0])}">Doplnit</button>${unkBtn(ks, lab)}</span></div></div>`);
   }
   if (more.gi) rows.push(`<div class="ci-row"><span class="ci-l"><b>Trávení dnes</b><small>Když zlobí víc dní, appka poradí, co upravit</small></span><div class="seg gi" role="group" aria-label="Trávení dnes">${GI.map(([g, n]) => `<button data-act="gi" data-k="${t0}" data-g="${g}" aria-pressed="false">${n}</button>`).join('')}</div></div>`);
   return `<div class="card checkin"><div class="ci-h">${title}</div>${rows.join('')}${days.length ? `<p class="ci-f">Tempo počítá jen potvrzené dny.${days.some(d => d.k !== t0) ? ' „Nevím“ den vynechá a appka se na něj přestane ptát.' : ' Co bylo jinak, opravíš kdykoli.'}</p>` : ''}</div>`;
@@ -2328,6 +2351,13 @@ function unkDays(ks) { // „Nevím“: den se do tempa nepočítá a nepřipom�
 }
 function summaryCard(k, items, ex, t, o) {
   const exK = ex.reduce((a, x) => a + x.kcal, 0), nm = nowMin();
+  if (t.out) { // den venku: zapsáno proti cíli dne, jeden pruh
+    const pc = Math.min(1, t.pct), done = t.pct >= 0.9;
+    const tag = done ? '<span class="tag ok">Den splněn</span>' : `<span class="tag">${isClosed(k) ? Math.round(t.pct * 100) + ' % cíle' : 'Den venku'}</span>`;
+    return `<div class="card sum ${done ? 'win' : ''}"><div class="sum-top"><div class="sum-k"><b class="num">${kc(t.dk)}</b><span>/ ${kc(t.kcal)} kcal</span></div><div class="sum-tags">${tag}</div></div>
+      <div class="segbar" role="img" aria-label="Zapsáno ${kc(t.dk)} z ${kc(t.kcal)} kcal"><i class="${done ? 'dn' : ''}" style="flex-grow:1"><u style="width:${Math.round(pc * 100)}%"></u></i></div>
+      <div class="sum-meta"><span>Bílkoviny <b class="num">${kc(t.db)}</b> / ${kc(t.b)} g</span><span>Zapsáno <b class="num">${ex.length}</b> ${plural(ex.length, 'položka', 'položky', 'položek')}</span></div></div>`;
+  }
   // nic dnes zatím nepotvrzeno: ukázat plán dne (přehled), ne velkou nulu; odškrtávat přes den se nemusí
   const fresh = o.isToday && !t.nd && !items.some(x => x.skip) && !ex.length;
   const segs = items.map(x => {
@@ -2359,9 +2389,6 @@ function timeline(k, items, ex, rec, o) {
     rows.push({ m: x.m, next: isNext, done: x.done || x.skip, skip: x.skip && !r1, lab: x.slot.n.toLowerCase() + (r1 ? ' (nahrazeno)' : x.skip ? ' (vynecháno)' : ''), html: isNext ? nextRow(x, o.nm) : mealRow(k, x, o.isToday, o.nm, r1) });
     if (x.slot.k === 'snidane') rows.push({ m: x.m + 0.5, done: !!rec.done.kreatin, lab: 'kreatin', html: creatineRow(rec, o.i, loadDay) });
   }
-  // den pryč: po snídani připomenout, co si vzít s sebou (jen dokud to ještě má smysl)
-  const go = rec.away && k >= todayKey() ? items.filter(x => MEALS[x.meal].go) : [];
-  if (go.length && items[0]) { const left = go.filter(x => !x.done && !x.skip); rows.push({ m: items[0].m + 0.7, done: !left.length, lab: 's sebou', html: packRow(k, go, !left.length) }); }
   const grp = {}; for (const x of ex) if (x.lk && !x.st) (grp[x.lk] = grp[x.lk] || []).push(x);
   for (const x of ex) {
     const g = x.lk && !x.st && grp[x.lk].length > 1 ? grp[x.lk] : null; if (g && g[0] !== x) continue; // skupina jednou, na místě první položky
@@ -2383,9 +2410,6 @@ function timeline(k, items, ex, rec, o) {
   }
   return `<div class="tl">${rows.map(r => r.html).join('')}</div>`;
 }
-function packRow(k, go, done) {
-  return `<div class="tl-row ${done ? 'done' : ''}"><span class="tl-time num"></span><span class="tl-node"><span class="tl-dot pk-dot">${ICO.bag}</span></span><button class="tl-main" data-act="pack" data-k="${k}"><span class="tl-t">Než vyrazíš: s sebou</span><span class="tl-s">${esc(capFirst(andList(go.map(x => x.slot.n.toLowerCase()))))} · ${kc(go.reduce((a, x) => a + x.kcal, 0))} kcal</span></button></div>`;
-}
 function weighRow(k, isToday, nm) {
   const wv = S.weights[k], done = wv != null, prev = weightEntries().filter(([d]) => d < k).pop();
   const sub = done ? (prev ? `${wv - prev[1] >= 0 ? '+' : '−'}${kg1(Math.abs(wv - prev[1]))} kg od ${shortDate(prev[0])}` : 'Zapsáno') : nm >= 14 * 60 ? 'Dnes nezváženo, zapiš klidně teď' : 'Po probuzení, před snídaní';
@@ -2397,7 +2421,6 @@ function mealNote(x, pf) {
   if (pf < 1) return `${fracLabel(pf)} porce`;
   if (x.meal !== x.planned) return 'vyměněno';
   if (x.auto === 'quick') return 'rychlá náhrada';
-  if (x.auto === 'away') return MEALS[x.meal].go ? 's sebou' : 'rychlá';
   if (x.auto === 'rating') return 'náhrada';
   if (x.lo) return 'zbytek z večeře';
   if (x.cook2) return 'uvař 2 porce';
@@ -2411,9 +2434,8 @@ function mealRow(k, x, isToday, nm, repl) {
     <button class="tl-main" data-act="meal" data-slot="${x.slot.k}"><span class="tl-t">${esc(m.n)}${x.mult !== 1 ? ` (${fracLabel(x.mult)})` : ''}</span><span class="tl-s">${x.slot.n} · ${kcal} kcal${repl ? ` · místo toho ${repl.ph ? 'fotka' : 'jiné jídlo'}${repl.wait ? '' : `, ${kc(repl.kcal)} kcal`}` : x.skip ? ' · vynecháno' : late ? ' · nepotvrzeno' : ''}${note && !repl ? ` · ${note}` : ''}</span></button></div>`;
 }
 function nextRow(x, nm) {
-  const m = MEALS[x.meal], d = x.m - nm, late = d < -45, away = isAway(todayKey()) && m.go, alts = [];
-  if (away) alts.push(`<button data-act="buy" data-slot="${x.slot.k}">Nemáš s sebou? Kup cestou</button>`); // den pryč: balíček nevyšel
-  if (late && m.cat !== 'X' && !away) alts.push(`<button data-act="toshake" data-slot="${x.slot.k}">Shake místo toho</button>`);
+  const m = MEALS[x.meal], d = x.m - nm, late = d < -45, alts = [];
+  if (late && m.cat !== 'X') alts.push(`<button data-act="toshake" data-slot="${x.slot.k}">Shake místo toho</button>`);
   if (late) alts.push(`<button data-act="skip" data-slot="${x.slot.k}">Vynechat</button>`);
   const eye = `${x.slot.n} · ${late ? `bylo před ${dur(-d)}` : d <= 0 ? 'teď' : d <= 120 ? `za ${dur(d)}` : nm < wakeMin(todayKey()) - 60 ? 'ráno' : 'na řadě'}`; // bez červené: možná už snědené, jen nepotvrzené
   const notes = [];
@@ -2428,17 +2450,17 @@ function creatineRow(rec, i, loadDay) {
   const on = !!rec.done.kreatin;
   return `<div class="tl-row ${on ? 'done' : ''}"><span class="tl-time"></span><span class="tl-node">${ckBtn('kreatin', on, 'Kreatin vzat', UI.pop === 'kreatin')}</span><div class="tl-main static"><span class="tl-t">${loadDay ? 'Kreatin 4× 5 g + vitamín D' : 'Kreatin 5 g + vitamín D'}</span>${loadDay ? `<span class="tl-s">Nasycení, den ${i + 1} z 5 · dávky k jídlům</span>` : ''}</div></div>`;
 }
-function extraRow(x) {
+function extraRow(x, out) {
   if (x.lk) { // napsané jídlo s přesnými hodnotami od Clauda
-    const sub = x.st === 'wait' ? (x.ph ? `Claude si prohlíží fotku…${x.for ? ` · místo ${SLOT_GEN[x.for] || 'jídla'}` : ''}` : 'Hledám přesné hodnoty…') : x.st === 'none' ? '<b class="red">Nenašel jsem přesné hodnoty</b> · ťukni' : x.st === 'amount' ? `<b class="red">Kolik jsi snědl?</b> · ${kc(x.k1)} kcal na 100 g` : `${x.for ? `Místo ${SLOT_GEN[x.for] || 'jídla'}` : 'Navíc'} · +${kc(x.kcal)} kcal${x.src ? ' · ' + esc(x.src) : ''}`;
+    const sub = x.st === 'wait' ? (x.ph ? `Claude si prohlíží fotku…${x.for ? ` · místo ${SLOT_GEN[x.for] || 'jídla'}` : ''}` : 'Hledám přesné hodnoty…') : x.st === 'none' ? '<b class="red">Nenašel jsem přesné hodnoty</b> · ťukni' : x.st === 'amount' ? `<b class="red">Kolik jsi snědl?</b> · ${kc(x.k1)} kcal na 100 g` : `${x.for ? `Místo ${SLOT_GEN[x.for] || 'jídla'} · ` : out ? '' : 'Navíc · '}+${kc(x.kcal)} kcal${x.src ? ' · ' + esc(x.src) : ''}`;
     return `<div class="tl-row done extra${x.st ? ' lkwait' : ''}"><span class="tl-time num">${x.time ? esc(x.time) : ''}</span><span class="tl-node"><span class="tl-dot">${x.st === 'wait' ? '<span class="spin" aria-hidden="true"></span>' : ICO[x.st === 'none' || x.st === 'amount' ? 'warn' : 'spark']}</span></span><button class="tl-main" data-act="lkinfo" data-i="${x.i}"><span class="tl-t">${esc(x.name)}</span><span class="tl-s">${sub}</span></button><button class="tl-x" data-act="xdel" data-i="${x.i}" aria-label="Odebrat ${esc(x.name)}">${ICO.close}</button></div>`;
   }
-  return `<div class="tl-row done extra"><span class="tl-time num">${x.time ? esc(x.time) : ''}</span><span class="tl-node"><span class="tl-dot">${ICO[x.custom ? 'spark' : 'plus']}</span></span><div class="tl-main static"><span class="tl-t">${esc(x.name)}</span><span class="tl-s">Navíc · +${kc(x.kcal)} kcal</span></div><button class="tl-x" data-act="xdel" data-i="${x.i}" aria-label="Odebrat ${esc(x.name)}">${ICO.close}</button></div>`;
+  return `<div class="tl-row done extra"><span class="tl-time num">${x.time ? esc(x.time) : ''}</span><span class="tl-node"><span class="tl-dot">${ICO[x.custom ? 'spark' : 'plus']}</span></span><div class="tl-main static"><span class="tl-t">${esc(x.name)}</span><span class="tl-s">${out ? '' : 'Navíc · '}+${kc(x.kcal)} kcal</span></div><button class="tl-x" data-act="xdel" data-i="${x.i}" aria-label="Odebrat ${esc(x.name)}">${ICO.close}</button></div>`;
 }
-function lkGroupRow(g) { // víc položek z jedné fotky nebo jednoho hledání: jeden řádek, ťuknutím se rozbalí
+function lkGroupRow(g, out) { // víc položek z jedné fotky nebo jednoho hledání: jeden řádek, ťuknutím se rozbalí
   const x = g[0], kcal = g.reduce((a, y) => a + y.kcal, 0), names = g.map(y => y.name.toLowerCase());
   const what = capFirst(andList(names));
-  return `<div class="tl-row done extra"><span class="tl-time num">${x.time ? esc(x.time) : ''}</span><span class="tl-node"><span class="tl-dot">${ICO.spark}</span></span><button class="tl-main" data-act="lkgroup" data-lk="${esc(x.lk)}"><span class="tl-t">${esc(what)}</span><span class="tl-s">${x.ph ? 'Z fotky' : `„${esc(x.q || x.name)}“`} · ${x.for ? `místo ${SLOT_GEN[x.for] || 'jídla'}` : 'navíc'} · +${kc(kcal)} kcal</span></button></div>`;
+  return `<div class="tl-row done extra"><span class="tl-time num">${x.time ? esc(x.time) : ''}</span><span class="tl-node"><span class="tl-dot">${ICO.spark}</span></span><button class="tl-main" data-act="lkgroup" data-lk="${esc(x.lk)}"><span class="tl-t">${esc(what)}</span><span class="tl-s">${x.ph ? 'Z fotky' : `„${esc(x.q || x.name)}“`} · ${x.for ? `místo ${SLOT_GEN[x.for] || 'jídla'} · ` : out ? '' : 'navíc · '}+${kc(kcal)} kcal</span></button></div>`;
 }
 function lkGroupSheet(lk) {
   const k = UI.date, ex = extrasFor(k), g = ex.filter(y => y.lk === lk && !y.st), raw = dayRec(k).extras; if (!g.length) { closeSheet(); return; }
@@ -2460,7 +2482,7 @@ function fillSec(gap, evening) {
   const opts = fillOptions(gap);
   return sec(`Dorovnej ${kc(gap)} kcal`, opts.map(o => { const [ic, col] = CAT_STYLE[MEALS[o.items[0].m].cat]; return `<button class="row has-tile" data-act="fill" data-items="${o.items.map(it => it.m + ':' + it.x).join(',')}">${tile(ic, col)}<span class="row-text"><span class="row-title">${esc(o.n)}</span><span class="row-sub">${kc(o.b)} g bílkovin · ${o.min} min</span></span><span class="row-trail"><span class="num" style="color:var(--green-text)">+${kc(o.kcal)}</span><span class="addc" aria-hidden="true">${ICO.plus}</span></span></button>`; }).join('')
     + `<button class="row has-tile" data-act="extras">${tile('plus', 'gray')}<span class="row-text"><span class="row-title tint">Něco jiného</span></span>${ICO.chevron}</button>`,
-    `${evening ? 'Den je potvrzený, ale kalorie chybí.' : 'Po vynechaném jídle nebo nedojedené porci.'} Ťukni na to, co si dáš, zapíše se jako extra. Tohle dorovnávání dělá většinu přírůstku.`);
+    `${evening === 'out' ? 'Do cíle dne zbývá dost, a večer je to nejsnazší dohnat.' : evening ? 'Den je potvrzený, ale kalorie chybí.' : 'Po vynechaném jídle nebo nedojedené porci.'} Ťukni na to, co si dáš, zapíše se jako extra. Tohle dorovnávání dělá většinu přírůstku.`);
 }
 function weighSec() {
   const e = weightEntries(), last = e.length ? e[e.length - 1] : null;
@@ -2517,10 +2539,10 @@ function renderWeek(head, v) {
   h.push(`<div class="card"><div class="kpis"><div><div class="l">Průměr za den</div><div class="v">${kc(sum / 7)}</div><div class="l">kcal</div></div><div><div class="l">Splněno</div><div class="v">${adh != null ? Math.round(adh * 100) + ' %' : '–'}</div><div class="l">${past.length ? `z ${past.length} ${plural(past.length, 'dne', 'dnů', 'dnů')}` : 'plánu'}</div></div><div><div class="l">Jídlo</div><div class="v">~${kc(cost)}</div><div class="l">Kč za týden</div></div></div>${weekBars(keys, tots)}</div>`);
   const rep = S.reports && S.reports['w' + (w - 1)]; if (rep && w === curWeek()) h.push(reportCard(rep));
   h.push(sec('Dny', keys.map((k, d) => {
-    const it = planFor(k), t = tots[d], o = it.find(x => x.slot.k === 'obed'), ve = it.find(x => x.slot.k === 'vecere');
+    const it = planFor(k), t = tots[d], o = it.find(x => x.slot.k === 'obed'), ve = it.find(x => x.slot.k === 'vecere'), outD = isAway(k);
     const closed = isClosed(k), unc = idxOf(k) >= 0 && k < t0 && !closed;
     const tag = closed ? `<span class="tag ${t.pct >= .9 ? 'ok' : ''}">${Math.round(t.pct * 100)} %</span>` : unc ? `<span class="tag">${isUnk(k) ? 'nevíš' : 'nepotvrzeno'}</span>` : (prepFor(k) ? '<span class="tag next">vaření</span>' : '');
-    return `<button class="row" data-act="openday" data-k="${k}"><span class="row-text"><span class="row-title"><b style="font-weight:600">${capFirst(DAYS_FULL[d])}</b> ${shortDate(k)}${k === t0 ? ' · dnes' : ''}</span><span class="row-sub clamp2">${o ? esc(MEALS[o.meal].n) : ''}${ve ? ' · ' + esc(MEALS[ve.meal].n) : ''}</span></span><span class="row-trail">${tag}<span class="num">${kc(t.kcal)}</span>${ICO.chevron}</span></button>`;
+    return `<button class="row" data-act="openday" data-k="${k}"><span class="row-text"><span class="row-title"><b style="font-weight:600">${capFirst(DAYS_FULL[d])}</b> ${shortDate(k)}${k === t0 ? ' · dnes' : ''}</span><span class="row-sub clamp2">${outD ? `Den venku${t.dk ? ` · zapsáno ${kc(t.dk)} kcal` : ''}` : `${o ? esc(MEALS[o.meal].n) : ''}${ve ? ' · ' + esc(MEALS[ve.meal].n) : ''}`}</span></span><span class="row-trail">${tag}<span class="num">${kc(t.kcal)}</span>${ICO.chevron}</span></button>`;
   }).join(''), `${unconf ? `${unconf} ${plural(unconf, 'den čeká', 'dny čekají', 'dní čeká')} na potvrzení, do plnění se zatím nepočítá. ` : ''}${unk ? `${unk} ${plural(unk, 'den nevíš', 'dny nevíš', 'dní nevíš')}, ${unk === 1 ? 'nepočítá' : 'nepočítají'} se. ` : ''}Klepni na den pro detail. Čísla vpravo jsou plánované kcal.`));
   h.push(menuSec());
   v.innerHTML = h.join('');
@@ -2733,10 +2755,9 @@ function mealSheet(o, keep) {
     const rows = fut ? [] : [`<div class="row" style="padding-block:12px;flex-direction:column;align-items:stretch;gap:8px"><span class="row-sub">${x.done ? 'Snědl jsem' : 'Kolik jsi snědl?'}</span>${portionGrid(x, UI.date, true)}</div>`];
     if (x.done) rows.push(`<button class="row has-tile" data-act="toggle" data-slot="${x.slot.k}" data-close="1">${tile('close', 'gray')}<span class="row-text"><span class="row-title">Zrušit „snědeno“</span></span></button>`);
     rows.push(`<button class="row has-tile" data-act="swap" data-slot="${x.slot.k}">${tile('copy', 'blue')}<span class="row-text"><span class="row-title">Vyměnit za jiné jídlo</span></span>${ICO.chevron}</button>`);
-    if (m.go && isAway(UI.date) && !x.done && !fut) rows.push(`<button class="row has-tile" data-act="buy" data-slot="${x.slot.k}">${tile('tag', 'teal')}<span class="row-text"><span class="row-title">Nemáš s sebou? Kup cestou</span><span class="row-sub">Appka navrhne, co koupit, a zapíše to místo tohohle</span></span>${ICO.chevron}</button>`);
     if (m.cat !== 'X' && !x.done && !fut) rows.push(`<button class="row has-tile" data-act="toshake" data-slot="${x.slot.k}" data-close="1">${tile('cup', 'brown')}<span class="row-text"><span class="row-title">Dát si místo toho shake</span></span></button>`);
     if (!x.done && !x.skip && !fut) rows.push(`<button class="row has-tile" data-act="skip" data-slot="${x.slot.k}" data-close="1">${tile('close', 'red')}<span class="row-text"><span class="row-title" style="color:var(--red-text)">Vynechat</span></span></button>`);
-    const foot = x.auto === 'rating' ? 'V plánu bylo jídlo, které nechceš, tak ho appka nahradila tímhle.' : x.auto === 'quick' ? 'Rychlý den: pomalé jídlo nahrazeno rychlým se stejnými kaloriemi.' : x.auto === 'away' ? (m.go ? 'Den pryč: jídlo s sebou s podobnými kaloriemi. Vydrží bez lednice a nepotřebuje ohřát.' : 'Den pryč: rychlá varianta, ať stihneš vyrazit.')
+    const foot = x.auto === 'rating' ? 'V plánu bylo jídlo, které nechceš, tak ho appka nahradila tímhle.' : x.auto === 'quick' ? 'Rychlý den: pomalé jídlo nahrazeno rychlým se stejnými kaloriemi.'
       : x.lo ? 'Zbytek ze včerejší večeře: ohřej v mikrovlnce 2–3 minuty. Když jsi včera vařil něco jiného, klepni na Vyměnit.' : x.cook2 ? 'Suroviny níž jsou na 2 porce. Druhou dej do krabičky, zítra je to oběd.' : '';
     h.push(sec(`${x.slot.n} · ${x.time}`, rows.join(''), foot));
   }
@@ -2796,6 +2817,17 @@ function dayLogItems(k) { // dnes jen jídla, jejichž čas už přišel (a co j
 function dayLogSheet(k, focus) {
   if (idxOf(k) < 0 || k > todayKey()) return;
   UI.dlog = { k };
+  if (isAway(k)) { // den venku: jen to, co je zapsané, a „To je vše“
+    const t = dayTotals(k), ex = extrasFor(k), gi = dayRec(k).gi, closed = isClosed(k);
+    const rows = ex.map(x => `<div class="row"><span class="row-text"><span class="row-title">${esc(x.name)}</span>${x.time ? `<span class="row-sub">${esc(x.time)}</span>` : ''}</span><span class="row-trail num">${x.st === 'wait' ? 'hledám…' : x.st ? 'doplnit' : `+${kc(x.kcal)} kcal`}</span></div>`).join('');
+    openSheet(`${DAYS[dowOf(k)]} ${shortDate(k)}`, `<div><h2 class="t-title2">Co jsi snědl?</h2><p class="t-sub l2" style="margin:4px 0 0">${k === todayKey() ? '' : dayName(k) + ' · '}Den venku: počítá se jen to, co zapíšeš.</p></div>
+      <div class="card dsum"><div class="sum-k"><b class="num">${kc(t.dk)}</b><span>/ ${kc(t.kcal)} kcal</span></div><span class="tag ${closed ? 'ok' : 'next'}">${closed ? 'Uzavřeno' : 'Otevřený den'}</span></div>
+      ${sec('Zapsáno', rows + `<button class="row has-tile" data-act="dlogx" data-k="${k}">${tile('plus', 'blue')}<span class="row-text"><span class="row-title tint">Přidat, co jsi snědl</span></span>${ICO.chevron}</button>`)}
+      ${sec('Trávení', `<div class="row" style="padding-block:10px"><div class="seg gi" style="width:100%" role="group" aria-label="Trávení">${GI.map(([g, n]) => `<button data-act="gi" data-k="${k}" data-g="${g}" aria-pressed="${gi === g}">${n}</button>`).join('')}</div></div>`)}
+      ${closed ? '<button class="btn pri block" data-act="close">Hotovo</button>' : `<button class="btn pri block" data-act="outdone" data-k="${k}">To je vše · ${kc(t.dk)} kcal</button><button class="btn block" data-act="close">Doplním později</button>`}
+      <p class="sec-f" style="text-align:center">${closed ? 'Den je uzavřený, tempo ho započítá. Přidat jde dál.' : 'Do tempa se den počítá, až ho uzavřeš.'}</p>`);
+    return;
+  }
   const t0 = todayKey(), isT = k === t0, items = dayLogItems(k), all = planFor(k), t = dayTotals(k), ex = extrasFor(k);
   const answered = items.filter(x => x.done || x.skip).length, closed = isClosed(k), restLater = all.length - items.length, rp = replOf(k);
   const rows = items.map(x => {
@@ -3323,7 +3355,7 @@ const FX = [[0.5, '½'], [1, '1'], [1.5, '1½'], [2, '2'], [3, '3']];
 function extrasSheet() {
   const k = UI.date, t = dayTotals(k), nm = nowMin(), isToday = k === todayKey();
   const due = isToday ? planFor(k).filter(x => x.m + 60 <= nm).reduce((a, x) => a + x.kcal, 0) : t.kcal;
-  UI.fgap = Math.max(0, Math.round(Math.max(due - t.dk, lostKcal(k))));
+  UI.fgap = isAway(k) ? Math.max(0, Math.round(t.kcal - t.dk)) : Math.max(0, Math.round(Math.max(due - t.dk, lostKcal(k)))); // den venku: kolik dnes ještě chybí
   if (!UI.fx) UI.fx = 1;
   openSheet('', `<h2 class="t-title2">Co jsi snědl navíc?</h2>
     <label class="search" style="margin:0">${G('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>', 2.2)}<input type="search" id="f-q" value="${esc(UI.fq || '')}" placeholder="Co jsi snědl? Třeba „svíčková s knedlíkem“" autocomplete="off" enterkeyhint="search" aria-label="Co jsi snědl"></label>
@@ -3590,10 +3622,10 @@ document.addEventListener('click', e => {
   else if (a === 'phsend') phSend();
   else if (a === 'nmeals') { const n = notifyCfg(), v = b.dataset.v; n.meals = v === 'off' ? false : v; saveSettings({ notify: n }); const sh = document.getElementById('sheet'), sc = sh.scrollTop; settingsSheet(); sh.scrollTop = sc; }
   else if (a === 'daysheet') daySheet(b.dataset.k || UI.date);
-  else if (a === 'daytype') { const k = b.dataset.k, t = b.dataset.t, was = dayType(dayRec(k)); if (t === was) { closeSheet(); return; } setDayType(k, t); render(); if (t === 'away') { packSheet(k); toast('Den pryč: plán je na jídlo s sebou'); } else { closeSheet(); toast(t === 'quick' ? 'Rychlý den: jen jídla do 15 minut' : 'Běžný den'); } }
-  else if (a === 'pack') packSheet(b.dataset.k || UI.date);
-  else if (a === 'buy') buySheet(b.dataset.slot);
+  else if (a === 'daytype') { const k = b.dataset.k, t = b.dataset.t, was = dayType(dayRec(k)); closeSheet(); if (t === was) return; setDayType(k, t); render(); toast(t === 'away' ? 'Den venku: zapisuj, co sníš' : t === 'quick' ? 'Rychlý den: jen jídla do 15 minut' : 'Běžný den'); }
+  else if (a === 'outbuy') outBuySheet(b.dataset.k || UI.date);
   else if (a === 'buyadd') buyAdd(Number(b.dataset.j));
+  else if (a === 'outdone') { const k = b.dataset.k || UI.date; outDone(k); if (sheetOpen()) closeSheet(); render(); const tt = dayTotals(k); toast(tt.pct >= 0.9 ? 'Den splněn' : `Den uzavřen · ${kc(tt.dk)} kcal`); }
   else if (a === 'trainday') { const k = b.dataset.k || UI.date, tr = trainingSec(k, dayRec(k)); if (tr) openSheet(k === todayKey() ? 'Dnes' : dayName(k), tr); }
   else if (a === 'automsg') { const am = S.settings.autoMsg; if (am) openSheet('Chytré tempo', `<h2 class="t-title2">Plán na tento týden</h2><p class="t-sub l2" style="margin:4px 4px 0;line-height:1.45">${esc(am.txt)}</p>${am.to !== am.from && !am.undone ? '<button class="btn block" data-act="autoundo">Vrátit původní</button>' : ''}`); }
   else if (a === 'phfor') { UI.phFor = b.dataset.s || ''; for (const o of b.parentNode.children) o.setAttribute('aria-pressed', String(o === b)); const f = document.getElementById('ph-for-f'); if (f) f.textContent = phForText(UI.phFor); }
@@ -3753,7 +3785,7 @@ document.addEventListener('change', async e => {
   else if (id === 'quick') { const k = UI.date, r = dayRec(k); r.quick = e.target.checked; saveDay(k, r); e.target.blur(); render(); toast(r.quick ? 'Rychlý den zapnut' : 'Rychlý den vypnut'); }
   else if (id === 'bloodsw') { S.body = { ...S.body, blood: e.target.checked ? { done: true, date: todayKey() } : null }; persist('app/body', S.body); e.target.blur(); render(); }
   else if (id === 'p-i') { const u = document.getElementById('p-u'); if (u) u.textContent = ING[val].u; }
-  else if (id === 'cl-photo' || id === 'cl-photo-nb') { const file = e.target.files && e.target.files[0]; e.target.value = ''; if (file) clPhoto(file, id === 'cl-photo'); }
+  else if (id === 'cl-photo' || id === 'cl-photo-nb' || id === 'cl-photo-out') { const file = e.target.files && e.target.files[0]; e.target.value = ''; if (file) clPhoto(file, id === 'cl-photo'); }
   else if (id === 'ean-photo') { const file = e.target.files && e.target.files[0]; e.target.value = ''; if (file) scanPhoto(file); }
   else if (id === 'ask-photo') { const l = document.getElementById('ask-ph-l'); if (l && e.target.files[0]) l.textContent = 'Fotka vybrána: ' + e.target.files[0].name.slice(0, 30); }
   else if (id === 'photo-in') {

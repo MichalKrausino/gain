@@ -1207,7 +1207,7 @@ const BUY = {
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish, FOODS, FOOD_CATS, BUY };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Verze 2: ťuknutím na widget zapíšeš jídlo rovnou tady, bez otevírání Safari.\n// Vzhled a nabídky si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(maxAgeH) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (age > maxAgeH * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\nasync function run(ctx, maxAgeH) {\n  const code = await core(maxAgeH);\n  if (!code) return { ok: false };\n  try {\n    const fn = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n    return { ok: true, res: await fn({ KEY, ANON, loader: 2, script: Script.name(), ...ctx }) };\n  } catch (e) { console.error(e); return { ok: false }; }\n}\nfunction fallback() {\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\nasync function preview() {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript. Ťuknutím na widget pak zapíšeš jídlo.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i < 0) return;\n  const fam = sizes[i][1], r = await run({ family: fam }, 0), w = r.ok && r.res ? r.res : fallback();\n  if (fam === 'small') await w.presentSmall();\n  else if (fam === 'large') await w.presentLarge();\n  else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n  else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n  else await w.presentMedium();\n}\n\nif (config.runsInWidget || config.runsInAccessoryWidget) {\n  const r = await run({ family: config.widgetFamily || 'medium' }, 6);\n  Script.setWidget(r.ok && r.res ? r.res : fallback());\n} else {\n  const params = (typeof args !== 'undefined' && args.queryParameters) || {};\n  const fromWidget = Object.keys(params).length > 0;\n  const r = await run({ mode: 'app', params }, fromWidget ? 6 : 0); // ruční spuštění si vždy stáhne nejnovější verzi\n  if (!r.ok) { const a = new Alert(); a.title = 'Plán 70 kg'; a.message = 'Nepodařilo se načíst. Spusť skript jednou s internetem.'; a.addAction('OK'); await a.presentAlert(); }\n  else if (r.res === 'preview') await preview();\n}\nScript.complete();\n";
-const APP_VERSION = '5d4db3cd', APP_BUILT = '2026-10-12T02:15:10Z';
+const APP_VERSION = 'e56c5040', APP_BUILT = '2026-10-12T15:16:50Z';
 
 </script>
 <script>
@@ -2021,24 +2021,42 @@ function runOuts(days = 14) { // co dojde, podle jídelníčku od dneška; jen s
 const ADD_STEP = 400; // o kolik nejvýš zvednout večerní doplněk za týden
 const E_KG = 7700, STORE = 0.63; // kcal na kg tkáně; podíl přebytku, který se uloží (Bouchard 1990)
 function maintAt(kg) { return MAINT + 30 * (kg - S.settings.startKg); }
+// ===== Kreatin: voda ve svalech, ne tkáň =====
+// Metaanalýza 143 randomizovaných studií (Pashayee-Khamene a kol. 2024, JISSN 21:2380058): kreatin zvýší hmotnost v průměru
+// o 0,86 kg (95% CI 0,76–0,96) u lidí kolem 75 kg, tedy ~1,1 % hmotnosti. Je to hlavně voda, kterou sval drží spolu s
+// kreatinem, jednorázově: přibude, dokud se svaly nenasytí, pak už neroste. Nasycení 20 g denně trvá ~6 dní, 3–5 g denně
+// ~4 týdny (Hultman a kol. 1996). Plán začíná nasycením 4× 5 g prvních 5 dní. Motor ji z vážení odečítá: jinak by v prvních
+// týdnech viděl rychlejší přírůstek tkáně, než jaký je, podcenil by výdej a ubral by jídlo.
+const CREA_FRAC = 0.011, CREA_LOAD_DAYS = 5, CREA_TAU = 9, GLY_KG = 0.5; // GLY_KG: glykogen, voda a víc jídla v trávicím traktu v 1. týdnu
+function creaWeeks() { // kolik z přírůstku jednotlivých týdnů je voda z kreatinu (pro nedělní report)
+  const o = {}; for (let w = 1; w <= Math.max(1, curWeek()); w++) { const ks = weekKeys(w), d = creaWater(ks[6]) - creaWater(addDays(ks[0], -1)); if (d > 0.01) o[w] = Math.round(d * 100) / 100; } return o;
+}
+function creaMode() { return S.settings.crea || 'load'; } // load = s nasycením, daily = jen 5 g denně, off = nebere
+function creaWater(k) { // očekávaná voda z kreatinu v den k (kg)
+  const m = creaMode(); if (m === 'off') return 0;
+  const d = dayDiff(S.settings.start, k) + 1; if (d <= 0) return 0;
+  return CREA_FRAC * S.settings.startKg * (m === 'daily' ? 1 - Math.exp(-d / CREA_TAU) : Math.min(1, d / CREA_LOAD_DAYS));
+}
 function projection(useBase) {
   const pts = []; let kg = S.settings.startKg;
   for (let i = 0; i <= 91; i++) {
     pts.push([i, kg]);
     let t = 0; for (const x of planFor(addDays(S.settings.start, i), useBase ? { base: true } : { plan: true })) t += x.kcal;
-    kg += Math.max(0, t - maintAt(kg)) * STORE / E_KG + (i < 7 ? 1 / 7 : 0);
+    const k = addDays(S.settings.start, i);
+    kg += Math.max(0, t - maintAt(kg)) * STORE / E_KG + (i < 7 ? GLY_KG / 7 : 0) + creaWater(k) - creaWater(addDays(k, -1)); // tkáň + jednorázová voda
   }
   return pts;
 }
 function weightEntries() { return Object.entries(S.weights).filter(([, x]) => typeof x === 'number').sort((a, b) => a[0] < b[0] ? -1 : 1); }
-function weekAvg(w) { const ks = new Set(weekKeys(w)); return mean(weightEntries().filter(([k]) => ks.has(k)).map(e => e[1])); }
+function weekAvg(w, adj) { const ks = new Set(weekKeys(w)); return mean(weightEntries().filter(([k]) => ks.has(k)).map(([k, x]) => adj ? x - creaWater(k) : x)); }
 function avg7() { const t = todayKey(); return mean(weightEntries().filter(([k]) => { const d = dayDiff(k, t); return d >= 0 && d <= 6; }).map(e => e[1])); }
-function trend(span = 14) {
-  const t = todayKey(), pts = weightEntries().map(([k, x]) => [dayDiff(t, k), x]).filter(p => p[0] >= -span && p[0] <= 0);
+function trend(span = 14) { // tempo tkáně: z vážení se odečte voda z kreatinu; now je ale zase váha na váze (s vodou)
+  const t = todayKey(), pts = weightEntries().map(([k, x]) => [dayDiff(t, k), x - creaWater(k)]).filter(p => p[0] >= -span && p[0] <= 0);
   if (pts.length < 4 || (pts[pts.length - 1][0] - pts[0][0]) < 6) return null;
   const n = pts.length, mx = mean(pts.map(p => p[0])), my = mean(pts.map(p => p[1]));
   let sxy = 0, sxx = 0; for (const [x, y] of pts) { sxy += (x - mx) * (y - my); sxx += (x - mx) ** 2; }
-  const slope = sxy / sxx; return { slope, perWeek: slope * 7, now: my + slope * (0 - mx), n };
+  const slope = sxy / sxx, cw = creaWater(t), cw0 = creaWater(addDays(t, -span));
+  return { slope, perWeek: slope * 7, now: my + slope * (0 - mx) + cw, n, crea: cw - cw0 > 0.05 ? cw - cw0 : 0 }; // crea: kolik vody z kreatinu přibylo v okně
 }
 function currentKg() { const tr = trend(); if (tr) return tr.now; const a = avg7(); if (a != null) return a; const e = weightEntries(); return e.length ? e[e.length - 1][1] : null; }
 function engine() {
@@ -2162,7 +2180,7 @@ function syncPlan() {
   }
   const e = engine();
   const body = { v: 1, today: t0, tz: 'Europe/Prague', wake: S.settings.wake, add: S.settings.add, goalKg: S.settings.goalKg, goalDate: S.settings.goalDate,
-    engine: { tdee: Math.round(e.tdee), targetKcal: Math.round(e.Istar), kgPerWeekNeeded: Math.round(e.rateNeed * 70) / 10, curKg: Math.round(e.curKg * 10) / 10 },
+    engine: { tdee: Math.round(e.tdee), targetKcal: Math.round(e.Istar), kgPerWeekNeeded: Math.round(e.rateNeed * 70) / 10, curKg: Math.round(e.curKg * 10) / 10, creaKg: Math.round(creaWater(todayKey()) * 100) / 100, creaWeeks: creaWeeks() },
     extras: EXTRAS.map(([m, x]) => ({ n: MEALS[m].n + (x !== 1 ? ' (½)' : ''), kcal: Math.round(recStats(m, x, t0).kcal) })), days };
   const j = JSON.stringify(body); if (j === lastPlanJSON) return; lastPlanJSON = j;
   persist('app/plan', { ...body, updated: new Date().toISOString() });
@@ -2579,13 +2597,13 @@ function summaryCard(k, items, ex, t, o) {
     <div class="sum-meta"><span>Bílkoviny <b class="num">${kc(t.db)}</b> / ${kc(t.b)} g</span><span>Jídla <b class="num">${t.nd}</b> / ${t.n}</span></div></div>`;
 }
 function timeline(k, items, ex, rec, o) {
-  const rows = [], loadDay = o.i < 5;
+  const rows = [], loadDay = o.i < 5 && creaMode() === 'load';
   if (S.weights[k] != null) rows.push({ m: wakeMin(k) - 0.5, done: true, lab: 'vážení', html: weighRow(k, o.isToday, o.nm) }); // nezvážený den: vážení je v kartě nahoře
   const rp = replOf(k);
   for (const x of items) {
     const isNext = !!(o.nx && o.nx.slot.k === x.slot.k), r1 = x.skip ? rp[x.slot.k] : null;
     rows.push({ m: x.m, next: isNext, done: x.done || x.skip, skip: x.skip && !r1, lab: x.slot.n.toLowerCase() + (r1 ? ' (nahrazeno)' : x.skip ? ' (vynecháno)' : ''), html: isNext ? nextRow(x, o.nm) : mealRow(k, x, o.isToday && !UI.tlQuiet, o.nm, r1) });
-    if (x.slot.k === 'snidane') rows.push({ m: x.m + 0.5, done: !!rec.done.kreatin, lab: 'kreatin', html: creatineRow(rec, o.i, loadDay) });
+    if (x.slot.k === 'snidane' && creaMode() !== 'off') rows.push({ m: x.m + 0.5, done: !!rec.done.kreatin, lab: 'kreatin', html: creatineRow(rec, o.i, loadDay) });
   }
   const grp = {}; for (const x of ex) if (x.lk && !x.st) (grp[x.lk] = grp[x.lk] || []).push(x);
   for (const x of ex) {
@@ -2800,14 +2818,14 @@ function pantryView() {
 
 // ---------- Pokrok ----------
 function renderProgress(head, v) {
-  const e = engine(), ent = weightEntries(), s = S.settings, cur = e.curKg, t = todayKey(), et = etaInfo(), mr = e.need > 0 ? minRateOf(s) : 0, nW = ent.filter(([k]) => dayDiff(k, t) >= 0 && dayDiff(k, t) <= 13).length;
+  const e = engine(), ent = weightEntries(), s = S.settings, cur = e.curKg, t = todayKey(), et = etaInfo(), cw = creaWater(t), mr = e.need > 0 ? minRateOf(s) : 0, nW = ent.filter(([k]) => dayDiff(k, t) >= 0 && dayDiff(k, t) <= 13).length;
   head.innerHTML = `<h1 class="t-large">Pokrok</h1><div class="t-sub l2">Cíl ${s.goalKg} kg do ${shortDate(s.goalDate)}</div>`;
   const h = [], p = clamp((cur - s.startKg) / (s.goalKg - s.startKg), 0, 1);
   const etaTxt = et.done ? 'Cíl splněn. Teď ubírej po 300 kcal každé 2 týdny, ať váha drží.' : et.k ? `${s.goalKg} kg kolem <b>${shortDate(et.k)}${parseKey(et.k).getFullYear() !== 2026 ? ' ' + parseKey(et.k).getFullYear() : ''}</b> podle ${et.src}.` : `Podle plánu ~${kg1(et.end)} kg za 13 týdnů.`;
   h.push(`<div class="card"><div class="t-foot l2">${e.tr ? 'Trend z posledních 14 dní' : ent.length ? 'Poslední váha' : 'Startovní váha'}</div>
     <div style="display:flex;align-items:flex-end;gap:12px;margin-top:6px"><div class="bignum" style="flex:1">${kg1(cur)} <span style="font-size:1.1rem;color:var(--label-2)">kg</span></div><div style="text-align:right"><div class="num" style="font-weight:700;font-size:1.15rem;color:var(--green-text)">${cur - s.startKg >= 0 ? '+' : '−'}${kg1(Math.abs(cur - s.startKg))} kg</div><div class="t-foot l2">od startu</div></div></div>
     <div class="gtrack"><i style="width:${p * 100}%"></i></div><div class="gends"><span>${kg1(s.startKg)}</span><span>zbývá ${kg1(Math.max(0, s.goalKg - cur))} kg</span><span>${s.goalKg}</span></div>
-    <p class="t-sub" style="margin:12px 0 0">${etaTxt}${e.tr ? ` Teď rosteš <b>${e.tr.perWeek >= 0 ? '+' : '−'}${kg1(Math.abs(e.tr.perWeek))} kg týdně</b>${mr ? (e.tr.perWeek >= mr * 0.9 ? `, minimum ${kgMin(mr)} kg držíš.` : `, <b class="red">pod minimem ${kgMin(mr)} kg</b>.`) : '.'}` : mr ? ` <b>Zvaž se každé ráno:</b> ze 4 vážení za 2 týdny appka pozná, jestli držíš minimum ${kgMin(mr)} kg týdně (zatím ${nW}).` : ''}</p></div>`);
+    <p class="t-sub" style="margin:12px 0 0">${etaTxt}${cw > 0.1 && cur > s.startKg ? ` Z přírůstku je ~${kg1(cw)} kg voda, kterou drží kreatin ve svalech: přibude jednou, tempo ji nepočítá.` : ''}${e.tr ? ` Teď rosteš <b>${e.tr.perWeek >= 0 ? '+' : '−'}${kg1(Math.abs(e.tr.perWeek))} kg týdně</b>${e.tr.crea ? ' (bez vody z kreatinu)' : ''}${mr ? (e.tr.perWeek >= mr * 0.9 ? `, minimum ${kgMin(mr)} kg držíš.` : `, <b class="red">pod minimem ${kgMin(mr)} kg</b>.`) : '.'}` : mr ? ` <b>Zvaž se každé ráno:</b> ze 4 vážení za 2 týdny appka pozná, jestli držíš minimum ${kgMin(mr)} kg týdně (zatím ${nW}).` : ''}</p></div>`);
   if (S.weights[t] == null) h.push(weighSec());
   else h.push(sec('Ranní vážení', `<div class="row"><span class="row-text"><span class="row-title">Dnes</span></span><span class="row-trail"><span class="num">${kg1(S.weights[t])} kg</span></span><button class="gbtn tint" data-act="wedit">Upravit</button></div>`));
   const am = s.autoMsg;
@@ -2821,8 +2839,8 @@ function renderProgress(head, v) {
     `Výdej = co skutečně sníš minus změna váhy × 7 700 kcal/kg, z posledních 14 dní. Navíc se počítá s tím, že se uloží jen ~63 % přebytku. ${am ? `Týden ${am.w}: ${esc(am.txt)}${am.undone ? ' (vráceno)' : ''}` : ''}`));
   h.push(`<div class="card chart"><div class="t-title3">Trasa</div><div class="t-foot l2" style="margin-bottom:6px">${shortDate(s.start)}–${shortDate(addDays(s.start, 91))}</div>${chartSvg(ent)}
     <div class="legend"><span><svg viewBox="0 0 18 8"><line x1="0" y1="4" x2="18" y2="4" stroke="var(--label-2)" stroke-width="2" stroke-dasharray="4 3"/></svg>plán (${addName(s.add)})</span><span><svg viewBox="0 0 18 8"><line x1="0" y1="4" x2="18" y2="4" stroke="var(--tint)" stroke-width="3"/></svg>tvůj průměr 7 dní</span></div></div>`);
-  const gains = []; for (let w = 2; w <= curWeek(); w++) { const a = weekAvg(w), b = weekAvg(w - 1); if (a != null && b != null) gains.push([w, a - b]); }
-  if (gains.length) h.push(`<div class="card chart"><div class="t-title3">Přírůstek po týdnech</div><div class="t-foot l2" style="margin-bottom:6px">čárkovaně ${mr ? `tvoje minimum ${kgMin(mr)} kg` : `potřebné tempo ${kg1(e.rateNeed * 7)} kg`}</div>${gainBars(gains, mr || e.rateNeed * 7)}</div>`);
+  const gains = []; for (let w = 2; w <= curWeek(); w++) { const a = weekAvg(w, true), b = weekAvg(w - 1, true); if (a != null && b != null) gains.push([w, a - b]); } // bez vody z kreatinu
+  if (gains.length) h.push(`<div class="card chart"><div class="t-title3">Přírůstek po týdnech</div><div class="t-foot l2" style="margin-bottom:6px">čárkovaně ${mr ? `tvoje minimum ${kgMin(mr)} kg` : `potřebné tempo ${kg1(e.rateNeed * 7)} kg`}${creaMode() !== 'off' ? ' · bez vody z kreatinu' : ''}</div>${gainBars(gains, mr || e.rateNeed * 7)}</div>`);
   const rep = latestReport(); if (rep) h.push(reportCard(rep));
   const we = waistEntries();
   h.push(sec('Obvod pasu', `<form class="row" data-form="waist" style="padding-block:12px"><div class="wbox" style="width:100%"><label class="inp"><input class="wwaist" inputmode="decimal" autocomplete="off" placeholder="${we.length ? kg1(we[we.length - 1][1]) : '70,0'}" aria-label="Obvod pasu v cm"><span>cm</span></label><button class="btn pri sm" type="submit">Uložit</button></div></form>${we.slice().reverse().slice(0, 6).map(([d, c], j, arr) => `<div class="row"><span class="row-text"><span class="row-title">${DAYS_FULL[dowOf(d)]} ${shortDate(d)}</span></span><span class="row-trail"><span class="num">${kg1(c)} cm</span>${j < arr.length - 1 ? `<span class="t-foot">${c - arr[j + 1][1] >= 0 ? '+' : '−'}${kg1(Math.abs(c - arr[j + 1][1]))}</span>` : ''}</span></div>`).join('')}`,
@@ -3695,7 +3713,8 @@ function settingsSheet() {
     ${sec('', `<button class="row has-tile" data-act="howto">${tile('info', 'blue')}<span class="row-text"><span class="row-title tint">Jak s appkou pracovat</span><span class="row-sub">Ráno váha, přes den odchylky, večer jedno ťuknutí</span></span>${ICO.chevron}</button>`)}
     ${sec('Den', `<label class="row has-tile">${tile('moon', 'indigo')}<span class="row-text"><span class="row-title">Vstávám v</span></span><select class="sel num" id="s-wake">${wakes.map(w => `<option ${w === s.wake ? 'selected' : ''}>${w}</option>`).join('')}</select>${ICO.chevron}</label>
       <label class="row has-tile">${tile('dumbbell', 'green')}<span class="row-text"><span class="row-title">Fitko</span></span><select class="sel" id="s-gym">${DAYS_FULL.map((d, i) => `<option value="${i}" ${i === Number(s.gym) ? 'selected' : ''}>${d}</option>`).join('')}</select>${ICO.chevron}</label>
-      <label class="row has-tile">${tile('cup', 'blue')}<span class="row-text"><span class="row-title">Mám mixér</span><span class="row-sub">${S.prefs && S.prefs.noBlender ? 'Shake se protřepe v lahvi' : 'Shake se mixuje'}</span></span><input type="checkbox" class="sw" id="s-blender" ${S.prefs && S.prefs.noBlender ? '' : 'checked'}></label>`, 'Snídaně je 30 minut po vstání, další jídla zhruba po 3 hodinách. Když vstaneš jindy, posuneš jen ten den: na Dnes ťukni na čas vedle Plánu dne. Domácí trénink je v úterý a ve čtvrtek.')}
+      <label class="row has-tile">${tile('pill', 'purple')}<span class="row-text"><span class="row-title">Kreatin</span></span><select class="sel" id="s-crea">${[['load', 'S nasycením'], ['daily', 'Jen 5 g denně'], ['off', 'Neberu']].map(([v, n]) => `<option value="${v}" ${v === creaMode() ? 'selected' : ''}>${n}</option>`).join('')}</select>${ICO.chevron}</label>
+      <label class="row has-tile">${tile('cup', 'blue')}<span class="row-text"><span class="row-title">Mám mixér</span><span class="row-sub">${S.prefs && S.prefs.noBlender ? 'Shake se protřepe v lahvi' : 'Shake se mixuje'}</span></span><input type="checkbox" class="sw" id="s-blender" ${S.prefs && S.prefs.noBlender ? '' : 'checked'}></label>`, `Snídaně je 30 minut po vstání, další jídla zhruba po 3 hodinách. Když vstaneš jindy, posuneš jen ten den: na Dnes ťukni na čas vedle Plánu dne. Domácí trénink je v úterý a ve čtvrtek. Kreatin drží ve svalech vodu, asi 1,1 % hmotnosti (u tebe ~${kg1(CREA_FRAC * S.settings.startKg)} kg): přibude jednou a appka ji z tempa odečítá.`)}
     ${sec('Tempo', `<label class="row has-tile">${tile('bolt', 'purple')}<span class="row-text"><span class="row-title">Večerní doplněk</span></span><select class="sel" id="s-add">${adds.map(a => `<option value="${a}" ${a === curAdd ? 'selected' : ''}>${a ? addName(a).replace(' večer', '') : 'Žádný'}</option>`).join('')}</select>${ICO.chevron}</label>
       <label class="row has-tile">${tile('gear', 'gray')}<span class="row-text"><span class="row-title">Upravovat automaticky</span></span><input type="checkbox" class="sw" id="s-auto" ${s.auto ? 'checked' : ''}></label>
       <label class="row has-tile">${tile('flame', 'red')}<span class="row-text"><span class="row-title">Kalorická bomba</span><span class="row-sub">${bombEffective(s) ? 'Teď zapnutá' : 'Teď vypnutá'}</span></span><select class="sel" id="s-bomb">${[['auto', 'Automaticky'], ['on', 'Zapnutá'], ['off', 'Vypnutá']].map(([v, n]) => `<option value="${v}" ${v === bombMode() ? 'selected' : ''}>${n}</option>`).join('')}</select>${ICO.chevron}</label>`, `Doplněk platí od 3. týdne a každé pondělí se přepočítá podle tvého výdeje. Bomba přidá k jídlům olej, arašídové máslo a vločky (+500 kcal bez většího objemu); automaticky se zapne, když tempo zaostává${fastMode(s) ? ', a při minimu od 1 kg týdně platí pořád' : ''}.`)}
@@ -4111,6 +4130,7 @@ document.addEventListener('change', async e => {
   else if (id === 's-bomb') { const st = { ...S.settings, bomb: val }; saveSettings({ bomb: val, bombHist: { ...(S.settings.bombHist || {}), [curWeek()]: bombEffective(st) } }); settingsSheet(); toast(bombEffective(st) ? 'Kalorická bomba zapnutá' : 'Kalorická bomba vypnutá'); }
   else if (id === 'n-meals' || id === 'n-late' || id === 'n-close') { const n = notifyCfg(); n[id.slice(2)] = e.target.checked; saveSettings({ notify: n }); }
   else if (id === 's-auto' || id === 'autot') saveSettings({ auto: e.target.checked });
+  else if (id === 's-crea') { saveSettings({ crea: val }); const sh = document.getElementById('sheet'), sc = sh.scrollTop; settingsSheet(); sh.scrollTop = sc; toast(val === 'off' ? 'Bez kreatinu' : `Kreatin: ~${kg1(CREA_FRAC * S.settings.startKg)} kg vody se odečítá z tempa`); }
   else if (id === 's-blender') { const p = { ...S.prefs }; if (e.target.checked) delete p.noBlender; else p.noBlender = true; S.prefs = p; persist('app/prefs', S.prefs); render(); toast(e.target.checked ? 'Shake z mixéru' : 'Shake bez mixéru: jen protřepat v lahvi'); }
   else if (id === 's-kg') { const x = num(val); if (x > 30 && x < 200) saveSettings({ startKg: Math.round(x * 10) / 10 }); }
   else if (id === 's-goal') { const x = num(val); if (x > 40 && x < 150) saveSettings({ goalKg: Math.round(x * 10) / 10 }); }

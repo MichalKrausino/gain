@@ -1207,7 +1207,7 @@ const BUY = {
 if (typeof module !== 'undefined') module.exports = { ING, SECTIONS, MEALS, BATCH, SLOTS, EXTRAS, TRAINING, MAINT, KCAL_PER_KG, P_NAME, mealStats, fmtAmt, fmtNum, plural, batchDish, FOODS, FOOD_CATS, BUY };
 
 const WIDGET_SRC = "// Plán 70 kg · widget pro Scriptable (plocha i zamčená obrazovka)\n// Verze 2: ťuknutím na widget zapíšeš jídlo rovnou tady, bez otevírání Safari.\n// Vzhled a nabídky si skript stahuje z appky a sám se aktualizuje, sem už nic kopírovat nemusíš.\nconst KEY = '__KEY__';\nconst ANON = '__ANON__';\nconst CORE_URL = 'https://michalkrausino.github.io/gain/widget-core.js';\nconst fm = FileManager.local();\nconst corePath = fm.joinPath(fm.documentsDirectory(), 'plan70-widget-core.js');\n\nasync function core(maxAgeH) {\n  const have = fm.fileExists(corePath);\n  const age = have ? Date.now() - fm.modificationDate(corePath).getTime() : Infinity;\n  if (age > maxAgeH * 3600 * 1000) {\n    try {\n      const r = new Request(CORE_URL + '?t=' + Date.now());\n      r.timeoutInterval = 10;\n      const code = await r.loadString();\n      if (r.response && r.response.statusCode === 200 && code.includes('PLAN70_CORE')) fm.writeString(corePath, code);\n    } catch (e) { }\n  }\n  return fm.fileExists(corePath) ? fm.readString(corePath) : null;\n}\nasync function run(ctx, maxAgeH) {\n  const code = await core(maxAgeH);\n  if (!code) return { ok: false };\n  try {\n    const fn = new (Object.getPrototypeOf(async function () { }).constructor)('ctx', code);\n    return { ok: true, res: await fn({ KEY, ANON, loader: 2, script: Script.name(), ...ctx }) };\n  } catch (e) { console.error(e); return { ok: false }; }\n}\nfunction fallback() {\n  const w = new ListWidget();\n  const t = w.addText('Plán 70: widget se poprvé načítá. Otevři ho jednou ve Scriptable s internetem.');\n  t.font = Font.systemFont(12);\n  return w;\n}\nasync function preview() {\n  const sizes = [['Malý', 'small'], ['Střední', 'medium'], ['Velký', 'large'], ['Zamčená: kolečko', 'accessoryCircular'], ['Zamčená: obdélník', 'accessoryRectangular']];\n  const a = new Alert();\n  a.title = 'Plán 70 kg';\n  a.message = 'Náhled widgetu. Na plochu ho přidáš podržením prstu na ploše → Upravit → Přidat widget → Scriptable a v nastavení widgetu vybereš tenhle skript. Ťuknutím na widget pak zapíšeš jídlo.';\n  for (const [n] of sizes) a.addAction(n);\n  a.addCancelAction('Zavřít');\n  const i = await a.presentSheet();\n  if (i < 0) return;\n  const fam = sizes[i][1], r = await run({ family: fam }, 0), w = r.ok && r.res ? r.res : fallback();\n  if (fam === 'small') await w.presentSmall();\n  else if (fam === 'large') await w.presentLarge();\n  else if (fam === 'accessoryCircular' && w.presentAccessoryCircular) await w.presentAccessoryCircular();\n  else if (fam === 'accessoryRectangular' && w.presentAccessoryRectangular) await w.presentAccessoryRectangular();\n  else await w.presentMedium();\n}\n\nif (config.runsInWidget || config.runsInAccessoryWidget) {\n  const r = await run({ family: config.widgetFamily || 'medium' }, 6);\n  Script.setWidget(r.ok && r.res ? r.res : fallback());\n} else {\n  const params = (typeof args !== 'undefined' && args.queryParameters) || {};\n  const fromWidget = Object.keys(params).length > 0;\n  const r = await run({ mode: 'app', params }, fromWidget ? 6 : 0); // ruční spuštění si vždy stáhne nejnovější verzi\n  if (!r.ok) { const a = new Alert(); a.title = 'Plán 70 kg'; a.message = 'Nepodařilo se načíst. Spusť skript jednou s internetem.'; a.addAction('OK'); await a.presentAlert(); }\n  else if (r.res === 'preview') await preview();\n}\nScript.complete();\n";
-const APP_VERSION = 'f7e080b1', APP_BUILT = '2026-10-12T15:21:36Z';
+const APP_VERSION = '513bc8e3', APP_BUILT = '2026-10-19T02:10:42Z';
 
 </script>
 <script>
@@ -1604,6 +1604,48 @@ function addFor(w) {
   if (ks.length) return Number(h[ks[ks.length - 1]]) || 0;
   return Object.keys(h).length ? DEF.add : (Number(S.settings.add) || 0);
 }
+// ===== Plán podle toho, co zvládneš (strop dne s postupným přidáváním) =====
+// Plán, který se nedá sníst, nepřibírá: 5 000 kcal v plánu a 2 000 snědených je pořád jen 2 000. Proto má plán strop: začne
+// kousek nad tím, co opravdu sníš, a každé pondělí přidá RAMP_STEP, jakmile appka vidí, že ho zvládáš (potvrzené dny nebo
+// rostoucí váha). Co se nevejde, ubere se v tomhle pořadí: večerní doplněk, svačina, pak menší porce velkých jídel.
+// Kalorická bomba zůstává: stejné kalorie v menším objemu jsou přesně to, co pomáhá, když se nedá dojíst.
+const RAMP_STEP = 300, CAP_TOL = 100;
+function capFor(w) {
+  const h = S.settings.capHist || {}, ks = Object.keys(h).map(Number).filter(x => x <= w).sort((a, b) => a - b);
+  if (w >= curWeek()) return Number(S.settings.cap) || 0;
+  return ks.length ? Number(h[ks[ks.length - 1]]) || 0 : 0;
+}
+function scaleItem(x, f) { // menší porce: suroviny i kalorie (bomba zůstává celá)
+  const bk = x.boost ? ingStats(x.boost) : { kcal: 0, b: 0, kc: 0 }, r = f / x.mult;
+  x.kcal = (x.kcal - bk.kcal) * r + bk.kcal; x.b = (x.b - bk.b) * r + bk.b; x.cost = (x.cost - bk.kc) * r + bk.kc;
+  x.ing = x.ing.map(([i, q]) => [i, q * r]); x.baseIng = x.baseIng.map(([i, q]) => [i, q * r]); x.cx = x.cx.map(c => ({ ...c, a: c.a * r, kcal: c.kcal * r, b: c.b * r }));
+  x.mult = f; x.capped = 1;
+}
+function fitCap(out, cap) { // co ubrat, se rozhoduje podle plánu, ne podle odškrtnutí: snědené jídlo zůstane a porce ostatních nezmenší
+  const tot = () => out.reduce((a, x) => a + (x.drop ? 0 : x.kcal), 0);
+  if (!(cap > 0) || tot() <= cap + CAP_TOL) return out;
+  for (const s of ['turbo', 'svacina']) { if (tot() <= cap + CAP_TOL) break; const x = out.find(y => y.slot.k === s); if (x) x.drop = 1; }
+  const steps = [[0.75, ['vecere', 'obed', 'shake']], [0.5, ['vecere', 'obed', 'shake']], [0.75, ['snidane']], [0.5, ['snidane']]]; // snídaně jako poslední: tu sní nejspolehlivěji
+  for (const [f, ss] of steps) for (const s of ss) {
+    if (tot() <= cap + CAP_TOL) break;
+    const x = out.find(y => y.slot.k === s && !y.drop && y.ingTag !== 'day' && y.ingTag !== 'lo' && y.mult > f); if (x) scaleItem(x, f); // vlastní úpravy a zbytek z upravené večeře se nemění
+  }
+  return out.filter(x => !x.drop || x.done).map(x => { delete x.drop; return x; });
+}
+function rampStart() { // začátek: kolik teď opravdu sníš + 500 kcal (bez potvrzených dní: odhad výdeje, váha neroste)
+  const e = engine(), base = e.avgIn != null && e.logged >= 3 ? e.avgIn : e.tr && e.tr.n >= 4 ? e.maint + Math.max(0, e.tr.slope) * E_KG / STORE : e.maint;
+  return clamp(Math.round((base + 500) / 100) * 100, 2300, 4500);
+}
+function rampFirstTxt(cap, full) { return `Plán je teď ${kc(cap)} kcal denně místo ${kc(full)}: začni tím, co zvládneš. Každé pondělí přidám ${RAMP_STEP} kcal, jakmile uvidím, že to jde (aspoň 3 potvrzené dny, nebo váha roste).`; }
+function fullPlanAvg(w) { return mean(weekKeys(w).map(k => planFor(k, { nocap: true }).reduce((a, x) => a + x.kcal, 0))); }
+function rampDecide(st, cw) { // pondělní krok: přidat, jen když je vidět, že plán zvládáš
+  const prev = Number(st.cap) || 0, full = fullPlanAvg(cw);
+  const lw = weekKeys(cw - 1).filter(k => idxOf(k) >= 0), closed = lw.filter(isClosed), avg = closed.length ? mean(closed.map(k => dayTotals(k).dk)) : null, tr = trend();
+  const okEat = closed.length >= 3 && avg >= prev * 0.85, okKg = !!(tr && tr.n >= 4 && tr.perWeek >= 0.3);
+  if (!(okEat || okKg)) return { cap: prev, hold: true, closed: closed.length, avg, tr };
+  const next = prev + RAMP_STEP;
+  return next >= full - CAP_TOL ? { cap: 0, done: true, avg, tr, okEat } : { cap: next, up: true, avg, tr, okEat };
+}
 function withAddHist(patch) { const w = curWeek(); return { ...patch, addHist: { ...(S.settings.addHist || {}), [w]: patch.add } }; }
 function addMult(add) { return clamp(Math.round(add / 801 * 4) / 4, 0.25, 2); }
 const FRAC = { 0.25: '¼', 0.5: '½', 0.75: '¾', 1: '1', 1.25: '1¼', 1.5: '1½', 1.75: '1¾', 2: '2', 2.5: '2½', 3: '3' };
@@ -1678,7 +1720,7 @@ function planFor(k, opts = {}) {
   const w = weekOfIdx(i), day = menuDay(i), next = menuDay(i + 1);
   const raw = opts.base || opts.plan, rec = raw ? { done: {}, swap: {}, skip: {}, quick: false } : dayRec(k);
   if (!raw && rec.away && !opts.full) return []; // den venku: žádná jídla z plánu, jen to, co se zapíše
-  const add = opts.base ? 0 : addFor(w), bomb = !opts.nobomb && bombFor(w), out = [];
+  const add = opts.base ? 0 : addFor(w), bomb = !opts.nobomb && bombFor(w), out = [], cap = opts.base || opts.nocap ? 0 : capFor(w);
   for (const s of SLOTS) {
     if (w < s.from) continue;
     let meal = day[s.k], mult = 1, auto = '', lo = false;
@@ -1694,8 +1736,10 @@ function planFor(k, opts = {}) {
     if (S.prefs && S.prefs.noBlender && MEALS[meal].cat === 'X' && !MEALS[meal].nb) { if (meal === planned) planned = 'shake_bez'; meal = 'shake_bez'; auto = auto || 'nb'; } // nemá mixér: shake, který se jen protřepe
     let ing = raw ? null : dayIng(rec, s.k, meal), ingTag = ing ? 'day' : '', cx = raw ? [] : dayCx(rec, s.k, meal);
     if (!ing && lo && !raw) { const yr = dayRec(addDays(k, -1)); ing = dayIng(yr, 'vecere', meal); if (ing) { ingTag = 'lo'; cx = dayCx(yr, 'vecere', meal); } } // zbytek = stejné množství jako včerejší večeře
-    const own = hasOwnRecipe(meal, k), baseIng = recipeIng(meal, k).map(([i, q]) => [i, q * mult]);
-    const baseCx = own ? ownCx(meal, k).map(c => ({ ...c, a: c.a * mult, kcal: c.kcal * mult, b: c.b * mult })) : [];
+    // úprava dne udělaná na zmenšené porci si pamatuje zmenšení (f): recept, se kterým se porovnává, je pak taky zmenšený
+    const capF = ingTag === 'day' ? Number(((rec.ing || {})[s.k] || {}).f) || 1 : 1, rm = mult * capF;
+    const own = hasOwnRecipe(meal, k), baseIng = recipeIng(meal, k).map(([i, q]) => [i, q * rm]);
+    const baseCx = own ? ownCx(meal, k).map(c => ({ ...c, a: c.a * rm, kcal: c.kcal * rm, b: c.b * rm })) : [];
     if (!ing) { ing = baseIng; cx = baseCx; if (own) ingTag = 'own'; }
     const st = ingTag ? ingStats(ing) : mealStats(meal, mult), m = wakeMin(k) + s.off, cat = MEALS[meal].cat;
     const boost = bomb && s.k !== 'turbo' && BOOST[cat] && !MEALS[meal].away ? BOOST[cat].ing : null;
@@ -1704,9 +1748,9 @@ function planFor(k, opts = {}) {
     if (boost) { const bs = ingStats(boost); kcal += bs.kcal; b += bs.b; cost += bs.kc; }
     const nsw = raw ? null : (S.days[addDays(k, 1)] || {}).swap;
     const cook2 = s.k === 'vecere' && !!next.lo && leftoverOk(meal) && !(nsw && nsw.obed) && !(raw ? false : isAway(addDays(k, 1)));
-    out.push({ slot: s, meal, planned, auto, mult, m, time: minLabel(m), kcal, b, cost, ing, baseIng, cx, baseCx, ingTag, boost, boostTxt: boost ? BOOST[cat].txt : '', lo, cook2, done: !!rec.done[s.k], skip: !rec.done[s.k] && !!rec.skip[s.k] });
+    out.push({ slot: s, meal, planned, auto, mult, m, time: minLabel(m), kcal, b, cost, ing, baseIng, cx, baseCx, ingTag, capF, boost, boostTxt: boost ? BOOST[cat].txt : '', lo, cook2, done: !!rec.done[s.k], skip: !rec.done[s.k] && !!rec.skip[s.k] });
   }
-  return out;
+  return cap ? fitCap(out, cap) : out;
 }
 function extrasFor(k) {
   return dayRec(k).extras.map((x, i) => {
@@ -1745,7 +1789,7 @@ function setIngAmount(k, slotK, ingKey, q) { // q = množství v téhle porci; v
 function sameCx(a, b) { return JSON.stringify((a || []).map(c => [c.id, c.a, c.kcal])) === JSON.stringify((b || []).map(c => [c.id, c.a, c.kcal])); }
 function saveIngOverride(r, slotK, x0, cur, cx) { // stejné jako recept → žádná úprava dne
   if (sameIng(cur, x0.baseIng) && sameCx(cx, x0.baseCx)) delete r.ing[slotK];
-  else r.ing[slotK] = { m: x0.meal, q: Object.fromEntries(cur), ...(cx && cx.length ? { x: cx.map(c => ({ ...c })) } : {}) };
+  else { const f = x0.capped ? x0.mult : x0.capF || 1; r.ing[slotK] = { m: x0.meal, q: Object.fromEntries(cur), ...(cx && cx.length ? { x: cx.map(c => ({ ...c })) } : {}), ...(f !== 1 ? { f } : {}) }; }
 }
 function cxEdit(k, slotK, fn, swapOut) { // změna vlastních surovin jídla; swapOut = surovina z receptu, kterou to nahrazuje (dá se na 0)
   const x0 = planFor(k).find(y => y.slot.k === slotK); if (!x0) return null;
@@ -1767,7 +1811,7 @@ function syncEaten(k, slotK, x0) { // snědené kalorie a spíž po změně suro
 }
 function saveOwnRecipe(k, slotK) { // „vařím to tak vždycky“: množství z téhle porce na 1 porci, platí od toho dne
   const x = planFor(k).find(y => y.slot.k === slotK); if (!x) return;
-  const per = {}, m = x.mult || 1; for (const [i, q] of x.ing) if (q > 0) per[i] = Math.round(q / m * 100) / 100;
+  const per = {}, m = (x.mult || 1) * (x.capF || 1); for (const [i, q] of x.ing) if (q > 0) per[i] = Math.round(q / m * 100) / 100;
   const cx = x.cx.filter(c => c.st === 'done' || c.st === 'man').map(c => ({ ...c, a: c.a / m, kcal: c.kcal / m, b: c.b / m })); // čekající na Clauda se do receptu neuloží
   S.prefs = { ...S.prefs, rec: { ...(S.prefs.rec || {}), [x.meal]: { from: k < todayKey() ? k : todayKey(), q: per, ...(cx.length ? { x: cx } : {}) } } }; persist('app/prefs', S.prefs);
   const r = dayRec(k); if (r.ing[slotK]) { delete r.ing[slotK]; saveDay(k, r); }
@@ -2101,7 +2145,17 @@ function autoCheck() {
     S.settings = { ...S.settings, bombHist: { ...(S.settings.bombHist || {}), [cw]: bombEffective(S.settings) } }; persist(SETTINGS_DOC, S.settings);
   }
   const st = S.settings; if (!st.auto) return;
-  if (idxOf(todayKey()) < 14 || st.autoWeek >= cw) return;
+  const ti = idxOf(todayKey());
+  if (st.cap === undefined && ti >= 7 && (ti < 14 || st.autoWeek >= cw)) { // strop začne hned, ne až příští pondělí
+    const am = st.autoMsg && st.autoMsg.w === cw ? st.autoMsg : { w: cw, from: Number(st.add) || 0, to: Number(st.add) || 0 };
+    const add = am.from; // pondělní zvýšení doplňku se stropem neplatí: strop doplněk ubere jako první
+    S.settings = { ...st, add, addHist: { ...(st.addHist || {}), [cw]: add } };
+    const e = engine(), full = Math.round(fullPlanAvg(cw) / 50) * 50, cap = rampStart();
+    if (e.fast || cap >= full - CAP_TOL) { S.settings = st; return; } // roste rychle, nebo plán skoro zvládá: strop netřeba
+    S.settings = { ...S.settings, cap, capHist: { ...(st.capHist || {}), [cw]: cap }, autoMsg: { ...am, to: add, txt: rampFirstTxt(cap, full) + ` Na cíl je potřeba ~${kc(e.Istar)} kcal denně, dostaneš se k nim po krocích.`, undone: undefined, cap: 1 } };
+    persist(SETTINGS_DOC, S.settings); return;
+  }
+  if (ti < 14 || st.autoWeek >= cw) return;
   const wasBomb = bombEffective(st);
   let bombNow = !!st.bombNow;
   if ((st.bomb || 'auto') === 'auto') {
@@ -2129,9 +2183,26 @@ function autoCheck() {
     if (step) txt += ` Přidávám postupně, nejvýš o ${ADD_STEP} kcal za týden, ať si žaludek zvykne.`;
     if (e.capped) txt += ' Cíl k tomu datu by vyžadoval přes 2 kg týdně, držím bezpečné maximum.';
   }
+  // plán podle toho, co zvládneš: cap undefined = ještě nezačalo (začne samo), 0 = celý plán (vybral si sám), > 0 = strop
+  let cap = st.cap;
+  const pre = { ...st, bombNow, bombHist: { ...(st.bombHist || {}), [cw]: isBomb } };
+  if (!e.fast && (cap === undefined || cap > 0)) {
+    // se stropem večerní doplněk neroste: strop ho stejně ubere jako první a plán „místo X kcal“ by rostl jen na papíře
+    const prevAdd = Number(st.add) || 0; S.settings = { ...pre, add: prevAdd };
+    const d = cap === undefined ? { cap: rampStart(), first: true } : rampDecide(S.settings, cw), full = Math.round(fullPlanAvg(cw) / 50) * 50;
+    if (d.first && d.cap >= full - CAP_TOL) cap = undefined; // plán skoro zvládá: strop netřeba
+    else if (d.done) { cap = 0; S.settings = { ...pre, add: to }; txt = `Zvládáš celý plán, postupné přidávání končí: plán je teď celý, ~${kc(Math.round(fullPlanAvg(cw) / 50) * 50)} kcal denně.`; }
+    else {
+      cap = d.cap; to = prevAdd;
+      txt = (d.first ? rampFirstTxt(cap, full)
+        : d.up ? `${d.okEat ? `Minulý týden jsi snědl ~${kc(d.avg)} kcal denně` : `Váha roste o ${kg1(d.tr.perWeek)} kg týdně`}, zvládáš to: přidávám ${RAMP_STEP} kcal, plán je teď ${kc(cap)} kcal denně.`
+        : `Plán zůstává na ${kc(cap)} kcal denně. ${d.closed < 3 ? `Potvrdil jsi ${d.closed} ${plural(d.closed, 'den', 'dny', 'dní')} a vážení na trend nestačí, takže nevím, jestli to zvládáš.` : `Snědl jsi ~${kc(d.avg)} kcal denně z ${kc(cap)}.`} Přidám, až to půjde.`)
+        + ` Na cíl je potřeba ~${kc(e.Istar)} kcal denně, dostaneš se k nim po krocích.`;
+    }
+  }
   if (isBomb && !wasBomb) txt += ' Zapínám kalorickou bombu: arašídové máslo ke snídani, lžíce oleje k obědu a večeři, vločky do shaku a kaloričtější svačina. Je to přes 500 kcal denně navíc bez většího objemu jídla.';
   else if (!isBomb && wasBomb) txt += ' Kalorickou bombu vypínám, tempo sedí i bez ní.';
-  S.settings = { ...st, bombNow, bombHist: { ...(st.bombHist || {}), [cw]: isBomb }, add: to, addHist: { ...(st.addHist || {}), [cw]: to }, autoWeek: cw, autoMsg: { w: cw, from: Number(st.add) || 0, to, txt, bomb: isBomb !== wasBomb ? isBomb : undefined } };
+  S.settings = { ...st, bombNow, bombHist: { ...(st.bombHist || {}), [cw]: isBomb }, add: to, addHist: { ...(st.addHist || {}), [cw]: to }, ...(cap !== undefined ? { cap, capHist: { ...(st.capHist || {}), [cw]: cap } } : {}), autoWeek: cw, autoMsg: { w: cw, from: Number(st.add) || 0, to, txt, bomb: isBomb !== wasBomb ? isBomb : undefined, cap: cap > 0 || (cap === 0 && Number(st.cap) > 0) ? 1 : undefined } };
   persist(SETTINGS_DOC, S.settings);
 }
 function streak() {
@@ -2480,9 +2551,13 @@ function moreRows(k, rec, i, w, isToday) { // všechno, co se dne týká, ale ne
   const tr = trainRow(k, rec); if (tr) out.push(tr);
   const pp = prepFor(k); if (pp) { const n = Object.values(pp.dishes).reduce((a, b) => a + b, 0); out.push(row('prep', 'pot', 'tint', `Vaření dopředu na ${prepRange(pp)}`, `${n} ${plural(n, 'jídlo', 'jídla', 'jídel')} · ušetří vaření v dalších dnech`, `data-k="${k}"`)); }
   if (!isToday) return out;
+  const cap = Number(S.settings.cap) || 0, am = S.settings.autoMsg, amNow = am && am.w === curWeek() && !am.undone;
+  if (cap > 0) out.push(amNow && am.cap ? row('automsg', 'plate', 'green', `Plán postupně: ${kc(cap)} kcal`, esc(am.txt)) // týdenní zpráva o stropu a strop jsou jedna řádka
+    : row('ramp', 'plate', 'green', `Plán postupně: ${kc(cap)} kcal`, `Každé pondělí +${RAMP_STEP}, když to zvládáš · ťukni a změň`));
+  else if (S.settings.cap === undefined && i >= 7) out.push(row('ramp', 'plate', 'green', 'Nestíháš to sníst?', 'Začni tím, co zvládneš, a přidávej po krocích'));
   const ro = runOuts(3).filter(r => r.d <= 1);
   if (ro.length) { const nm3 = ro.map(r => ING[r.i].n.split(' (')[0].toLowerCase()); out.push(row('goshop', 'box', 'teal', `Dochází ${ro.length === 1 ? nm3[0] : `${ro.length} ${plural(ro.length, 'surovina', 'suroviny', 'surovin')}`}`, `${ro.length > 1 ? capFirst(nm3.slice(0, 3).join(', ')) + (ro.length > 3 ? '…' : '') + ' · ' : ''}${ro[0].d === 0 ? 'už dnes' : 'zítra'}`, `data-w="${curWeek()}"`)); }
-  const am = S.settings.autoMsg; if (am && am.w === curWeek() && !am.undone) out.push(row('automsg', 'bolt', 'purple', 'Chytré tempo upravilo plán', esc(am.txt)));
+  if (amNow && !(am.cap && cap > 0)) out.push(row('automsg', 'bolt', 'purple', 'Chytré tempo upravilo plán', esc(am.txt)));
   if (!(S.body.blood && S.body.blood.done) && i < 21) out.push(noteRow('drop', 'red', 'Krevní testy u praktika', 'Krevní obraz, TSH, glykémie, játra, celiakie', `<button class="btn sm" data-act="blood">Hotovo</button>`));
   if (!SY.key || SY.bad || dbState === 'badkey') out.push(noteRow('box', 'blue', SY.key ? 'Klíč pro zálohu nesedí' : 'Propoj zálohu', SY.key ? 'Bez něj se data neodesílají.' : 'Data jsou zatím jen v tomhle telefonu.', `<button class="btn sm" data-act="syncsheet">Vložit klíč</button>`));
   if (w === 1 && i <= 2) out.push(noteRow('info', 'blue', 'Týden 1: tři jídla a shake', 'Nafukuje tě shake? Rozděl ho na dvě půlky.'));
@@ -2832,7 +2907,7 @@ function renderProgress(head, v) {
   const am = s.autoMsg;
   h.push(sec('Kalorický motor', `<div class="row has-tile">${tile('bolt', 'purple')}<span class="row-text"><span class="row-title">Tvůj skutečný výdej</span><span class="row-sub">${e.conf > 0 ? `Z ${e.logged} zapsaných dní, jistota ${Math.round(e.conf * 100)} %` : 'Zatím odhad z modelu, data sbírám od 3. týdne'}</span></span><span class="row-trail"><span class="num">~${kc(e.tdee)}</span> kcal</span></div>
     <div class="row has-tile">${tile('trophy', 'tint')}<span class="row-text"><span class="row-title">Potřebné tempo</span><span class="row-sub">${e.floor ? `Tvoje minimum · na cíl k datu by stačilo ${kg1(e.rateRaw * 7)} kg` : `${kg1(e.need)} kg za ${e.daysLeft} dní${mr ? ` · minimum ${kgMin(mr)} kg` : ''}`}${e.capped ? ' · omezeno na bezpečné 2 kg/týden' : ''}</span></span><span class="row-trail"><span class="num">${kg1(e.rateNeed * 7)}</span> kg/týd.</span></div>
-    <div class="row has-tile">${tile('plate', 'green')}<span class="row-text"><span class="row-title">Na cíl potřebuješ</span><span class="row-sub">${(() => { const pn = Math.round(dayTotals(t).kcal); return e.Istar <= pn + 100 ? `Plán (${kc(pn)} kcal) teď stačí` : `V plánu je teď ${kc(pn)} kcal, přidává se postupně, nejvýš o ${ADD_STEP} kcal za týden`; })()}${e.adherence != null ? ` · plníš ${Math.round(e.adherence * 100)} %` : ''}</span></span><span class="row-trail"><span class="num">~${kc(e.Istar)}</span> kcal</span></div>
+    <div class="row has-tile">${tile('plate', 'green')}<span class="row-text"><span class="row-title">Na cíl potřebuješ</span><span class="row-sub">${(() => { const pn = Math.round(dayTotals(t).kcal); return e.Istar <= pn + 100 ? `Plán (${kc(pn)} kcal) teď stačí` : Number(s.cap) > 0 ? `V plánu je teď ${kc(pn)} kcal, každé pondělí +${RAMP_STEP}, když to zvládáš` : `V plánu je teď ${kc(pn)} kcal, přidává se postupně, nejvýš o ${ADD_STEP} kcal za týden`; })()}${e.adherence != null ? ` · plníš ${Math.round(e.adherence * 100)} %` : ''}</span></span><span class="row-trail"><span class="num">~${kc(e.Istar)}</span> kcal</span></div>
     <div class="row has-tile">${tile('cup', 'brown')}<span class="row-text"><span class="row-title">Večerní doplněk</span><span class="row-sub">Motor teď doporučuje ${addName(e.addRec)}</span></span><span class="row-trail">${addName(s.add).replace(' večer', '')}</span></div>
     <div class="row has-tile">${tile('flame', 'red')}<span class="row-text"><span class="row-title">Kalorická bomba</span><span class="row-sub">${bombMode() === 'auto' ? (fastMode(s) ? 'Automaticky: při minimu od 1 kg týdně pořád' : 'Automaticky, když tempo zaostává') : bombMode() === 'on' ? 'Zapnutá ručně' : 'Vypnutá ručně'}</span></span><span class="row-trail">${bombEffective(s) ? 'zapnutá' : 'vypnutá'}</span></div>
     <label class="row has-tile">${tile('gear', 'gray')}<span class="row-text"><span class="row-title">Upravovat automaticky každé pondělí</span></span><input type="checkbox" class="sw" id="autot" ${s.auto ? 'checked' : ''}></label>
@@ -3019,7 +3094,8 @@ function ingSec(x, m, pl, pStep) { // suroviny jídla v plánu: množství přep
   const diff = x.kcal - (x.boost ? ingStats(x.boost).kcal : 0) - ingStats(x.baseIng).kcal - cxStats(x.baseCx || []).kcal, day = x.ingTag === 'day' || x.ingTag === 'lo';
   const acts = day ? `<button class="row has-tile" data-act="ingsave" data-slot="${S_}">${tile('check', 'green')}<span class="row-text"><span class="row-title tint">Vařím to tak vždycky</span><span class="row-sub">Upravený recept platí i pro další dny a nákup</span></span></button><button class="row has-tile" data-act="ingreset" data-slot="${S_}">${tile('close', 'gray')}<span class="row-text"><span class="row-title tint">Vrátit podle receptu</span></span></button>`
     : x.ingTag === 'own' ? `<button class="row has-tile" data-act="recreset" data-meal="${x.meal}" data-slot="${S_}">${tile('close', 'gray')}<span class="row-text"><span class="row-title tint">Vrátit původní recept</span><span class="row-sub">Tohle jídlo vaříš podle svého receptu</span></span></button>` : '';
-  const foot = x.ingTag === 'lo' ? 'Zbytek ze včerejší večeře, množství jsou podle toho, jak jsi ji vařil.' : day ? `Upraveno jen pro tohle jídlo: ${diff >= 0 ? '+' : '−'}${kc(Math.abs(diff))} kcal proti receptu.` : x.ingTag === 'own' ? 'Vaříš podle svého receptu. Přepsat množství jde i tady, platí jen pro tohle jídlo.' : `Dal jsi něčeho víc nebo míň? Přepiš množství${P > 1 ? ' (celé, za ' + P + ' porce)' : ''}. Co appka nezná, dohledá Claude.`;
+  const capTxt = x.capped || (x.capF || 1) !== 1 ? `Menší porce (${fracLabel(x.capped ? x.mult : x.capF)}), ať se plán vejde do ${(c => c > 0 ? kc(c) + ' kcal' : 'stropu')(capFor(weekOfIdx(idxOf(UI.date))))}. ` : '';
+  const foot = capTxt + (x.ingTag === 'lo' ? 'Zbytek ze včerejší večeře, množství jsou podle toho, jak jsi ji vařil.' : day ? `Upraveno jen pro tohle jídlo: ${diff >= 0 ? '+' : '−'}${kc(Math.abs(diff))} kcal proti receptu.` : x.ingTag === 'own' ? 'Vaříš podle svého receptu. Přepsat množství jde i tady, platí jen pro tohle jídlo.' : `Dal jsi něčeho víc nebo míň? Přepiš množství${P > 1 ? ' (celé, za ' + P + ' porce)' : ''}. Co appka nezná, dohledá Claude.`);
   return sec('Suroviny', rows + cxRows + addRow + acts, foot, pStep);
 }
 function unitSel(id, u = 'g') { return `<select class="sel ing-u" id="${id}" aria-label="Jednotka">${['g', 'ml', 'ks'].map(x => `<option ${x === u ? 'selected' : ''}>${x}</option>`).join('')}</select>`; }
@@ -3034,6 +3110,14 @@ function ingSwapSheet(slotK, k) { // výměna jedné suroviny: za jinou z datab�
       'Když to appka zná, kalorie doplní hned. Jinak je Claude dohledá na webu, i se zdrojem, a do pár minut je sám dopíše.')}
     ${near.length ? sec('Podobné, co appka zná', `<div class="row" style="padding-block:12px"><div class="chips">${near.map(i => `<button class="chip pick" type="button" data-act="swpick" data-i="${i}">${esc(ING[i].n.split(' (')[0])}</button>`).join('')}</div></div>`) : ''}
     <button class="btn block" type="button" data-act="swback">Zpět</button></form>`);
+}
+function capOpts(full, at) { const o = []; for (let v = at - Math.floor((at - 2300) / RAMP_STEP) * RAMP_STEP; v < full - CAP_TOL; v += RAMP_STEP) o.push(v); return o; } // mřížka po 300 přes aktuální strop, ať je v nabídce
+function rampSheet() { // kolik zvládneš sníst: plán se vejde do čísla a každé pondělí přidá, když to jde
+  const cw = curWeek(), full = Math.round(fullPlanAvg(Math.max(1, cw)) / 50) * 50, cap = Number(S.settings.cap) || 0, e = engine();
+  const opts = capOpts(full, cap || rampStart()).map(v => `<button class="row" data-act="setcap" data-v="${v}" role="radio" aria-checked="${v === cap}"><span class="row-text"><span class="row-title num">${kc(v)} kcal</span><span class="row-sub">${v - RAMP_STEP < 2300 ? 'Kousek nad běžné jídlo' : v >= full - 2 * RAMP_STEP ? 'Skoro celý plán' : `${Math.round(v / full * 100)} % plánu`}</span></span>${v === cap ? `<span class="dt-ck">${ICO.check}</span>` : ''}</button>`).join('')
+    + `<button class="row" data-act="setcap" data-v="0" role="radio" aria-checked="${!cap}"><span class="row-text"><span class="row-title">Celý plán · <span class="num">${kc(full)}</span> kcal</span><span class="row-sub">Bez stropu</span></span>${!cap ? `<span class="dt-ck">${ICO.check}</span>` : ''}</button>`;
+  openSheet('Plán na den', `<div><h2 class="t-title2">Kolik teď zvládneš sníst?</h2><p class="t-sub l2" style="margin:4px 0 0;line-height:1.45">Z plánu, který nesníš, nepřibereš: ${kc(5000)} kcal v plánu a ${kc(2000)} snědených je pořád jen ${kc(2000)}. Začni o kus nad tím, co jíš teď, a appka každé pondělí přidá ${RAMP_STEP} kcal, jakmile uvidí, že to zvládáš (3 potvrzené dny, nebo váha roste).</p></div>
+    ${sec('', `<div role="radiogroup" aria-label="Plán na den">${opts}</div>`, `Co se nevejde, ubere se v tomhle pořadí: večerní doplněk, svačina, pak menší porce. Kalorická bomba zůstává, stejné kalorie v menším objemu. Na cíl je potřeba ~${kc(e.Istar)} kcal denně.`)}`);
 }
 function ingBack() { const sh = document.getElementById('sheet'), sc = sh.scrollTop; mealSheet(UI.recipe, true); sh.scrollTop = sc; render(); }
 function ingNew(slotK, n, a, u, swapOut) { // přidat (nebo vyměnit za) surovinu: známou rovnou, neznámou přes Clauda
@@ -3717,6 +3801,7 @@ function settingsSheet() {
       <label class="row has-tile">${tile('pill', 'purple')}<span class="row-text"><span class="row-title">Kreatin</span></span><select class="sel" id="s-crea">${[['load', 'S nasycením'], ['daily', 'Jen 5 g denně'], ['off', 'Neberu']].map(([v, n]) => `<option value="${v}" ${v === creaMode() ? 'selected' : ''}>${n}</option>`).join('')}</select>${ICO.chevron}</label>
       <label class="row has-tile">${tile('cup', 'blue')}<span class="row-text"><span class="row-title">Mám mixér</span><span class="row-sub">${S.prefs && S.prefs.noBlender ? 'Shake se protřepe v lahvi' : 'Shake se mixuje'}</span></span><input type="checkbox" class="sw" id="s-blender" ${S.prefs && S.prefs.noBlender ? '' : 'checked'}></label>`, `Snídaně je 30 minut po vstání, další jídla zhruba po 3 hodinách. Když vstaneš jindy, posuneš jen ten den: na Dnes ťukni na čas vedle Plánu dne. Domácí trénink je v úterý a ve čtvrtek. Kreatin drží ve svalech vodu, asi 1,1 % hmotnosti (u tebe ~${kg1(CREA_FRAC * S.settings.startKg)} kg): přibude jednou a appka ji z tempa odečítá.`)}
     ${sec('Tempo', `<label class="row has-tile">${tile('bolt', 'purple')}<span class="row-text"><span class="row-title">Večerní doplněk</span></span><select class="sel" id="s-add">${adds.map(a => `<option value="${a}" ${a === curAdd ? 'selected' : ''}>${a ? addName(a).replace(' večer', '') : 'Žádný'}</option>`).join('')}</select>${ICO.chevron}</label>
+      <button class="row has-tile" data-act="ramp">${tile('plate', 'green')}<span class="row-text"><span class="row-title">Plán na den</span><span class="row-sub">${Number(s.cap) > 0 ? `Strop ${kc(s.cap)} kcal, každé pondělí +${RAMP_STEP}, když to zvládáš` : 'Celý plán'}</span></span>${ICO.chevron}</button>
       <label class="row has-tile">${tile('gear', 'gray')}<span class="row-text"><span class="row-title">Upravovat automaticky</span></span><input type="checkbox" class="sw" id="s-auto" ${s.auto ? 'checked' : ''}></label>
       <label class="row has-tile">${tile('flame', 'red')}<span class="row-text"><span class="row-title">Kalorická bomba</span><span class="row-sub">${bombEffective(s) ? 'Teď zapnutá' : 'Teď vypnutá'}</span></span><select class="sel" id="s-bomb">${[['auto', 'Automaticky'], ['on', 'Zapnutá'], ['off', 'Vypnutá']].map(([v, n]) => `<option value="${v}" ${v === bombMode() ? 'selected' : ''}>${n}</option>`).join('')}</select>${ICO.chevron}</label>`, `Doplněk platí od 3. týdne a každé pondělí se přepočítá podle tvého výdeje. Bomba přidá k jídlům olej, arašídové máslo a vločky (+500 kcal bez většího objemu); automaticky se zapne, když tempo zaostává${fastMode(s) ? ', a při minimu od 1 kg týdně platí pořád' : ''}.`)}
     ${menuSec()}
@@ -3960,7 +4045,7 @@ document.addEventListener('click', e => {
   else if (a === 'noblender') { const k = UI.date, s = b.dataset.slot; S.prefs = { ...S.prefs, noBlender: true }; persist('app/prefs', S.prefs); setWhy(k, s, 'blender'); render(); quickSheet(k, s); toast('Shake bez mixéru: jen protřepat v lahvi'); }
   else if (a === 'outdone') { const k = b.dataset.k || UI.date; outDone(k); if (sheetOpen()) closeSheet(); render(); const tt = dayTotals(k); toast(tt.pct >= 0.9 ? 'Den splněn' : `Den uzavřen · ${kc(tt.dk)} kcal`); }
   else if (a === 'trainday') { const k = b.dataset.k || UI.date, tr = trainingSec(k, dayRec(k)); if (tr) openSheet(k === todayKey() ? 'Dnes' : dayName(k), tr); }
-  else if (a === 'automsg') { const am = S.settings.autoMsg; if (am) openSheet('Chytré tempo', `<h2 class="t-title2">Plán na tento týden</h2><p class="t-sub l2" style="margin:4px 4px 0;line-height:1.45">${esc(am.txt)}</p>${am.to !== am.from && !am.undone ? '<button class="btn block" data-act="autoundo">Vrátit původní</button>' : ''}`); }
+  else if (a === 'automsg') { const am = S.settings.autoMsg; if (am) openSheet(am.cap && Number(S.settings.cap) > 0 ? 'Plán postupně' : 'Chytré tempo', `<h2 class="t-title2">Plán na tento týden</h2><p class="t-sub l2" style="margin:4px 4px 0;line-height:1.45">${esc(am.txt)}</p>${Number(S.settings.cap) > 0 ? '<button class="btn block" data-act="ramp">Změnit, kolik zvládneš</button>' : am.to !== am.from && !am.undone ? '<button class="btn block" data-act="autoundo">Vrátit původní</button>' : ''}`); }
   else if (a === 'phfor') { UI.phFor = b.dataset.s || ''; for (const o of b.parentNode.children) o.setAttribute('aria-pressed', String(o === b)); const f = document.getElementById('ph-for-f'); if (f) f.textContent = phForText(UI.phFor); }
   else if (a === 'lkgroup') lkGroupSheet(b.dataset.lk);
   else if (a === 'lkrepl') { const k = UI.date, s = b.dataset.s || '', ok = setRepl(k, b.dataset.lk, s); render(); if (ok === false) toast('Tohle jídlo už máš snědené'); else { lkGroupSheet(b.dataset.lk); toast(s ? `Místo ${SLOT_GEN[s]} · počítá se fotka` : 'Přičteno jako navíc'); } }
@@ -3974,6 +4059,8 @@ document.addEventListener('click', e => {
   else if (a === 'fcat') { UI.fcat = UI.fcat === b.dataset.c ? '' : b.dataset.c; UI.fq = ''; const i = document.getElementById('f-q'); if (i) i.value = ''; document.querySelectorAll('[data-act=fcat]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.c === UI.fcat))); const l = document.getElementById('flist'); if (l) l.innerHTML = foodList(); }
   else if (a === 'fx') { UI.fx = Number(b.dataset.f); document.querySelectorAll('[data-act=fx]').forEach(x => x.setAttribute('aria-pressed', String(Number(x.dataset.f) === UI.fx))); const l = document.getElementById('flist'); if (l) l.innerHTML = foodList(); }
   else if (a === 'ingd') { const x = planFor(UI.date).find(y => y.slot.k === b.dataset.slot); if (!x) return; const k = b.dataset.i, P = UI.portions || 1, cur = ((x.ing.find(e => e[0] === k) || [])[1] || 0) * P, st = qStep(ING[k].u, cur + (Number(b.dataset.d) < 0 ? -0.001 : 0)); ingChange(x.slot.k, k, Math.max(0, Math.round((cur + Number(b.dataset.d) * st) / st) * st)); }
+  else if (a === 'ramp') rampSheet();
+  else if (a === 'setcap') { const v = Number(b.dataset.v) || 0, cw = curWeek(); saveSettings({ cap: v, capHist: { ...(S.settings.capHist || {}), [cw]: v } }); closeSheet(); render(); toast(v ? `Plán ${kc(v)} kcal · každé pondělí +${RAMP_STEP}, když to zvládáš` : 'Celý plán'); }
   else if (a === 'ingrm') { const x = planFor(UI.date).find(y => y.slot.k === b.dataset.slot), k = b.dataset.i; if (!x) return; setIngAmount(UI.date, x.slot.k, k, 0); ingBack(); toast(`Odebráno: ${ING[k].n.split(' (')[0].toLowerCase()}`); }
   else if (a === 'ingback') { const x = planFor(UI.date).find(y => y.slot.k === b.dataset.slot), k = b.dataset.i; if (!x) return; const b0 = (x.baseIng.find(e => e[0] === k) || [])[1] || 0; setIngAmount(UI.date, x.slot.k, k, b0); ingBack(); }
   else if (a === 'ingswap') ingSwapSheet(b.dataset.slot, b.dataset.i);
